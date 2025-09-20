@@ -8,12 +8,35 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Camera, UserPlus, FileText } from "lucide-react";
+import { Camera, UserPlus, FileText, Building, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function MainNav() {
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState<string | null>(null);
 
-  const menuItems = [
+  useEffect(() => {
+    // Ensure this runs only on the client
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem("userRole");
+      setUserRole(role);
+    }
+  }, []);
+
+  const serverMenuItems = [
+    {
+      href: "/server-manage-institution",
+      label: "Create and Manage institutions",
+      icon: Building,
+    },
+    {
+      href: "/server-manage-user",
+      label: "Manage and monitor users",
+      icon: Users,
+    },
+  ];
+
+  const defaultMenuItems = [
     {
       href: "/attendance",
       label: "Attendance",
@@ -30,6 +53,8 @@ export function MainNav() {
       icon: FileText,
     },
   ];
+
+  const menuItems = userRole === 'server' ? serverMenuItems : defaultMenuItems;
 
   return (
     <SidebarMenu>
