@@ -17,7 +17,7 @@ import { Bot } from "lucide-react";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "AttendaVision",
+  title: "TRACEIN",
   description: "ML integrated attendance system",
 };
 
@@ -40,7 +40,7 @@ export default function RootLayout({
               <SidebarHeader>
                 <div className="flex items-center gap-2 p-2">
                   <Bot className="w-8 h-8 text-primary" />
-                  <h1 className="text-xl font-semibold">AttendaVision</h1>
+                  <h1 className="text-xl font-semibold">TRACEIN</h1>
                 </div>
               </SidebarHeader>
               <SidebarContent>
