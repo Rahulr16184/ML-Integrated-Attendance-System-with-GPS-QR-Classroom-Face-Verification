@@ -6,3 +6,19 @@ export type AttendanceRecord = {
   time: string;
   status: 'Present' | 'Absent' | 'Late';
 };
+
+export type Department = {
+  id: string;
+  name: string;
+  secretCodes: {
+    student: string;
+    teacher: string;
+    admin: string;
+  };
+};
+
+export type Institution = {
+  id: string;
+  name: string;
+  departments: Department[];
+};

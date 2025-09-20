@@ -1,0 +1,43 @@
+{
+  "institutions": [
+    {
+      "id": "inst-1627842_623_-3284",
+      "name": "Global Tech Academy",
+      "departments": [
+        {
+          "id": "dept-92478-2423-2814",
+          "name": "Computer Science",
+          "secretCodes": {
+            "student": "GTA-CS-STU-2024",
+            "teacher": "GTA-CS-TEA-2024",
+            "admin": "GTA-CS-ADM-2024"
+          }
+        },
+        {
+          "id": "dept-38491-9874-5432",
+          "name": "Business Administration",
+          "secretCodes": {
+            "student": "GTA-BA-STU-2024",
+            "teacher": "GTA-BA-TEA-2024",
+            "admin": "GTA-BA-ADM-2024"
+          }
+        }
+      ]
+    },
+    {
+      "id": "inst-983451_123_-9876",
+      "name": "Innovate University",
+      "departments": [
+        {
+          "id": "dept-54382-7893-1122",
+          "name": "Mechanical Engineering",
+          "secretCodes": {
+            "student": "IU-ME-STU-2024",
+            "teacher": "IU-ME-TEA-2024",
+            "admin": "IU-ME-ADM-2024"
+          }
+        }
+      ]
+    }
+  ]
+}
