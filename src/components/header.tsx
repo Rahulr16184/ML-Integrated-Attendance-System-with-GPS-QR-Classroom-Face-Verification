@@ -9,14 +9,20 @@ import { useEffect, useState } from "react";
 
 export function Header() {
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     // Ensure this runs only on the client
     if (typeof window !== 'undefined') {
       const role = localStorage.getItem("userRole");
       setUserRole(role);
     }
   }, []);
+  
+  if (!isMounted) {
+    return null; // Don't render server-side
+  }
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">

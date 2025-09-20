@@ -24,9 +24,40 @@ import { AlertCircle } from 'lucide-react'
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
   const { toast } = useToast()
+
+  useEffect(() => {
+    const userRole = localStorage.getItem("userRole")
+    if (userRole) {
+      toast({
+        title: "Already logged in",
+        description: `Redirecting to your dashboard.`,
+      })
+      redirectToDashboard(userRole)
+    }
+  }, [router, toast])
+
+  const redirectToDashboard = (role: string) => {
+    switch (role) {
+      case "admin":
+        router.push("/admin-dashboard")
+        break
+      case "teacher":
+        router.push("/teacher-dashboard")
+        break
+      case "student":
+        router.push("/student-dashboard")
+        break
+      case "server":
+        router.push("/server-dashboard")
+        break
+      default:
+        router.push("/")
+    }
+  }
 
   const handleLogin = () => {
     setError("")
@@ -35,28 +66,15 @@ export default function LoginPage() {
     )
 
     if (user) {
+      if (rememberMe) {
         localStorage.setItem("userRole", user.role);
         localStorage.setItem("userEmail", user.email);
+      }
       toast({
         title: "Login Successful",
         description: `Welcome, ${user.role}!`,
       })
-      switch (user.role) {
-        case "admin":
-          router.push("/admin-dashboard")
-          break
-        case "teacher":
-          router.push("/teacher-dashboard")
-          break
-        case "student":
-          router.push("/student-dashboard")
-          break
-        case "server":
-          router.push("/server-dashboard")
-          break
-        default:
-          router.push("/")
-      }
+      redirectToDashboard(user.role)
     } else {
       setError("Invalid email or password.")
     }
@@ -114,7 +132,11 @@ export default function LoginPage() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox id="remember-me" />
+            <Checkbox 
+              id="remember-me" 
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+            />
             <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
           </div>
           <Button onClick={handleLogin} className="w-full">
