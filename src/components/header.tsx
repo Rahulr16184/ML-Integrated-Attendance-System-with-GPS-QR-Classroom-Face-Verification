@@ -8,11 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 export function Header() {
-  const [isClient, setIsClient] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsClient(true);
+    // Ensure this runs only on the client
     const role = localStorage.getItem("userRole");
     setUserRole(role);
   }, []);
@@ -21,7 +20,7 @@ export function Header() {
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <SidebarTrigger className="md:hidden" />
       <div className="flex-1" />
-      {isClient && <ThemeToggle />}
+      <ThemeToggle />
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" asChild>
           <Link href="/profile">

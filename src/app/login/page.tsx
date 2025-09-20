@@ -54,7 +54,7 @@ export default function LoginPage() {
           router.push("/student-dashboard")
           break
         default:
-          router.push("/login") // Default fallback
+          router.push("/")
       }
     } else {
       setError("Invalid email or password.")
