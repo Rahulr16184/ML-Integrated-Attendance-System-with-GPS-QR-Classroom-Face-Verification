@@ -86,8 +86,6 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     if ('departments' in item) {
       setEditingInstitution(item);
     } else {
-      // This is a department, so make sure to clear editingInstitution
-      setEditingInstitution(null);
       setEditingDepartment(item);
     }
     setEditingName(name);
@@ -159,24 +157,28 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
             <Accordion type="single" collapsible className="w-full" onValueChange={(value) => setSelectedInstitution(institutions.find(inst => inst.id === value) || null)}>
               {institutions.map((inst) => (
                 <AccordionItem key={inst.id} value={inst.id}>
-                  <AccordionTrigger className="text-lg font-medium">
-                     <div className="flex items-center gap-3 w-full">
-                        {editingInstitution?.id === inst.id ? (
-                           <div className="flex items-center gap-2 w-full">
-                             <Input value={editingName} onChange={e => setEditingName(e.target.value)} onClick={e => e.stopPropagation()} className="h-9" />
-                             <Button size="icon" className="h-9 w-9" onClick={(e) => { e.stopPropagation(); saveName(inst.id, 'institution');}}><Save className="h-4 w-4"/></Button>
-                             <Button size="icon" variant="ghost" className="h-9 w-9" onClick={(e) => { e.stopPropagation(); cancelEditing();}}><X className="h-4 w-4"/></Button>
-                           </div>
-                        ) : (
-                           <>
-                            <University /> {inst.name}
-                            <Button variant="ghost" size="icon" className="ml-auto" onClick={(e) => { e.stopPropagation(); startEditing(inst, inst.name); }}>
-                                <Pen className="h-4 w-4" />
-                            </Button>
-                           </>
-                        )}
-                    </div>
-                  </AccordionTrigger>
+                  <div className="flex items-center w-full">
+                    <AccordionTrigger className="text-lg font-medium flex-grow">
+                      <div className="flex items-center gap-3 w-full">
+                          {editingInstitution?.id === inst.id ? (
+                            <div className="flex items-center gap-2 w-full pr-10">
+                              <Input value={editingName} onChange={e => setEditingName(e.target.value)} onClick={e => e.stopPropagation()} className="h-9" />
+                              <Button size="icon" className="h-9 w-9" onClick={(e) => { e.stopPropagation(); saveName(inst.id, 'institution');}}><Save className="h-4 w-4"/></Button>
+                              <Button size="icon" variant="ghost" className="h-9 w-9" onClick={(e) => { e.stopPropagation(); cancelEditing();}}><X className="h-4 w-4"/></Button>
+                            </div>
+                          ) : (
+                            <>
+                              <University /> {inst.name}
+                            </>
+                          )}
+                      </div>
+                    </AccordionTrigger>
+                    {editingInstitution?.id !== inst.id && (
+                      <Button variant="ghost" size="icon" className="ml-auto mr-4" onClick={(e) => { e.stopPropagation(); startEditing(inst, inst.name); }}>
+                          <Pen className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   <AccordionContent className="pl-4 space-y-4">
                     <div className="p-4 border rounded-lg bg-muted/20">
                       <h4 className="font-semibold mb-2">Create Department/Class</h4>
