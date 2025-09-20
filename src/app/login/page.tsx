@@ -35,22 +35,26 @@ export default function LoginPage() {
     )
 
     if (user) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("userRole", user.role);
+        localStorage.setItem("userEmail", user.email);
+      }
       toast({
         title: "Login Successful",
         description: `Welcome, ${user.role}!`,
       })
       switch (user.role) {
         case "admin":
-          router.push("/attendance")
+          router.push("/admin-dashboard")
           break
         case "teacher":
-          router.push("/attendance")
+          router.push("/teacher-dashboard")
           break
         case "student":
           router.push("/student-dashboard")
           break
         default:
-          router.push("/attendance") // Default dashboard
+          router.push("/login") // Default fallback
       }
     } else {
       setError("Invalid email or password.")
