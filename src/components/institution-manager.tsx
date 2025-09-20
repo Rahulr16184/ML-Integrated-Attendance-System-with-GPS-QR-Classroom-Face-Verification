@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Institution, Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Building, University, Pen, Trash2, KeyRound } from 'lucide-react';
+import { PlusCircle, Building, University, Pen, Trash2, KeyRound, Save, X } from 'lucide-react';
 
 interface InstitutionManagerProps {
   initialInstitutions: Institution[];
@@ -21,6 +21,8 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
   const [newDepartmentName, setNewDepartmentName] = useState('');
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
+  const [editingName, setEditingName] = useState('');
   const [secretCodes, setSecretCodes] = useState({ student: '', teacher: '', admin: '' });
   const { toast } = useToast();
 
@@ -80,6 +82,52 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     setSecretCodes(prev => ({...prev, [role]: value}));
   };
 
+  const startEditing = (item: Institution | Department, name: string) => {
+    if ('departments' in item) {
+      setEditingInstitution(item);
+    } else {
+      setEditingDepartment(item);
+    }
+    setEditingName(name);
+  };
+
+  const cancelEditing = () => {
+    setEditingInstitution(null);
+    setEditingDepartment(null);
+    setEditingName('');
+  };
+
+  const saveName = (id: string, type: 'institution' | 'department') => {
+    if (!editingName.trim()) {
+      toast({ title: 'Error', description: 'Name cannot be empty.', variant: 'destructive' });
+      return;
+    }
+    if (type === 'institution') {
+      setInstitutions(
+        institutions.map((inst) => (inst.id === id ? { ...inst, name: editingName.trim() } : inst))
+      );
+    } else if (selectedInstitution) {
+      const updatedDepts = selectedInstitution.departments.map((dept) =>
+        dept.id === id ? { ...dept, name: editingName.trim() } : dept
+      );
+      const updatedInsts = institutions.map((inst) =>
+        inst.id === selectedInstitution.id ? { ...inst, departments: updatedDepts } : inst
+      );
+      setInstitutions(updatedInsts);
+      setSelectedInstitution(updatedInsts.find(i => i.id === selectedInstitution.id) || null);
+    }
+    cancelEditing();
+    toast({ title: 'Success', description: `${type === 'institution' ? 'Institution' : 'Department'} name updated.` });
+  };
+  
+  useEffect(() => {
+    if (selectedInstitution) {
+        const currentSelected = institutions.find(inst => inst.id === selectedInstitution.id);
+        setSelectedInstitution(currentSelected || null);
+    }
+  }, [institutions, selectedInstitution?.id]);
+
+
   return (
     <div className="space-y-6">
       <Card>
@@ -106,12 +154,25 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
         </CardHeader>
         <CardContent>
           {institutions.length > 0 ? (
-            <Accordion type="single" collapsible className="w-full">
+            <Accordion type="single" collapsible className="w-full" onValueChange={(value) => setSelectedInstitution(institutions.find(inst => inst.id === value) || null)}>
               {institutions.map((inst) => (
-                <AccordionItem key={inst.id} value={inst.id} onClick={() => setSelectedInstitution(inst)}>
+                <AccordionItem key={inst.id} value={inst.id}>
                   <AccordionTrigger className="text-lg font-medium">
-                    <div className="flex items-center gap-3">
-                        <University /> {inst.name}
+                     <div className="flex items-center gap-3 w-full">
+                        {editingInstitution?.id === inst.id ? (
+                           <div className="flex items-center gap-2 w-full">
+                             <Input value={editingName} onChange={e => setEditingName(e.target.value)} className="h-9" />
+                             <Button size="icon" className="h-9 w-9" onClick={() => saveName(inst.id, 'institution')}><Save className="h-4 w-4"/></Button>
+                             <Button size="icon" variant="ghost" className="h-9 w-9" onClick={cancelEditing}><X className="h-4 w-4"/></Button>
+                           </div>
+                        ) : (
+                           <>
+                            <University /> {inst.name}
+                            <Button variant="ghost" size="icon" className="ml-auto" onClick={(e) => { e.stopPropagation(); startEditing(inst, inst.name); }}>
+                                <Pen className="h-4 w-4" />
+                            </Button>
+                           </>
+                        )}
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pl-4 space-y-4">
@@ -123,7 +184,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                           value={newDepartmentName}
                           onChange={(e) => setNewDepartmentName(e.target.value)}
                         />
-                        <Button onClick={handleCreateDepartment} variant="secondary"><PlusCircle className="mr-2" /> Add</Button>
+                        <Button onClick={handleCreateDepartment} variant="secondary" disabled={!selectedInstitution}><PlusCircle className="mr-2" /> Add</Button>
                       </div>
                     </div>
                     <div>
@@ -132,11 +193,26 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                             <ul className="space-y-2">
                             {inst.departments.map((dept) => (
                                 <li key={dept.id} className="flex items-center justify-between p-2 border rounded-md">
-                                <span className="font-medium">{dept.name}</span>
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenEditModal(dept)}>
-                                    <Pen className="h-4 w-4" />
-                                    <span className="sr-only">Edit Codes</span>
-                                </Button>
+                                    {editingDepartment?.id === dept.id ? (
+                                        <div className="flex items-center gap-2 w-full">
+                                            <Input value={editingName} onChange={e => setEditingName(e.target.value)} className="h-9"/>
+                                            <Button size="icon" className="h-9 w-9" onClick={() => saveName(dept.id, 'department')}><Save className="h-4 w-4"/></Button>
+                                            <Button size="icon" variant="ghost" className="h-9 w-9" onClick={cancelEditing}><X className="h-4 w-4"/></Button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <span className="font-medium">{dept.name}</span>
+                                            <div className="flex items-center">
+                                                <Button variant="ghost" size="icon" onClick={() => startEditing(dept, dept.name)}>
+                                                    <Pen className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleOpenEditModal(dept)}>
+                                                    <KeyRound className="h-4 w-4" />
+                                                    <span className="sr-only">Edit Codes</span>
+                                                </Button>
+                                            </div>
+                                        </>
+                                    )}
                                 </li>
                             ))}
                             </ul>
@@ -154,7 +230,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
         </CardContent>
       </Card>
 
-      <Dialog open={!!editingDepartment} onOpenChange={(open) => !open && setEditingDepartment(null)}>
+      <Dialog open={!!editingDepartment && !editingName} onOpenChange={(open) => { if (!open) setEditingDepartment(null) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Manage Secret Codes for {editingDepartment?.name}</DialogTitle>
