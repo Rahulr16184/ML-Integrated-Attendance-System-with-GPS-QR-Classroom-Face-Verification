@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -35,10 +35,8 @@ export default function LoginPage() {
     )
 
     if (user) {
-      if (typeof window !== "undefined") {
         localStorage.setItem("userRole", user.role);
         localStorage.setItem("userEmail", user.email);
-      }
       toast({
         title: "Login Successful",
         description: `Welcome, ${user.role}!`,
@@ -52,6 +50,9 @@ export default function LoginPage() {
           break
         case "student":
           router.push("/student-dashboard")
+          break
+        case "server":
+          router.push("/server-dashboard")
           break
         default:
           router.push("/")
