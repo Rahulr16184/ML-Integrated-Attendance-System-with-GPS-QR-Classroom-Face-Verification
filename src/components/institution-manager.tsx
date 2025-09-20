@@ -86,11 +86,13 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     if ('departments' in item) {
       setEditingInstitution(item);
     } else {
+      // This is a department, so make sure to clear editingInstitution
+      setEditingInstitution(null);
       setEditingDepartment(item);
     }
     setEditingName(name);
   };
-
+  
   const cancelEditing = () => {
     setEditingInstitution(null);
     setEditingDepartment(null);
@@ -161,9 +163,9 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                      <div className="flex items-center gap-3 w-full">
                         {editingInstitution?.id === inst.id ? (
                            <div className="flex items-center gap-2 w-full">
-                             <Input value={editingName} onChange={e => setEditingName(e.target.value)} className="h-9" />
-                             <Button size="icon" className="h-9 w-9" onClick={() => saveName(inst.id, 'institution')}><Save className="h-4 w-4"/></Button>
-                             <Button size="icon" variant="ghost" className="h-9 w-9" onClick={cancelEditing}><X className="h-4 w-4"/></Button>
+                             <Input value={editingName} onChange={e => setEditingName(e.target.value)} onClick={e => e.stopPropagation()} className="h-9" />
+                             <Button size="icon" className="h-9 w-9" onClick={(e) => { e.stopPropagation(); saveName(inst.id, 'institution');}}><Save className="h-4 w-4"/></Button>
+                             <Button size="icon" variant="ghost" className="h-9 w-9" onClick={(e) => { e.stopPropagation(); cancelEditing();}}><X className="h-4 w-4"/></Button>
                            </div>
                         ) : (
                            <>
