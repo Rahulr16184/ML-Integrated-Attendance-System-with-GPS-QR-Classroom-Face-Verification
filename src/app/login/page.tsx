@@ -14,11 +14,26 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mail, Lock, Chrome } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import users from "@/lib/users.json"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from 'lucide-react'
+
+const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg
+      role="img"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <title>Google</title>
+      <path
+        d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.05 1.05-2.36 1.67-4.66 1.67-3.86 0-6.99-3.14-6.99-7s3.13-7 6.99-7c2.03 0 3.36.79 4.3 1.7l2.16-2.16C18.22 1.72 15.63 0 12.48 0 5.88 0 0 5.88 0 12s5.88 12 12.48 12c7.34 0 12.04-5.06 12.04-12.24 0-.78-.08-1.54-.23-2.31H12.48z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 
 
 export default function LoginPage() {
@@ -28,6 +43,7 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const router = useRouter()
   const { toast } = useToast()
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole")
@@ -69,6 +85,9 @@ export default function LoginPage() {
       if (rememberMe) {
         localStorage.setItem("userRole", user.role);
         localStorage.setItem("userEmail", user.email);
+      } else {
+        sessionStorage.setItem("userRole", user.role);
+        sessionStorage.setItem("userEmail", user.email);
       }
       toast({
         title: "Login Successful",
@@ -83,10 +102,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account.
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-bold">Welcome Back!</CardTitle>
+          <CardDescription className="uppercase pt-2 font-semibold text-muted-foreground">
+            Login with Credentials
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -113,31 +132,41 @@ export default function LoginPage() {
             </div>
           </div>
           <div className="grid gap-2">
-            <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link href="#" className="ml-auto inline-block text-sm underline">
-                    Forgot your password?
-                </Link>
-            </div>
+            <Label htmlFor="password">Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 id="password" 
-                type="password" 
+                type={showPassword ? "text" : "password"}
                 required 
-                className="pl-10" 
+                className="pl-10 pr-10" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff /> : <Eye />}
+                <span className="sr-only">
+                  {showPassword ? 'Hide password' : 'Show password'}
+                </span>
+              </button>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="remember-me" 
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-            />
-            <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="remember-me" 
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+              />
+              <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
+            </div>
+            <Link href="#" className="inline-block text-sm underline">
+                Forgot your password?
+            </Link>
           </div>
           <Button onClick={handleLogin} className="w-full">
             Login
@@ -153,7 +182,7 @@ export default function LoginPage() {
             </div>
           </div>
           <Button variant="outline" className="w-full">
-            <Chrome className="mr-2 h-4 w-4" />
+            <GoogleIcon className="mr-2 h-4 w-4" />
             Login with Google
           </Button>
         </CardContent>
