@@ -95,15 +95,15 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={isCameraOn ? stopCamera : startCamera}>
+      <CardFooter className="flex flex-col sm:flex-row justify-between gap-2">
+        <Button variant="outline" onClick={isCameraOn ? stopCamera : startCamera} className="w-full sm:w-auto">
           {isCameraOn ? (
             <><VideoOff className="mr-2 h-4 w-4" /> Stop Camera</>
           ) : (
             <><Video className="mr-2 h-4 w-4" /> Start Camera</>
           )}
         </Button>
-        <Button onClick={handleCapture} disabled={!isCameraOn || isCapturing}>
+        <Button onClick={handleCapture} disabled={!isCameraOn || isCapturing} className="w-full sm:w-auto">
           <Camera className="mr-2 h-4 w-4" />
           {isCapturing ? "Processing..." : captureLabel}
         </Button>
