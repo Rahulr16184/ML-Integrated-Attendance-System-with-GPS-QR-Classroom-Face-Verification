@@ -54,11 +54,24 @@ export function MainNav() {
     },
   ];
 
-  const menuItems = userRole === 'server' ? serverMenuItems : defaultMenuItems;
-
   return (
     <SidebarMenu>
-      {menuItems.map((item) => (
+      {userRole === 'server' && serverMenuItems.map((item) => (
+        <SidebarMenuItem key={item.href}>
+          <SidebarMenuButton
+            asChild
+            isActive={pathname === item.href}
+            tooltip={item.label}
+            className={cn(pathname === item.href && "bg-sidebar-accent")}
+          >
+            <Link href={item.href}>
+              <item.icon />
+              <span>{item.label}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+      {userRole !== 'server' && defaultMenuItems.map((item) => (
         <SidebarMenuItem key={item.href}>
           <SidebarMenuButton
             asChild
