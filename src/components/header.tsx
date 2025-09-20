@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { User, Home } from "lucide-react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
