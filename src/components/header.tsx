@@ -11,14 +11,12 @@ export function Header() {
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <SidebarTrigger className="md:hidden" />
       <div className="flex-1" />
-      <Link href="/profile" passHref>
-        <Button variant="outline" size="icon" asChild>
-          <a>
-            <User className="h-[1.2rem] w-[1.2rem]" />
-            <span className="sr-only">Profile</span>
-          </a>
-        </Button>
-      </Link>
+      <Button variant="outline" size="icon" asChild>
+        <Link href="/profile">
+          <User className="h-[1.2rem] w-[1.2rem]" />
+          <span className="sr-only">Profile</span>
+        </Link>
+      </Button>
       <ThemeToggle />
     </header>
   );
