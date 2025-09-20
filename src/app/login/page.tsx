@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,8 +15,48 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Mail, Lock, Chrome } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import users from "@/lib/users.json"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from 'lucide-react'
+
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const { toast } = useToast()
+
+  const handleLogin = () => {
+    setError("")
+    const user = users.users.find(
+      (u) => u.email === email && u.password === password
+    )
+
+    if (user) {
+      toast({
+        title: "Login Successful",
+        description: `Welcome, ${user.role}!`,
+      })
+      switch (user.role) {
+        case "admin":
+          router.push("/attendance")
+          break
+        case "teacher":
+          router.push("/attendance")
+          break
+        case "student":
+          router.push("/student-dashboard")
+          break
+        default:
+          router.push("/attendance") // Default dashboard
+      }
+    } else {
+      setError("Invalid email or password.")
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
@@ -25,11 +67,26 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {error && (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Login Failed</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="email" type="email" placeholder="m@example.com" required className="pl-10" />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="m@example.com" 
+                required 
+                className="pl-10" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
           </div>
           <div className="grid gap-2">
@@ -41,15 +98,22 @@ export default function LoginPage() {
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="password" type="password" required className="pl-10" />
+              <Input 
+                id="password" 
+                type="password" 
+                required 
+                className="pl-10" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox id="remember-me" />
             <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
           </div>
-          <Button type="submit" className="w-full" asChild>
-            <Link href="/attendance">Login</Link>
+          <Button onClick={handleLogin} className="w-full">
+            Login
           </Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
