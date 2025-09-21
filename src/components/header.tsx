@@ -4,43 +4,13 @@ import Link from "next/link";
 import { User, Home } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
 
 type HeaderProps = {
     dashboardUrl?: string;
+    userRole?: string;
 }
 
-export function Header({ dashboardUrl = "/profile" }: HeaderProps) {
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    // Ensure this runs only on the client
-    if (typeof window !== 'undefined') {
-      const role = localStorage.getItem("userRole");
-      setUserRole(role);
-    }
-  }, []);
-  
-  if (!isMounted) {
-    // On the server or before hydration, render a placeholder or nothing
-    return (
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-            {/* Render a simplified or skeleton header */}
-            <div className="flex-1" />
-            <ThemeToggle />
-            <Button variant="outline" size="icon" asChild>
-                <Link href="/profile">
-                    <User className="h-[1.2rem] w-[1.2rem]" />
-                    <span className="sr-only">Profile</span>
-                </Link>
-            </Button>
-        </header>
-    );
-  }
-
-
+export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <div className="flex items-center gap-4">
