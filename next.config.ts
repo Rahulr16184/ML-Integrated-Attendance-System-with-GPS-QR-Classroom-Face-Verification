@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https.://api.qrserver.com',
+        protocol: 'https',
         hostname: 'api.qrserver.com',
         port: '',
         pathname: '/**',
