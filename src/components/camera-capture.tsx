@@ -30,10 +30,13 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
   }, []);
 
   const startCamera = useCallback(async () => {
+    // Ensure any existing streams are stopped before starting a new one.
     stopCamera(); 
-    setError(null);
+    
     setCapturedImage(null);
+    setError(null);
     setIsInitializing(true);
+    
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
@@ -67,7 +70,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
     return () => {
       stopCamera();
     };
-  }, [startCamera, stopCamera]);
+  }, []);
 
 
   const handleCapture = () => {
@@ -89,7 +92,6 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
   };
 
   const handleRecapture = () => {
-    setCapturedImage(null);
     startCamera();
   };
 
