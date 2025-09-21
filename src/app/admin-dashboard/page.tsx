@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Users, LayoutDashboard, Settings, Info, CreditCard, DatabaseZap } from "lucide-react";
+import { Users, LayoutDashboard, Settings, Info, CreditCard, DatabaseZap, CalendarDays } from "lucide-react";
 
 export default function AdminDashboardPage() {
   return (
@@ -10,15 +10,6 @@ export default function AdminDashboardPage() {
       <main className="flex-1 p-4 sm:p-6 space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Hi, Admin</h1>
         
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <DatabaseZap className="h-6 w-6" />
-                    MANAGE MASTER ATTENDANCE
-                </CardTitle>
-            </CardHeader>
-        </Card>
-
         <div className="w-full">
             <Button asChild className="w-full text-lg py-6">
                 <Link href="/idcard">
@@ -58,6 +49,23 @@ export default function AdminDashboardPage() {
                     <p className="text-sm font-medium">DEPARTMENT</p>
                     <p className="text-sm text-muted-foreground break-words">Administration</p>
                 </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <DatabaseZap className="h-6 w-6" />
+                    MANAGE MASTER ATTENDANCE
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
+                    <Link href="/working-days">
+                        <CalendarDays className="h-8 w-8" />
+                        <span className="text-sm font-semibold">WORKING DAYS</span>
+                    </Link>
+                </Button>
             </CardContent>
         </Card>
 

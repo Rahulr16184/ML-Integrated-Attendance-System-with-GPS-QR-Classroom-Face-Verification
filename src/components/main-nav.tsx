@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Camera, UserPlus, FileText, CreditCard, User } from "lucide-react";
+import { Camera, UserPlus, FileText, CreditCard, User, CalendarDays } from "lucide-react";
 import { useSidebar } from "./ui/sidebar";
 import { useState, useEffect } from "react";
 
@@ -57,6 +57,14 @@ export function MainNav() {
         icon: User,
     }
   ];
+
+  if (userRole === "admin" || userRole === "teacher") {
+    menuItems.push({
+      href: "/working-days",
+      label: "Working Days",
+      icon: CalendarDays,
+    });
+  }
 
   return (
     <SidebarMenu>
