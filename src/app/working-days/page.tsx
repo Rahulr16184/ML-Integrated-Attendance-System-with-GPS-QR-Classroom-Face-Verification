@@ -49,10 +49,16 @@ export default function WorkingDaysPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const availableRomans = useMemo(() => {
+    const currentSemesterRoman = editingMode !== 'new' ? semesters.find(s => s.id === editingMode)?.roman : null;
     const usedRomans = semesters
       .filter(s => s.batch === selectedBatch && s.id !== editingMode)
       .map(s => s.roman);
-    return SEMESTER_ROMANS.filter(r => !usedRomans.includes(r));
+    
+    const options = SEMESTER_ROMANS.filter(r => !usedRomans.includes(r));
+    if (editingMode !== 'new' && currentSemesterRoman && !options.includes(currentSemesterRoman)) {
+        options.unshift(currentSemesterRoman);
+    }
+    return options;
   }, [semesters, selectedBatch, editingMode]);
   
   const filteredSemesters = useMemo(() => {
@@ -133,6 +139,7 @@ export default function WorkingDaysPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if(!open) setDeleteTarget(null)}}>
         <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Manage Working Days</h1>
             <p className="text-muted-foreground">Define academic semesters, set holidays, and calculate total working days.</p>
@@ -273,42 +280,39 @@ export default function WorkingDaysPage() {
                 </Card>
             )}
         </div>
-         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if(!open) setDeleteTarget(null)}}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Are you absolutely sure?</DialogTitle>
-                    <DialogDescription>
-                        This action cannot be undone. This will permanently delete the semester data.
-                    </DialogDescription>
-                </DialogHeader>
-                <Alert variant="destructive">
-                    <AlertTitle>Warning</AlertTitle>
-                    <AlertDescription>
-                        To confirm, please type <strong>CONFIRM</strong> in the box below.
-                    </AlertDescription>
-                </Alert>
-                <Input 
-                    id="delete-confirm" 
-                    placeholder='Type "CONFIRM" to delete'
-                    value={deleteConfirmation}
-                    onChange={(e) => setDeleteConfirmation(e.target.value)}
-                />
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteConfirmation("")}}>Cancel</Button>
-                    </DialogClose>
-                    <Button
-                        variant="destructive"
-                        disabled={deleteConfirmation !== 'CONFIRM'}
-                        onClick={handleDeleteSemester}
-                    >
-                        I understand, delete this semester
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Are you absolutely sure?</DialogTitle>
+                <DialogDescription>
+                    This action cannot be undone. This will permanently delete the semester data.
+                </DialogDescription>
+            </DialogHeader>
+            <Alert variant="destructive">
+                <AlertTitle>Warning</AlertTitle>
+                <AlertDescription>
+                    To confirm, please type <strong>CONFIRM</strong> in the box below.
+                </AlertDescription>
+            </Alert>
+            <Input 
+                id="delete-confirm" 
+                placeholder='Type "CONFIRM" to delete'
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+            />
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteConfirmation("")}}>Cancel</Button>
+                </DialogClose>
+                <Button
+                    variant="destructive"
+                    disabled={deleteConfirmation !== 'CONFIRM'}
+                    onClick={handleDeleteSemester}
+                >
+                    I understand, delete this semester
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-    
