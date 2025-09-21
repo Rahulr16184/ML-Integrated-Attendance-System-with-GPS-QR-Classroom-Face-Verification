@@ -21,18 +21,20 @@ export default function IdCardPage() {
   return (
     <div className="p-4 sm:p-6 flex items-center justify-center bg-muted/40 min-h-full">
       <Card className="w-full max-w-sm rounded-2xl shadow-lg overflow-hidden border-primary/50">
-        <CardHeader className="flex flex-row items-center justify-between space-x-4 p-6">
+        <CardHeader className="p-6 text-center">
             <CardTitle className="text-2xl font-bold tracking-wider">DIGITAL ID</CardTitle>
-            <Image 
-                src={user.profileImage} 
-                alt={user.name} 
-                width={80} 
-                height={80} 
-                className="rounded-lg object-cover"
-                data-ai-hint="profile picture"
-            />
         </CardHeader>
         <CardContent className="p-6 pt-0 text-center">
+            <div className="flex justify-center mb-4">
+                <Image 
+                    src={user.profileImage} 
+                    alt={user.name} 
+                    width={80} 
+                    height={80} 
+                    className="rounded-lg object-cover"
+                    data-ai-hint="profile picture"
+                />
+            </div>
             <p className="font-bold text-lg">{user.role || "--"}</p>
             <div className="w-full text-sm space-y-2 pt-4 mt-4 border-t">
                <div className="grid grid-cols-2 items-center text-left">
