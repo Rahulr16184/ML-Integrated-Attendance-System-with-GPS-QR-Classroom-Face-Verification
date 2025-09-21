@@ -5,6 +5,7 @@ import { User, Home, LogOut } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type HeaderProps = {
     dashboardUrl?: string;
@@ -43,12 +44,14 @@ export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
       </div>
       <div className="flex-1" />
       <div className="flex items-center gap-4">
-         <Button variant="outline" size="icon" asChild>
-          <Link href="/profile">
-            <User className="h-[1.2rem] w-[1.2rem]" />
-            <span className="sr-only">Profile</span>
-          </Link>
-        </Button>
+         {userRole !== 'server' && (
+            <Button variant="outline" size="icon" asChild>
+                <Link href="/profile">
+                    <User className="h-[1.2rem] w-[1.2rem]" />
+                    <span className="sr-only">Profile</span>
+                </Link>
+            </Button>
+         )}
         <ThemeToggle />
         <Button variant="outline" size="icon" onClick={handleLogout}>
           <LogOut className="h-[1.2rem] w-[1.2rem]" />

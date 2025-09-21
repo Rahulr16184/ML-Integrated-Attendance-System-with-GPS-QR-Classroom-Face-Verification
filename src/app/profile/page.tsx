@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -20,6 +19,8 @@ export default function ProfilePage() {
   const handleLogout = () => {
     localStorage.removeItem("userRole");
     localStorage.removeItem("userEmail");
+    sessionStorage.removeItem("userRole");
+    sessionStorage.removeItem("userEmail");
     router.push("/login");
   };
 
