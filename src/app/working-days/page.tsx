@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -15,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Calculator, Save } from "lucide-react";
 import { format } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 export default function WorkingDaysPage() {
   const [batch, setBatch] = useState<string>("");
