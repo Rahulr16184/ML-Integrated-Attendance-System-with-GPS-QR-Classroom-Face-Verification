@@ -23,15 +23,18 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
   const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-      setIsCameraOn(false);
     }
+    if (videoRef.current) {
+        videoRef.current.srcObject = null;
+    }
+    setStream(null);
+    setIsCameraOn(false);
   }, [stream]);
 
   const startCamera = useCallback(async () => {
+    if (stream) {
+        stopCamera();
+    }
     setError(null);
     setIsInitializing(true);
     try {
@@ -58,19 +61,18 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
         variant: "destructive",
       });
       setIsCameraOn(false);
-      stopCamera();
     } finally {
         setIsInitializing(false);
     }
-  }, [toast, stopCamera]);
+  }, [toast, stream, stopCamera]);
 
   useEffect(() => {
     startCamera();
-    // Cleanup on unmount
     return () => {
       stopCamera();
     };
-  }, [startCamera, stopCamera]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const handleCapture = () => {
@@ -97,7 +99,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
               <p>Starting camera...</p>
             </div>
           ) : isCameraOn ? (
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
           ) : (
             <div className="text-center text-muted-foreground p-4">
               <VideoOff className="mx-auto h-12 w-12" />
