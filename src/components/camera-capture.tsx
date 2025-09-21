@@ -35,7 +35,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
   }, [stream]);
 
   const startCamera = useCallback(async () => {
-    if (isCameraOn || stream) {
+    if (stream) {
         return;
     }
     setError(null);
@@ -68,19 +68,14 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
     } finally {
         setIsInitializing(false);
     }
-  }, [toast, isCameraOn, stream]);
+  }, [toast, stream]);
 
   useEffect(() => {
-    // Automatically start camera when component mounts
     startCamera();
-
-    // Cleanup function to stop camera when component unmounts
     return () => {
       stopCamera();
     };
-    // The dependency array is empty, so this effect runs only once on mount and cleanup on unmount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [startCamera, stopCamera]);
 
   const handleCapture = () => {
     if (videoRef.current) {
@@ -108,7 +103,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
   const handleUsePhoto = () => {
     if (capturedImage) {
         onCapture(capturedImage);
-        setCapturedImage(null); // Reset after capture
+        setCapturedImage(null); 
     }
   }
 
