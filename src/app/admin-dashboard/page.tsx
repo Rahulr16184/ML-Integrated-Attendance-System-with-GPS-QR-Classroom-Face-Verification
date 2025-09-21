@@ -17,27 +17,27 @@ export default function AdminDashboardPage() {
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">NAME</p>
-                    <p className="text-sm text-muted-foreground">Admin User</p>
+                    <p className="text-sm text-muted-foreground break-words">Admin User</p>
                 </div>
                 <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">DOB</p>
-                    <p className="text-sm text-muted-foreground">01-01-1990</p>
+                    <p className="text-sm text-muted-foreground break-words">01-01-1990</p>
                 </div>
                 <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">MOBILE NO</p>
-                    <p className="text-sm text-muted-foreground">+1 234 567 890</p>
+                    <p className="text-sm text-muted-foreground break-words">+1 234 567 890</p>
                 </div>
                 <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">MAIL ID</p>
-                    <p className="text-sm text-muted-foreground">admin@example.com</p>
+                    <p className="text-sm text-muted-foreground break-words">admin@example.com</p>
                 </div>
                 <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">INSTITUTION</p>
-                    <p className="text-sm text-muted-foreground">Global Tech Academy</p>
+                    <p className="text-sm text-muted-foreground break-words">Global Tech Academy</p>
                 </div>
                 <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">DEPARTMENT</p>
-                    <p className="text-sm text-muted-foreground">Administration</p>
+                    <p className="text-sm text-muted-foreground break-words">Administration</p>
                 </div>
             </CardContent>
         </Card>
