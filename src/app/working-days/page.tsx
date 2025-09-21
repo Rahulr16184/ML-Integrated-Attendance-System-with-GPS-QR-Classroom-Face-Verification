@@ -12,11 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Calendar as CalendarIcon, Calculator, Save, PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Calculator, Save, PlusCircle, Pencil, Trash2, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import type { Semester } from "@/lib/types";
 import mockSemesters from "@/lib/working-days.json";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 
 const SEMESTER_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
@@ -44,12 +45,15 @@ export default function WorkingDaysPage() {
   const [holidays, setHolidays] = useState<Date[]>([]);
   const [totalWorkingDays, setTotalWorkingDays] = useState<number | null>(null);
 
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+
   const availableRomans = useMemo(() => {
     const usedRomans = semesters
-      .filter(s => s.batch === selectedBatch)
+      .filter(s => s.batch === selectedBatch && s.id !== editingMode)
       .map(s => s.roman);
     return SEMESTER_ROMANS.filter(r => !usedRomans.includes(r));
-  }, [semesters, selectedBatch]);
+  }, [semesters, selectedBatch, editingMode]);
   
   const filteredSemesters = useMemo(() => {
     return semesters.filter(s => s.batch === selectedBatch).sort((a,b) => SEMESTER_ROMANS.indexOf(a.roman) - SEMESTER_ROMANS.indexOf(b.roman));
@@ -116,11 +120,15 @@ export default function WorkingDaysPage() {
     setEditingMode(null);
   };
 
-  const handleDeleteSemester = (semesterId: string) => {
-    setSemesters(semesters.filter(s => s.id !== semesterId));
-    if (editingMode === semesterId) {
-      setEditingMode(null);
+  const handleDeleteSemester = () => {
+    if (deleteTarget && deleteConfirmation === "CONFIRM") {
+        setSemesters(semesters.filter(s => s.id !== deleteTarget));
+        if (editingMode === deleteTarget) {
+            setEditingMode(null);
+        }
     }
+    setDeleteTarget(null);
+    setDeleteConfirmation("");
   }
 
   return (
@@ -168,9 +176,11 @@ export default function WorkingDaysPage() {
                                 <Button variant="ghost" size="icon" onClick={() => handleSelectExisting(semester)}>
                                     <Pencil className="h-4 w-4" />
                                 </Button>
-                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteSemester(semester.id)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
+                                 <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(semester.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                 </DialogTrigger>
                             </div>
                         </div>
                     ))}
@@ -192,7 +202,7 @@ export default function WorkingDaysPage() {
             {editingMode && (
                 <Card className="lg:col-span-3">
                     <CardHeader>
-                        <CardTitle>{editingMode === 'new' ? 'Create New Semester' : `Editing ${filteredSemesters.find(s => s.id === editingMode)?.name}`}</CardTitle>
+                        <CardTitle>{editingMode === 'new' ? 'Create New Semester' : `Editing Semester ${filteredSemesters.find(s => s.id === editingMode)?.roman}`}</CardTitle>
                         <CardDescription>Set the duration, mark holidays, and calculate working days.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -200,18 +210,14 @@ export default function WorkingDaysPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-2">
                                     <Label>Semester</Label>
-                                    {editingMode === 'new' ? (
-                                        <Select value={selectedRoman} onValueChange={setSelectedRoman}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {availableRomans.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Input value={selectedRoman} disabled />
-                                    )}
+                                    <Select value={selectedRoman} onValueChange={setSelectedRoman}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableRomans.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div className="grid gap-2">
                                      <Label>Batch</Label>
@@ -267,6 +273,42 @@ export default function WorkingDaysPage() {
                 </Card>
             )}
         </div>
+         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if(!open) setDeleteTarget(null)}}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Are you absolutely sure?</DialogTitle>
+                    <DialogDescription>
+                        This action cannot be undone. This will permanently delete the semester data.
+                    </DialogDescription>
+                </DialogHeader>
+                <Alert variant="destructive">
+                    <AlertTitle>Warning</AlertTitle>
+                    <AlertDescription>
+                        To confirm, please type <strong>CONFIRM</strong> in the box below.
+                    </AlertDescription>
+                </Alert>
+                <Input 
+                    id="delete-confirm" 
+                    placeholder='Type "CONFIRM" to delete'
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                />
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteConfirmation("")}}>Cancel</Button>
+                    </DialogClose>
+                    <Button
+                        variant="destructive"
+                        disabled={deleteConfirmation !== 'CONFIRM'}
+                        onClick={handleDeleteSemester}
+                    >
+                        I understand, delete this semester
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
+
+    
