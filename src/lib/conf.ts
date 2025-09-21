@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 let analytics;
 if (typeof window !== "undefined") {
@@ -27,4 +29,4 @@ if (typeof window !== "undefined") {
 const CLOUDINARY_UPLOAD_URL = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_URL;
 const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-export { app, analytics, CLOUDINARY_UPLOAD_URL, CLOUDINARY_UPLOAD_PRESET };
+export { app, db, analytics, CLOUDINARY_UPLOAD_URL, CLOUDINARY_UPLOAD_PRESET };

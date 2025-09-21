@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Institution, Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Building, University, Pen, Trash2, KeyRound, Save, X } from 'lucide-react';
+import { createInstitution, createDepartment, updateDepartmentSecretCodes, updateInstitutionName, updateDepartmentName } from '@/services/institution-service';
 
 interface InstitutionManagerProps {
   initialInstitutions: Institution[];
@@ -25,36 +27,35 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   const [editingName, setEditingName] = useState('');
   const [secretCodes, setSecretCodes] = useState({ student: '', teacher: '', admin: '' });
   const { toast } = useToast();
+  const router = useRouter();
+  
+  const refreshData = () => {
+    router.refresh();
+  };
 
-  const handleCreateInstitution = () => {
+  const handleCreateInstitution = async () => {
     if (newInstitutionName.trim()) {
-      const newInstitution: Institution = {
-        id: `inst-${Date.now()}`,
-        name: newInstitutionName.trim(),
-        departments: [],
-      };
-      setInstitutions([...institutions, newInstitution]);
-      setNewInstitutionName('');
-      toast({ title: 'Success', description: 'Institution created successfully.' });
+      try {
+        await createInstitution(newInstitutionName.trim());
+        setNewInstitutionName('');
+        toast({ title: 'Success', description: 'Institution created successfully.' });
+        refreshData();
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to create institution.', variant: 'destructive' });
+      }
     }
   };
 
-  const handleCreateDepartment = () => {
+  const handleCreateDepartment = async () => {
     if (newDepartmentName.trim() && selectedInstitution) {
-      const newDepartment: Department = {
-        id: `dept-${Date.now()}`,
-        name: newDepartmentName.trim(),
-        secretCodes: { student: '', teacher: '', admin: '' },
-      };
-      const updatedInstitutions = institutions.map((inst) =>
-        inst.id === selectedInstitution.id
-          ? { ...inst, departments: [...inst.departments, newDepartment] }
-          : inst
-      );
-      setInstitutions(updatedInstitutions);
-      setSelectedInstitution(updatedInstitutions.find(inst => inst.id === selectedInstitution.id) || null);
-      setNewDepartmentName('');
-      toast({ title: 'Success', description: 'Department created successfully.' });
+      try {
+        await createDepartment(selectedInstitution.id, newDepartmentName.trim());
+        setNewDepartmentName('');
+        toast({ title: 'Success', description: 'Department created successfully.' });
+        refreshData();
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to create department.', variant: 'destructive' });
+      }
     }
   };
   
@@ -63,18 +64,16 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     setSecretCodes(department.secretCodes);
   };
 
-  const handleUpdateSecretCodes = () => {
+  const handleUpdateSecretCodes = async () => {
     if (editingDepartment && selectedInstitution) {
-        const updatedDepartments = selectedInstitution.departments.map(dept => 
-            dept.id === editingDepartment.id ? { ...dept, secretCodes } : dept
-        );
-        const updatedInstitutions = institutions.map(inst => 
-            inst.id === selectedInstitution.id ? { ...inst, departments: updatedDepartments } : inst
-        );
-      setInstitutions(updatedInstitutions);
-      setSelectedInstitution(updatedInstitutions.find(inst => inst.id === selectedInstitution.id) || null);
-      setEditingDepartment(null);
-      toast({ title: 'Success', description: 'Secret codes updated.' });
+        try {
+            await updateDepartmentSecretCodes(selectedInstitution.id, editingDepartment.id, secretCodes);
+            setEditingDepartment(null);
+            toast({ title: 'Success', description: 'Secret codes updated.' });
+            refreshData();
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to update secret codes.', variant: 'destructive' });
+        }
     }
   };
 
@@ -97,35 +96,32 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     setEditingName('');
   };
 
-  const saveName = (id: string, type: 'institution' | 'department') => {
+  const saveName = async (id: string, type: 'institution' | 'department') => {
     if (!editingName.trim()) {
       toast({ title: 'Error', description: 'Name cannot be empty.', variant: 'destructive' });
       return;
     }
-    if (type === 'institution') {
-      setInstitutions(
-        institutions.map((inst) => (inst.id === id ? { ...inst, name: editingName.trim() } : inst))
-      );
-    } else if (selectedInstitution) {
-      const updatedDepts = selectedInstitution.departments.map((dept) =>
-        dept.id === id ? { ...dept, name: editingName.trim() } : dept
-      );
-      const updatedInsts = institutions.map((inst) =>
-        inst.id === selectedInstitution.id ? { ...inst, departments: updatedDepts } : inst
-      );
-      setInstitutions(updatedInsts);
-      setSelectedInstitution(updatedInsts.find(i => i.id === selectedInstitution.id) || null);
+    try {
+        if (type === 'institution') {
+            await updateInstitutionName(id, editingName.trim());
+        } else if (selectedInstitution) {
+            await updateDepartmentName(selectedInstitution.id, id, editingName.trim());
+        }
+        cancelEditing();
+        toast({ title: 'Success', description: `${type === 'institution' ? 'Institution' : 'Department'} name updated.` });
+        refreshData();
+    } catch (error) {
+        toast({ title: 'Error', description: `Failed to update ${type} name.`, variant: 'destructive' });
     }
-    cancelEditing();
-    toast({ title: 'Success', description: `${type === 'institution' ? 'Institution' : 'Department'} name updated.` });
   };
   
   useEffect(() => {
+    setInstitutions(initialInstitutions);
     if (selectedInstitution) {
-        const currentSelected = institutions.find(inst => inst.id === selectedInstitution.id);
+        const currentSelected = initialInstitutions.find(inst => inst.id === selectedInstitution.id);
         setSelectedInstitution(currentSelected || null);
     }
-  }, [institutions, selectedInstitution?.id]);
+  }, [initialInstitutions, selectedInstitution?.id]);
 
 
   return (
@@ -197,7 +193,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                             <ul className="space-y-2">
                             {inst.departments.map((dept) => (
                                 <li key={dept.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 border rounded-md gap-2">
-                                    {editingDepartment?.id === dept.id ? (
+                                    {editingDepartment?.id === dept.id && !!editingName ? (
                                         <div className="flex items-center gap-2 w-full">
                                             <Input value={editingName} onChange={e => setEditingName(e.target.value)} className="h-9"/>
                                             <Button size="icon" className="h-9 w-9" onClick={() => saveName(dept.id, 'department')}><Save className="h-4 w-4"/></Button>

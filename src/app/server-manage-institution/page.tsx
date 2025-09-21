@@ -1,11 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { InstitutionManager } from "@/components/institution-manager";
-import initialData from "@/lib/institutions.json";
+import { getInstitutions } from "@/services/institution-service";
 
-export default function ServerManageInstitutionPage() {
-  // In a real app, you'd fetch this data from a database.
-  // For now, we're loading it from a local JSON file.
-  const institutions = initialData.institutions;
+
+export default async function ServerManageInstitutionPage() {
+  const institutions = await getInstitutions();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
