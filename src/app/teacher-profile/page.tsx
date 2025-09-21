@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
-import { Upload, Camera as CameraIcon, Save, X, ShieldAlert, Trash2, CalendarIcon, Crop } from "lucide-react";
+import { Upload, Camera as CameraIcon, Save, X, ShieldAlert, Trash2, CalendarIcon, Crop, RefreshCw, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
