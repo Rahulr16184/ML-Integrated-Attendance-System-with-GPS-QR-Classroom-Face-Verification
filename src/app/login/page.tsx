@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -46,7 +47,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole")
+    const userRole = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
     if (userRole) {
       toast({
         title: "Already logged in",
