@@ -8,26 +8,21 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Camera, UserPlus, FileText } from "lucide-react";
+import { Building, Users } from "lucide-react";
 
-export function MainNav() {
+export function ServerNav() {
   const pathname = usePathname();
 
   const menuItems = [
     {
-      href: "/attendance",
-      label: "Attendance",
-      icon: Camera,
+      href: "/server-manage-institution",
+      label: "Manage Institutions",
+      icon: Building,
     },
     {
-      href: "/enrollment",
-      label: "Enrollment",
-      icon: UserPlus,
-    },
-    {
-      href: "/reports",
-      label: "Reports",
-      icon: FileText,
+      href: "/server-manage-user",
+      label: "Manage Users",
+      icon: Users,
     },
   ];
 

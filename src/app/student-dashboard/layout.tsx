@@ -6,12 +6,12 @@ import {
   SidebarContent,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { ServerNav } from "@/components/server-nav";
+import { MainNav } from "@/components/main-nav";
 import { Header } from "@/components/header";
 import { Bot } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "TRACEIN - Server",
+  title: "TRACEIN - Student",
   description: "ML integrated attendance system",
 };
 
@@ -30,11 +30,11 @@ export default function AppLayout({
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <ServerNav />
+          <MainNav />
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col">
-        <Header dashboardUrl="/server-dashboard" />
+        <Header />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>

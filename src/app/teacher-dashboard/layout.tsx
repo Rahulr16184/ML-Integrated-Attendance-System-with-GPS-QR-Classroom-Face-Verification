@@ -34,7 +34,7 @@ export default function AppLayout({
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col">
-        <Header />
+        <Header dashboardUrl="/teacher-dashboard" />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>

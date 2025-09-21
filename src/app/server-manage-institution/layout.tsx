@@ -6,7 +6,7 @@ import {
   SidebarContent,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { MainNav } from "@/components/main-nav";
+import { ServerNav } from "@/components/server-nav";
 import { Header } from "@/components/header";
 import { Bot } from "lucide-react";
 
@@ -30,11 +30,11 @@ export default function AppLayout({
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <MainNav />
+          <ServerNav />
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col">
-        <Header />
+        <Header dashboardUrl="/server-dashboard" />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>

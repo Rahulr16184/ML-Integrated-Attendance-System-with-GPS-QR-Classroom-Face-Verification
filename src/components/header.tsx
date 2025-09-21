@@ -6,7 +6,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
-export function Header() {
+type HeaderProps = {
+    dashboardUrl?: string;
+}
+
+export function Header({ dashboardUrl = "/profile" }: HeaderProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -18,22 +22,6 @@ export function Header() {
       setUserRole(role);
     }
   }, []);
-
-  const getDashboardUrl = (role: string | null) => {
-    if (!role) return "/login";
-    switch (role) {
-      case "admin":
-        return "/admin-dashboard";
-      case "teacher":
-        return "/teacher-dashboard";
-      case "student":
-        return "/student-dashboard";
-      case "server":
-        return "/server-dashboard";
-      default:
-        return "/login";
-    }
-  };
   
   if (!isMounted) {
     return null; // Don't render server-side
@@ -42,7 +30,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <Button variant="outline" size="icon" asChild>
-          <Link href={getDashboardUrl(userRole)}>
+          <Link href={dashboardUrl}>
             <Home className="h-[1.2rem] w-[1.2rem]" />
             <span className="sr-only">Dashboard</span>
           </Link>

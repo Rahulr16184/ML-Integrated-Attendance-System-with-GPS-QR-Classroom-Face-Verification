@@ -6,16 +6,8 @@ import { BookOpen, CheckSquare, User } from "lucide-react";
 export default function StudentDashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 justify-between">
-        <h1 className="text-xl font-semibold">Student Dashboard</h1>
-        <Button variant="outline" size="icon" asChild>
-          <Link href="/profile">
-            <User className="h-[1.2rem] w-[1.2rem]" />
-            <span className="sr-only">Profile</span>
-          </Link>
-        </Button>
-      </header>
       <main className="flex-1 p-4 sm:p-6 space-y-6">
+        <h1 className="text-3xl font-bold tracking-tight">Student Dashboard</h1>
         <Card>
           <CardHeader>
             <CardTitle>Welcome, Student!</CardTitle>
