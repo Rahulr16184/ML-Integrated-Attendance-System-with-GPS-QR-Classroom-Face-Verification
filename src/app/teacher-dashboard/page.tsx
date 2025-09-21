@@ -13,48 +13,48 @@ export default function TeacherDashboardPage() {
             <CardHeader className="text-center">
                 <CardTitle>INFORMATION</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="flex items-center space-x-4">
-                    <User className="w-6 h-6 text-muted-foreground" />
-                    <div>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center space-x-4">
+                        <User className="w-6 h-6 text-muted-foreground" />
                         <p className="text-sm font-medium">NAME</p>
-                        <p className="text-sm text-muted-foreground">Teacher User</p>
                     </div>
+                    <p className="text-sm text-muted-foreground">Teacher User</p>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <Calendar className="w-6 h-6 text-muted-foreground" />
-                    <div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center space-x-4">
+                        <Calendar className="w-6 h-6 text-muted-foreground" />
                         <p className="text-sm font-medium">DOB</p>
-                        <p className="text-sm text-muted-foreground">20-05-1985</p>
                     </div>
+                    <p className="text-sm text-muted-foreground">20-05-1985</p>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <Phone className="w-6 h-6 text-muted-foreground" />
-                    <div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center space-x-4">
+                        <Phone className="w-6 h-6 text-muted-foreground" />
                         <p className="text-sm font-medium">MOBILE NO</p>
-                        <p className="text-sm text-muted-foreground">+1 111 222 333</p>
                     </div>
+                    <p className="text-sm text-muted-foreground">+1 111 222 333</p>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <Mail className="w-6 h-6 text-muted-foreground" />
-                    <div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center space-x-4">
+                        <Mail className="w-6 h-6 text-muted-foreground" />
                         <p className="text-sm font-medium">MAIL ID</p>
-                        <p className="text-sm text-muted-foreground">teacher@example.com</p>
                     </div>
+                    <p className="text-sm text-muted-foreground">teacher@example.com</p>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <Building className="w-6 h-6 text-muted-foreground" />
-                    <div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center space-x-4">
+                        <Building className="w-6 h-6 text-muted-foreground" />
                         <p className="text-sm font-medium">INSTITUTION</p>
-                        <p className="text-sm text-muted-foreground">Global Tech Academy</p>
                     </div>
+                    <p className="text-sm text-muted-foreground">Global Tech Academy</p>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <Network className="w-6 h-6 text-muted-foreground" />
-                    <div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center space-x-4">
+                        <Network className="w-6 h-6 text-muted-foreground" />
                         <p className="text-sm font-medium">DEPARTMENT</p>
-                        <p className="text-sm text-muted-foreground">Computer Science</p>
                     </div>
+                    <p className="text-sm text-muted-foreground">Computer Science</p>
                 </div>
             </CardContent>
         </Card>
