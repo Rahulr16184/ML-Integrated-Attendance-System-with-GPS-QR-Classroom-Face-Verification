@@ -1,23 +1,25 @@
+
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Video, VideoOff, Camera, Loader2 } from "lucide-react";
+import { Video, VideoOff, Camera, Loader2, RefreshCw, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 type CameraCaptureProps = {
   onCapture: (dataUri: string) => void;
-  captureLabel?: string;
   isCapturing?: boolean;
 };
 
-export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing = false }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, isCapturing = false }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   const stopCamera = useCallback(() => {
@@ -36,6 +38,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
         stopCamera();
     }
     setError(null);
+    setCapturedImage(null);
     setIsInitializing(true);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -74,7 +77,6 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
   const handleCapture = () => {
     if (videoRef.current) {
       const canvas = document.createElement("canvas");
@@ -84,22 +86,41 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
       if (context) {
         context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUri = canvas.toDataURL("image/jpeg");
-        onCapture(dataUri);
+        setCapturedImage(dataUri);
+        stopCamera();
       }
     }
   };
 
+  const handleRecapture = () => {
+    setCapturedImage(null);
+    startCamera();
+  };
+
+  const handleUsePhoto = () => {
+    if (capturedImage) {
+        onCapture(capturedImage);
+    }
+  }
+
   return (
     <Card>
       <CardContent className="p-0 sm:p-4">
-        <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden">
+        <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
           {isInitializing ? (
             <div className="flex flex-col items-center justify-center h-full space-y-2 text-muted-foreground">
               <Loader2 className="animate-spin h-8 w-8" />
               <p>Starting camera...</p>
             </div>
+          ) : capturedImage ? (
+             <Image src={capturedImage} alt="Captured preview" layout="fill" objectFit="cover" />
           ) : isCameraOn ? (
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            <>
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-3/4 h-5/6 border-4 border-dashed border-white/50 rounded-[50%]"></div>
+                </div>
+            </>
           ) : (
             <div className="text-center text-muted-foreground p-4">
               <VideoOff className="mx-auto h-12 w-12" />
@@ -115,10 +136,22 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
         </div>
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row justify-center gap-2 pt-4">
-        <Button onClick={handleCapture} disabled={!isCameraOn || isCapturing} className="w-full sm:w-auto">
-          <Camera className="mr-2 h-4 w-4" />
-          {isCapturing ? "Processing..." : captureLabel}
-        </Button>
+        {capturedImage ? (
+          <>
+            <Button onClick={handleRecapture} variant="outline" className="w-full sm:w-auto">
+              <RefreshCw className="mr-2 h-4 w-4" /> Recapture
+            </Button>
+            <Button onClick={handleUsePhoto} disabled={isCapturing} className="w-full sm:w-auto">
+               <Check className="mr-2 h-4 w-4" />
+              {isCapturing ? "Saving..." : "Use this photo"}
+            </Button>
+          </>
+        ) : (
+          <Button onClick={handleCapture} disabled={!isCameraOn || isCapturing} className="w-full sm:w-auto">
+            <Camera className="mr-2 h-4 w-4" />
+            {isCapturing ? "Processing..." : "Capture Photo"}
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

@@ -246,10 +246,7 @@ export default function StudentProfilePage() {
                 </Button>
               </DialogClose>
           </DialogHeader>
-          <CameraCapture 
-            onCapture={handleCapture}
-            captureLabel="Use this photo"
-          />
+          <CameraCapture onCapture={handleCapture} />
         </DialogContent>
       </Dialog>
       

@@ -238,10 +238,7 @@ export default function AdminProfilePage() {
                 </Button>
               </DialogClose>
           </DialogHeader>
-          <CameraCapture 
-            onCapture={handleCapture}
-            captureLabel="Use this photo"
-          />
+          <CameraCapture onCapture={handleCapture} />
         </DialogContent>
       </Dialog>
       
