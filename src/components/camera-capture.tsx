@@ -115,7 +115,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
   return (
     <Card>
       <CardContent className="p-0 sm:p-4">
-        <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
+        <div className="aspect-square bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
           {isInitializing ? (
             <div className="flex flex-col items-center justify-center h-full space-y-2 text-muted-foreground">
               <Loader2 className="animate-spin h-8 w-8" />
