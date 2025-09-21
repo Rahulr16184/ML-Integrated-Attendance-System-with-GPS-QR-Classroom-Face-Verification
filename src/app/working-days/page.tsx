@@ -80,20 +80,15 @@ export default function WorkingDaysPage() {
       setTotalWorkingDays(null);
       return 0;
     }
-    let count = 0;
-    const from = new Date(dateRange.from);
-    const to = new Date(dateRange.to);
     
-    let currentDate = from;
-    while (currentDate <= to) {
-      const isDayAHoliday = holidays.some((h) => isSameDay(h, currentDate));
-      if (!isWeekend(currentDate) && !isDayAHoliday) {
-        count++;
-      }
-      currentDate = addDays(currentDate, 1);
-    }
-    setTotalWorkingDays(count);
-    return count;
+    // Calculate total days in the range (inclusive)
+    const totalDays = differenceInDays(dateRange.to, dateRange.from) + 1;
+    
+    // Subtract the number of holidays
+    const workingDays = totalDays - holidays.length;
+    
+    setTotalWorkingDays(workingDays);
+    return workingDays;
   };
   
   const handleSaveSemester = () => {
