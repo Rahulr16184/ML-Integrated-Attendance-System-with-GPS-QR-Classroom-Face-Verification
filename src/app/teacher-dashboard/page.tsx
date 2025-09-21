@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpen, CheckSquare, Users } from "lucide-react";
+import { BookOpen, CheckSquare, Users, Info } from "lucide-react";
 
 export default function TeacherDashboardPage() {
   return (
@@ -11,7 +11,8 @@ export default function TeacherDashboardPage() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Hi, Teacher</h1>
         
         <Card>
-            <CardHeader className="text-center">
+            <CardHeader className="flex flex-row items-center gap-2">
+                <Info className="h-6 w-6" />
                 <CardTitle>INFORMATION</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
