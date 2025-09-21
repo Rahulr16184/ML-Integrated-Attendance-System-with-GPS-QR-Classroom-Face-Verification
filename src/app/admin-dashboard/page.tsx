@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Users, LayoutDashboard, Settings, User, Calendar, Phone, Mail, Building, Network } from "lucide-react";
+import { Users, LayoutDashboard, Settings } from "lucide-react";
 
 export default function AdminDashboardPage() {
   return (
@@ -14,47 +14,29 @@ export default function AdminDashboardPage() {
                 <CardTitle>INFORMATION</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center space-x-4">
-                        <User className="w-6 h-6 text-muted-foreground" />
-                        <p className="text-sm font-medium">NAME</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Admin User</p>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">NAME</p>
+                    <p className="text-sm text-muted-foreground text-right">Admin User</p>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center space-x-4">
-                        <Calendar className="w-6 h-6 text-muted-foreground" />
-                        <p className="text-sm font-medium">DOB</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">01-01-1990</p>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">DOB</p>
+                    <p className="text-sm text-muted-foreground text-right">01-01-1990</p>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center space-x-4">
-                        <Phone className="w-6 h-6 text-muted-foreground" />
-                        <p className="text-sm font-medium">MOBILE NO</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">+1 234 567 890</p>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">MOBILE NO</p>
+                    <p className="text-sm text-muted-foreground text-right">+1 234 567 890</p>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center space-x-4">
-                        <Mail className="w-6 h-6 text-muted-foreground" />
-                        <p className="text-sm font-medium">MAIL ID</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">admin@example.com</p>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">MAIL ID</p>
+                    <p className="text-sm text-muted-foreground text-right">admin@example.com</p>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center space-x-4">
-                        <Building className="w-6 h-6 text-muted-foreground" />
-                        <p className="text-sm font-medium">INSTITUTION</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Global Tech Academy</p>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">INSTITUTION</p>
+                    <p className="text-sm text-muted-foreground text-right">Global Tech Academy</p>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center space-x-4">
-                        <Network className="w-6 h-6 text-muted-foreground" />
-                        <p className="text-sm font-medium">DEPARTMENT</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Administration</p>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">DEPARTMENT</p>
+                    <p className="text-sm text-muted-foreground text-right">Administration</p>
                 </div>
             </CardContent>
         </Card>
