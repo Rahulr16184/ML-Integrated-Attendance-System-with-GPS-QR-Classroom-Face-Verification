@@ -231,12 +231,6 @@ export default function TeacherProfilePage() {
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>Capture New Profile Photo</DialogTitle>
-             <DialogClose asChild>
-                <Button variant="ghost" size="icon" className="absolute right-4 top-4">
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </Button>
-              </DialogClose>
           </DialogHeader>
           <CameraCapture onCapture={handleCapture} />
         </DialogContent>
@@ -247,12 +241,6 @@ export default function TeacherProfilePage() {
         <DialogContent>
            <DialogHeader>
             <DialogTitle>Upload & Crop Photo</DialogTitle>
-             <DialogClose asChild>
-                <Button variant="ghost" size="icon" className="absolute right-4 top-4">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                </Button>
-            </DialogClose>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="relative h-64 w-full bg-muted rounded-lg">
