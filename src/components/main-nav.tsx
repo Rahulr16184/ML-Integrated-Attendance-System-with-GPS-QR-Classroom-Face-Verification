@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Camera, UserPlus, FileText, CreditCard, User, CalendarDays } from "lucide-react";
+import { Camera, UserPlus, FileText, CreditCard, User, CalendarDays, Map } from "lucide-react";
 import { useSidebar } from "./ui/sidebar";
 import { useState, useEffect } from "react";
 
@@ -52,6 +52,11 @@ export function MainNav() {
       icon: CreditCard,
     },
     {
+      href: "/gps",
+      label: "GPS",
+      icon: Map,
+    },
+    {
         href: getProfileUrl(),
         label: "Profile",
         icon: User,
@@ -59,7 +64,7 @@ export function MainNav() {
   ];
 
   if (userRole === "admin" || userRole === "teacher") {
-    menuItems.push({
+    menuItems.splice(4, 0, {
       href: "/working-days",
       label: "Working Days",
       icon: CalendarDays,
