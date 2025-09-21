@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { User, Home, LogOut } from "lucide-react";
+import { User, Home, LogOut, ShieldAlert } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 type HeaderProps = {
     dashboardUrl?: string;
@@ -53,10 +63,26 @@ export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
             </Button>
          )}
         <ThemeToggle />
-        <Button variant="outline" size="icon" onClick={handleLogout}>
-          <LogOut className="h-[1.2rem] w-[1.2rem]" />
-          <span className="sr-only">Logout</span>
-        </Button>
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="outline" size="icon">
+                    <LogOut className="h-[1.2rem] w-[1.2rem]" />
+                    <span className="sr-only">Logout</span>
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to log out? Any unsaved changes may be lost.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </div>
     </header>
   );
