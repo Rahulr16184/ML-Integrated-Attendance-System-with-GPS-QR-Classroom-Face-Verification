@@ -49,6 +49,14 @@ export default function StudentDashboardPage() {
                     <p className="text-sm font-medium">DEPARTMENT</p>
                     <p className="text-sm text-muted-foreground break-words">Computer Science</p>
                 </div>
+                <div className="grid grid-cols-2 items-center">
+                    <p className="text-sm font-medium">ROLL NO</p>
+                    <p className="text-sm text-muted-foreground break-words">22CS001</p>
+                </div>
+                <div className="grid grid-cols-2 items-center">
+                    <p className="text-sm font-medium">REGISTER NO</p>
+                    <p className="text-sm text-muted-foreground break-words">GTA22CS001</p>
+                </div>
             </CardContent>
         </Card>
         

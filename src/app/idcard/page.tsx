@@ -13,6 +13,8 @@ export default function IdCardPage() {
     dob: "15-08-2002",
     institution: "Global Tech Academy",
     department: "Computer Science",
+    rollNo: "22CS001",
+    registerNo: "GTA22CS001",
     profileImage: "https://picsum.photos/seed/1/200/200",
   };
 
@@ -56,6 +58,14 @@ export default function IdCardPage() {
                <div className="grid grid-cols-2 items-center text-left">
                   <span className="font-medium text-muted-foreground">DEPARTMENT:</span>
                   <span className="break-words">{user.department || "--"}</span>
+               </div>
+               <div className="grid grid-cols-2 items-center text-left">
+                  <span className="font-medium text-muted-foreground">ROLL NO:</span>
+                  <span className="break-words">{user.rollNo || "--"}</span>
+               </div>
+               <div className="grid grid-cols-2 items-center text-left">
+                  <span className="font-medium text-muted-foreground">REGISTER NO:</span>
+                  <span className="break-words">{user.registerNo || "--"}</span>
                </div>
             </div>
         </CardContent>
