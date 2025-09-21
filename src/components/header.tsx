@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { User, Home } from "lucide-react";
+import { User, Home, LogOut } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 type HeaderProps = {
     dashboardUrl?: string;
@@ -11,6 +12,16 @@ type HeaderProps = {
 }
 
 export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    sessionStorage.removeItem("userRole");
+    sessionStorage.removeItem("userEmail");
+    router.push("/login");
+  };
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <div className="flex items-center gap-4">
@@ -31,13 +42,17 @@ export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
         )}
       </div>
       <div className="flex-1" />
-      <ThemeToggle />
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+         <Button variant="outline" size="icon" asChild>
           <Link href="/profile">
             <User className="h-[1.2rem] w-[1.2rem]" />
             <span className="sr-only">Profile</span>
           </Link>
+        </Button>
+        <ThemeToggle />
+        <Button variant="outline" size="icon" onClick={handleLogout}>
+          <LogOut className="h-[1.2rem] w-[1.2rem]" />
+          <span className="sr-only">Logout</span>
         </Button>
       </div>
     </header>
