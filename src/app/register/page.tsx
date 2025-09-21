@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -13,12 +14,13 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { User, Mail, Lock, Eye, EyeOff, KeyRound } from "lucide-react"
+import { User, Mail, Lock, Eye, EyeOff, KeyRound, CheckCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import type { Institution, Department } from "@/lib/types"
-import initialData from "@/lib/institutions.json"
+import { getInstitutions } from "@/services/institution-service"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 const PasswordStrengthIndicator = ({ password }: { password?: string }) => {
   const getStrength = () => {
@@ -58,11 +60,16 @@ export default function RegisterPage() {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
     const [secretCode, setSecretCode] = useState("");
+    const [isRegistered, setIsRegistered] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
 
     useEffect(() => {
-        setInstitutions(initialData.institutions);
+        const fetchInstitutions = async () => {
+            const data = await getInstitutions();
+            setInstitutions(data);
+        };
+        fetchInstitutions();
     }, []);
 
     useEffect(() => {
@@ -107,16 +114,40 @@ export default function RegisterPage() {
         }
 
         // In a real app, you would save the new user to your database.
-        // For this demo, we'll just show a success message and redirect.
+        // For this demo, we'll just show a success message.
         console.log({ name, email, password, institution: selectedInstitution, department: selectedDepartment, role });
         
-        toast({
-            title: "Registration Successful",
-            description: `Welcome, ${name}! You have been registered as a ${role}.`
-        });
-
-        router.push("/login");
+        setIsRegistered(true);
     };
+    
+    if (isRegistered) {
+        return (
+             <div className="flex min-h-screen items-center justify-center bg-background p-4">
+                <Card className="w-full max-w-md text-center">
+                    <CardHeader>
+                        <CardTitle className="text-2xl sm:text-3xl flex items-center justify-center gap-2"><CheckCircle className="text-green-500" />Registration Successful!</CardTitle>
+                        <CardDescription>
+                            Your account is pending activation.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Alert>
+                            <AlertTitle>Activation Link Sent</AlertTitle>
+                            <AlertDescription>
+                                We've sent an activation link to <strong>{email}</strong>. Please check your inbox (and spam folder) to activate your account.
+                            </AlertDescription>
+                        </Alert>
+                         <Button asChild className="mt-6 w-full">
+                            <Link href="/login">
+                                Back to Login
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -202,3 +233,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
