@@ -83,14 +83,14 @@ export default function WorkingDaysPage() {
     let count = 0;
     const from = new Date(dateRange.from);
     const to = new Date(dateRange.to);
-    const totalDays = differenceInDays(to, from) + 1;
-
-    for (let i = 0; i < totalDays; i++) {
-      const currentDate = addDays(from, i);
+    
+    let currentDate = from;
+    while (currentDate <= to) {
       const isDayAHoliday = holidays.some((h) => isSameDay(h, currentDate));
       if (!isWeekend(currentDate) && !isDayAHoliday) {
         count++;
       }
+      currentDate = addDays(currentDate, 1);
     }
     setTotalWorkingDays(count);
     return count;
@@ -101,7 +101,7 @@ export default function WorkingDaysPage() {
         // Add toast notification later
         return;
     }
-    const workingDays = calculateWorkingDays();
+    const workingDays = totalWorkingDays === null ? calculateWorkingDays() : totalWorkingDays;
 
     const newSemester = {
         id: editingMode === "new" ? `sem-${Date.now()}` : editingMode!,
