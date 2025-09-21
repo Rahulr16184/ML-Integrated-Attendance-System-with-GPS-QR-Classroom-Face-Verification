@@ -184,7 +184,7 @@ export default function RegisterPage() {
              <div className="grid gap-2">
                 <Label htmlFor="secret-code">Secret Code</Label>
                 <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1.2 h-4 w-4 text-muted-foreground" />
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="secret-code" placeholder="Enter your role's secret code" required className="pl-10" value={secretCode} onChange={e => setSecretCode(e.target.value)} />
                 </div>
             </div>
