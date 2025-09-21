@@ -36,3 +36,5 @@ export const registerUser = async (userData: UserRegistrationData): Promise<void
         throw new Error("Could not register user in the database.");
     }
 };
+
+    
