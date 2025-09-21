@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpen, CheckSquare, Users, Info, CreditCard, DatabaseZap, CalendarDays } from "lucide-react";
+import { Info, CreditCard, DatabaseZap, CalendarDays } from "lucide-react";
 
 export default function TeacherDashboardPage() {
   return (
@@ -50,53 +50,6 @@ export default function TeacherDashboardPage() {
                     <p className="text-sm text-muted-foreground break-words">Computer Science</p>
                 </div>
             </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome, Teacher!</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">My Classes</CardTitle>
-                <BookOpen className="w-4 h-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">3</div>
-                <p className="text-xs text-muted-foreground">classes assigned</p>
-              </CardContent>
-              <CardFooter>
-                <Button>View Classes</Button>
-              </CardFooter>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Log Attendance</CardTitle>
-                <CheckSquare className="w-4 h-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">Ready</div>
-                <p className="text-xs text-muted-foreground">Start taking attendance</p>
-              </CardContent>
-              <CardFooter>
-                <Button asChild><Link href="/attendance">Start</Link></Button>
-              </CardFooter>
-            </Card>
-             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Student Enrollment</CardTitle>
-                <Users className="w-4 h-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">Enroll</div>
-                <p className="text-xs text-muted-foreground">Add new students</p>
-              </CardContent>
-              <CardFooter>
-                <Button asChild><Link href="/enrollment">Enroll</Link></Button>
-              </CardFooter>
-            </Card>
-          </CardContent>
         </Card>
 
         <Card>
