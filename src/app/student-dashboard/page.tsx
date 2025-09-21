@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpen, CheckSquare, Info } from "lucide-react";
+import { BookOpen, CheckSquare, Info, CreditCard } from "lucide-react";
 
 export default function StudentDashboardPage() {
   return (
@@ -10,6 +10,15 @@ export default function StudentDashboardPage() {
       <main className="flex-1 p-4 sm:p-6 space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Hi, Student</h1>
         
+        <div className="w-full">
+            <Button asChild className="w-full text-lg py-6">
+                <Link href="/idcard">
+                    <CreditCard className="mr-2 h-5 w-5" />
+                    View ID Card
+                </Link>
+            </Button>
+        </div>
+
         <Card>
             <CardHeader className="flex flex-row items-center gap-2">
                 <Info className="h-6 w-6" />

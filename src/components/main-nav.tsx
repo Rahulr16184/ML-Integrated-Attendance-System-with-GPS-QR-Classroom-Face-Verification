@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Camera, UserPlus, FileText } from "lucide-react";
+import { Camera, UserPlus, FileText, CreditCard } from "lucide-react";
 
 export function MainNav() {
   const pathname = usePathname();
@@ -28,6 +28,11 @@ export function MainNav() {
       href: "/reports",
       label: "Reports",
       icon: FileText,
+    },
+    {
+      href: "/idcard",
+      label: "ID Card",
+      icon: CreditCard,
     },
   ];
 
