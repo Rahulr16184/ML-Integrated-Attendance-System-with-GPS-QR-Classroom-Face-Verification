@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -7,6 +6,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Video, VideoOff, Camera, Loader2, RefreshCw, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 type CameraCaptureProps = {
   onCapture: (dataUri: string) => void;
@@ -40,7 +40,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        await video.current.play();
+        await videoRef.current.play();
         setError(null);
         setIsCameraLive(true);
       }
@@ -102,8 +102,6 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
         setCapturedImage(null); 
     }
   }
-  
-  const video = videoRef.current;
 
   return (
     <Card>
