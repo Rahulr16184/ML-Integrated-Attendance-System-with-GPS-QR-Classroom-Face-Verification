@@ -5,11 +5,19 @@ import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
-import { Upload, Camera as CameraIcon, Save, X } from "lucide-react";
+import { Upload, Camera as CameraIcon, Save, X, ShieldAlert, Trash2, CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 export default function ProfilePage() {
   const [userEmail, setUserEmail] = useState<string | null>("user@example.com");
@@ -18,6 +26,8 @@ export default function ProfilePage() {
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [date, setDate] = useState<Date>()
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const handleCapture = (dataUri: string) => {
     setProfileImage(dataUri);
@@ -47,11 +57,11 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 sm:p-6">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-4xl">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold">Manage Account</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center space-y-6">
+        <CardContent className="flex flex-col items-center space-y-8">
           <div className="relative">
             <Avatar className="h-48 w-48 rounded-lg">
               <AvatarImage src={profileImage} alt="User avatar" className="rounded-lg object-cover" data-ai-hint="profile picture" />
@@ -69,14 +79,130 @@ export default function ProfilePage() {
                 <Upload className="mr-2" /> Upload Photo
             </Button>
           </div>
+
+          <div className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Name</Label>
+                <Input id="name" defaultValue="User Name" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="role">Role</Label>
+                <Input id="role" defaultValue="Student" disabled />
+              </div>
+              <div className="grid gap-2">
+                <Label>Gender</Label>
+                <RadioGroup defaultValue="male" className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="male" id="male" />
+                        <Label htmlFor="male">Male</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="female" id="female" />
+                        <Label htmlFor="female">Female</Label>
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="other" id="other" />
+                        <Label htmlFor="other">Other</Label>
+                    </div>
+                </RadioGroup>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="dob">Date of Birth</Label>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                        )}
+                        >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                        />
+                    </PopoverContent>
+                </Popover>
+              </div>
+               <div className="grid gap-2">
+                <Label htmlFor="email">Mail ID</Label>
+                <Input id="email" type="email" defaultValue={userEmail || ""} disabled />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="alt-email">Alternative Mail ID</Label>
+                <Input id="alt-email" type="email" placeholder="alt@example.com" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input id="phone" type="tel" placeholder="+1 234 567 890" />
+              </div>
+               <div className="grid gap-2">
+                <Label htmlFor="institution">Institution Name</Label>
+                <Input id="institution" defaultValue="Global Tech Academy" disabled />
+              </div>
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="department">Department</Label>
+                <Input id="department" defaultValue="Computer Science" disabled />
+              </div>
+          </div>
         </CardContent>
-        <CardFooter className="flex justify-center gap-4">
-          <Button>
-            <Save className="mr-2" /> Save Changes
-          </Button>
-          <Button variant="outline">
-            Cancel
-          </Button>
+        <CardFooter className="flex-col items-center gap-4">
+            <div className="flex justify-center gap-4">
+                <Button>
+                    <Save className="mr-2" /> Save Changes
+                </Button>
+                <Button variant="outline">
+                    Cancel
+                </Button>
+            </div>
+            <div className="flex justify-center gap-4 mt-4 pt-4 border-t w-full max-w-sm">
+                <Button variant="secondary">Change Password</Button>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="destructive">
+                            <Trash2 className="mr-2"/> Delete Account
+                        </Button>
+                    </DialogTrigger>
+                     <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Are you absolutely sure?</DialogTitle>
+                            <DialogDescription>
+                                This action cannot be undone. This will permanently delete your account and remove your data from our servers.
+                            </DialogDescription>
+                        </DialogHeader>
+                         <Alert variant="destructive">
+                            <AlertTitle>Warning</AlertTitle>
+                            <AlertDescription>
+                                To confirm, please type <strong>DELETE</strong> in the box below.
+                            </AlertDescription>
+                        </Alert>
+                        <Input 
+                            id="delete-confirm" 
+                            placeholder='Type "DELETE" to confirm'
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                         />
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button
+                                variant="destructive"
+                                disabled={deleteConfirmation !== 'DELETE'}
+                            >
+                                I understand, delete my account
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </CardFooter>
       </Card>
 
@@ -149,3 +275,4 @@ export default function ProfilePage() {
   );
 }
 
+    
