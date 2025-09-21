@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -13,30 +14,30 @@ export default function TeacherDashboardPage() {
             <CardHeader className="text-center">
                 <CardTitle>INFORMATION</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">NAME</p>
-                    <p className="text-sm text-muted-foreground text-right">Teacher User</p>
+                    <p className="text-sm text-muted-foreground">Teacher User</p>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">DOB</p>
-                    <p className="text-sm text-muted-foreground text-right">20-05-1985</p>
+                    <p className="text-sm text-muted-foreground">20-05-1985</p>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">MOBILE NO</p>
-                    <p className="text-sm text-muted-foreground text-right">+1 111 222 333</p>
+                    <p className="text-sm text-muted-foreground">+1 111 222 333</p>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">MAIL ID</p>
-                    <p className="text-sm text-muted-foreground text-right">teacher@example.com</p>
+                    <p className="text-sm text-muted-foreground">teacher@example.com</p>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">INSTITUTION</p>
-                    <p className="text-sm text-muted-foreground text-right">Global Tech Academy</p>
+                    <p className="text-sm text-muted-foreground">Global Tech Academy</p>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                <div className="grid grid-cols-2 items-center p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">DEPARTMENT</p>
-                    <p className="text-sm text-muted-foreground text-right">Computer Science</p>
+                    <p className="text-sm text-muted-foreground">Computer Science</p>
                 </div>
             </CardContent>
         </Card>
