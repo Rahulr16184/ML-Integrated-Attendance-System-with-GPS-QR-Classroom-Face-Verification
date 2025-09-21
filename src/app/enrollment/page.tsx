@@ -58,7 +58,7 @@ export default function EnrollmentPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Face Enrollment</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Face Enrollment</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -94,7 +94,7 @@ export default function EnrollmentPage() {
       </div>
       
       {analysisResult && (
-        <div>
+        <div className="max-w-2xl mx-auto">
           {analysisResult.isSuitable ? (
             <Alert>
               <CheckCircle className="h-4 w-4" />

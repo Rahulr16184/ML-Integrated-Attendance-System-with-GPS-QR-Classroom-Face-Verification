@@ -7,12 +7,12 @@ export default function TeacherDashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1 p-4 sm:p-6 space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
         <Card>
           <CardHeader>
             <CardTitle>Welcome, Teacher!</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">My Classes</CardTitle>

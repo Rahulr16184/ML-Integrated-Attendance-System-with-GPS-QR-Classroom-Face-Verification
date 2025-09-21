@@ -40,7 +40,7 @@ export default function AttendancePage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Log Attendance</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Log Attendance</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <CameraCapture 
@@ -49,12 +49,12 @@ export default function AttendancePage() {
             isCapturing={isLoading}
           />
         </div>
-        <div>
+        <div className="min-h-[300px] lg:min-h-0">
           <Card className="h-full">
             <CardHeader>
               <CardTitle>Recognition Result</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex items-center justify-center h-full">
               {isLoading && (
                 <div className="flex flex-col items-center justify-center h-full space-y-2 text-muted-foreground">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -67,7 +67,7 @@ export default function AttendancePage() {
                 </div>
               )}
               {result && (
-                <div className="space-y-4">
+                <div className="space-y-4 w-full">
                   {result.attendanceStatus === 'present' ? (
                      <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
                   ) : (

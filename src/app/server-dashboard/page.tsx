@@ -7,22 +7,22 @@ export default function ServerDashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1 p-4 sm:p-6 space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Server Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Server Dashboard</h1>
 
         <Card>
           <CardHeader>
             <CardTitle>Management</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Button asChild size="lg" className="h-20 text-lg">
+            <Button asChild size="lg" className="h-16 text-base sm:h-20 sm:text-lg">
               <Link href="/server-manage-institution">
-                <Building className="mr-4 h-6 w-6" />
+                <Building className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
                 Manage Institutions
               </Link>
             </Button>
-            <Button asChild size="lg" className="h-20 text-lg">
+            <Button asChild size="lg" className="h-16 text-base sm:h-20 sm:text-lg">
               <Link href="/server-manage-user">
-                <Users className="mr-4 h-6 w-6" />
+                <Users className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
                 Manage Users
               </Link>
             </Button>
@@ -33,7 +33,7 @@ export default function ServerDashboardPage() {
           <CardHeader>
             <CardTitle>Welcome, Server Admin!</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>

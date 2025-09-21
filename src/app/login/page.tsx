@@ -103,7 +103,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Welcome Back!</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold">Welcome Back!</CardTitle>
           <CardDescription className="uppercase pt-2 font-semibold text-muted-foreground">
             Login with Credentials
           </CardDescription>

@@ -87,8 +87,8 @@ export function AttendanceReportClient({ initialRecords }: AttendanceReportClien
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Attendance Reports</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Attendance Reports</h1>
         <Button onClick={handleGenerateReport}>
           <FileText className="mr-2 h-4 w-4" />
           Generate Report

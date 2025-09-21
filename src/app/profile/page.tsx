@@ -59,11 +59,11 @@ export default function ProfilePage() {
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 sm:p-6">
       <Card className="w-full max-w-4xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Manage Account</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold">Manage Account</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center space-y-8">
           <div className="relative">
-            <Avatar className="h-48 w-48 rounded-lg">
+            <Avatar className="h-32 w-32 sm:h-48 sm:w-48 rounded-lg">
               <AvatarImage src={profileImage} alt="User avatar" className="rounded-lg object-cover" data-ai-hint="profile picture" />
               <AvatarFallback className="rounded-lg text-4xl">
                 {userEmail?.[0]?.toUpperCase() ?? 'U'}
@@ -73,10 +73,10 @@ export default function ProfilePage() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-sm">
             <Button onClick={() => setCaptureModalOpen(true)}>
-                <CameraIcon className="mr-2" /> Capture Photo
+                <CameraIcon className="mr-2 h-4 w-4" /> Capture Photo
             </Button>
             <Button variant="outline" onClick={() => setUploadModalOpen(true)}>
-                <Upload className="mr-2" /> Upload Photo
+                <Upload className="mr-2 h-4 w-4" /> Upload Photo
             </Button>
           </div>
 
@@ -91,7 +91,7 @@ export default function ProfilePage() {
               </div>
               <div className="grid gap-2">
                 <Label>Gender</Label>
-                <RadioGroup defaultValue="male" className="flex items-center space-x-4">
+                <RadioGroup defaultValue="male" className="flex items-center space-x-4 pt-2">
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="male" id="male" />
                         <Label htmlFor="male">Male</Label>
@@ -157,20 +157,20 @@ export default function ProfilePage() {
           </div>
         </CardContent>
         <CardFooter className="flex-col items-center gap-4">
-            <div className="flex justify-center gap-4">
-                <Button>
-                    <Save className="mr-2" /> Save Changes
+            <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-sm">
+                <Button className="w-full sm:w-auto">
+                    <Save className="mr-2 h-4 w-4" /> Save Changes
                 </Button>
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                     Cancel
                 </Button>
             </div>
-            <div className="flex justify-center gap-4 mt-4 pt-4 border-t w-full max-w-sm">
-                <Button variant="secondary">Change Password</Button>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4 pt-4 border-t w-full max-w-sm">
+                <Button variant="secondary" className="w-full sm:w-auto">Change Password</Button>
                 <Dialog>
                     <DialogTrigger asChild>
-                        <Button variant="destructive">
-                            <Trash2 className="mr-2"/> Delete Account
+                        <Button variant="destructive" className="w-full sm:w-auto">
+                            <Trash2 className="mr-2 h-4 w-4"/> Delete Account
                         </Button>
                     </DialogTrigger>
                      <DialogContent>
@@ -261,14 +261,14 @@ export default function ProfilePage() {
                 accept="image/png, image/jpeg, image/gif"
              />
              <Button variant="outline" className="w-full" onClick={triggerFileSelect}>
-                <Upload className="mr-2"/>
+                <Upload className="mr-2 h-4 w-4"/>
                 Choose Image
             </Button>
           </div>
-           <DialogFooter className="!justify-between">
-                <Button variant="outline" onClick={() => setUploadModalOpen(false)}>Cancel</Button>
-                <Button onClick={handleUpload} disabled={!uploadedImage}>
-                    <Save className="mr-2"/>
+           <DialogFooter className="!justify-between flex-col-reverse sm:flex-row gap-2">
+                <Button variant="outline" onClick={() => setUploadModalOpen(false)} className="w-full sm:w-auto">Cancel</Button>
+                <Button onClick={handleUpload} disabled={!uploadedImage} className="w-full sm:w-auto">
+                    <Save className="mr-2 h-4 w-4"/>
                     Use this image
                 </Button>
           </DialogFooter>

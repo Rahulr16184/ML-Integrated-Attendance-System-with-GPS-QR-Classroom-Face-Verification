@@ -136,13 +136,13 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
           <CardDescription>Add a new institution to the system.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             <Input
               placeholder="e.g., Global Tech University"
               value={newInstitutionName}
               onChange={(e) => setNewInstitutionName(e.target.value)}
             />
-            <Button onClick={handleCreateInstitution}><PlusCircle className="mr-2" /> Create</Button>
+            <Button onClick={handleCreateInstitution} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Create</Button>
           </div>
         </CardContent>
       </Card>
@@ -168,7 +168,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                             </div>
                           ) : (
                             <>
-                              <University /> {inst.name}
+                              <University className="h-5 w-5 sm:h-6 sm:w-6" /> <span className="text-base sm:text-lg">{inst.name}</span>
                             </>
                           )}
                       </div>
@@ -182,13 +182,13 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                   <AccordionContent className="pl-4 space-y-4">
                     <div className="p-4 border rounded-lg bg-muted/20">
                       <h4 className="font-semibold mb-2">Create Department/Class</h4>
-                      <div className="flex space-x-2">
+                      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                         <Input
                           placeholder="e.g., Computer Science"
                           value={newDepartmentName}
                           onChange={(e) => setNewDepartmentName(e.target.value)}
                         />
-                        <Button onClick={handleCreateDepartment} variant="secondary" disabled={!selectedInstitution}><PlusCircle className="mr-2" /> Add</Button>
+                        <Button onClick={handleCreateDepartment} variant="secondary" disabled={!selectedInstitution} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
                       </div>
                     </div>
                     <div>
@@ -196,7 +196,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                          {inst.departments.length > 0 ? (
                             <ul className="space-y-2">
                             {inst.departments.map((dept) => (
-                                <li key={dept.id} className="flex items-center justify-between p-2 border rounded-md">
+                                <li key={dept.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 border rounded-md gap-2">
                                     {editingDepartment?.id === dept.id ? (
                                         <div className="flex items-center gap-2 w-full">
                                             <Input value={editingName} onChange={e => setEditingName(e.target.value)} className="h-9"/>
@@ -206,7 +206,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                                     ) : (
                                         <>
                                             <span className="font-medium">{dept.name}</span>
-                                            <div className="flex items-center">
+                                            <div className="flex items-center sm:ml-auto">
                                                 <Button variant="ghost" size="icon" onClick={() => startEditing(dept, dept.name)}>
                                                     <Pen className="h-4 w-4" />
                                                 </Button>
