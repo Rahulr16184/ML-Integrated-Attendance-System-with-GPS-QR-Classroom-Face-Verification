@@ -150,9 +150,17 @@ export default function ProfilePage() {
                 <Label htmlFor="institution">Institution Name</Label>
                 <Input id="institution" defaultValue="Global Tech Academy" disabled />
               </div>
-              <div className="grid gap-2 md:col-span-2">
+              <div className="grid gap-2">
                 <Label htmlFor="department">Department</Label>
                 <Input id="department" defaultValue="Computer Science" disabled />
+              </div>
+               <div className="grid gap-2">
+                <Label htmlFor="roll-no">Roll No</Label>
+                <Input id="roll-no" defaultValue="22CS001" disabled />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="register-no">Register No</Label>
+                <Input id="register-no" defaultValue="GTA22CS001" disabled />
               </div>
           </div>
         </CardContent>
