@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
-import { addDays, differenceInDays, isSameDay, isWeekend, format } from "date-fns";
+import { addDays, differenceInDays, isSameDay, isWeekend, format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,35 +15,25 @@ import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Calculator, Save, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-
-type Semester = {
-  id: string;
-  name: string; // e.g., "Semester I"
-  roman: string;
-  batch: string;
-  dateRange: DateRange;
-  holidays: Date[];
-  workingDays: number;
-};
-
-// Mock data
-const mockSemesters: Semester[] = [
-    {
-        id: "sem-1",
-        name: "Semester I",
-        roman: "I",
-        batch: "cs-2024",
-        dateRange: { from: new Date("2024-01-15"), to: new Date("2024-05-15") },
-        holidays: [new Date("2024-01-26"), new Date("2024-04-14")],
-        workingDays: 85
-    }
-];
+import type { Semester } from "@/lib/types";
+import mockSemesters from "@/lib/working-days.json";
 
 const SEMESTER_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
+// Helper to parse dates from the JSON file
+const parseSemesterDates = (semester: Semester) => ({
+  ...semester,
+  dateRange: {
+    from: parseISO(semester.dateRange.from),
+    to: parseISO(semester.dateRange.to),
+  },
+  holidays: semester.holidays.map(h => parseISO(h)),
+});
+
+
 export default function WorkingDaysPage() {
   const [selectedBatch, setSelectedBatch] = useState<string>("");
-  const [semesters, setSemesters] = useState<Semester[]>(mockSemesters);
+  const [semesters, setSemesters] = useState<any[]>(mockSemesters.semesters.map(parseSemesterDates));
   
   // 'new' for creating, or semester id for editing
   const [editingMode, setEditingMode] = useState<"new" | string | null>(null);
@@ -73,7 +63,7 @@ export default function WorkingDaysPage() {
     setTotalWorkingDays(null);
   };
 
-  const handleSelectExisting = (semester: Semester) => {
+  const handleSelectExisting = (semester: any) => {
     setEditingMode(semester.id);
     setSelectedRoman(semester.roman);
     setDateRange(semester.dateRange);
@@ -113,7 +103,7 @@ export default function WorkingDaysPage() {
     }
     const workingDays = calculateWorkingDays();
 
-    const newSemester: Semester = {
+    const newSemester = {
         id: editingMode === "new" ? `sem-${Date.now()}` : editingMode!,
         name: `Semester ${selectedRoman}`,
         roman: selectedRoman,
@@ -285,6 +275,3 @@ export default function WorkingDaysPage() {
     </div>
   );
 }
-
-
-    
