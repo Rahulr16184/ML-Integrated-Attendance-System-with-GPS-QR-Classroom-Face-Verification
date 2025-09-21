@@ -11,7 +11,7 @@ import { Header } from "@/components/header";
 import { Bot } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "TRACEIN - App",
+  title: "TRACEIN - Admin Profile",
   description: "ML integrated attendance system",
 };
 
@@ -34,7 +34,7 @@ export default function AppLayout({
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col">
-        <Header />
+        <Header userRole="admin" />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>

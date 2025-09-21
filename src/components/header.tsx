@@ -16,14 +16,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useState, useEffect } from "react";
 
 type HeaderProps = {
     dashboardUrl?: string;
     userRole?: string;
 }
 
-export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
+export function Header({ dashboardUrl: defaultDashboardUrl, userRole: initialUserRole }: HeaderProps) {
   const router = useRouter();
+  const [userRole, setUserRole] = useState(initialUserRole);
+
+  useEffect(() => {
+    if (!initialUserRole) {
+      const roleFromStorage = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
+      if (roleFromStorage) {
+        setUserRole(roleFromStorage);
+      }
+    }
+  }, [initialUserRole]);
 
   const handleLogout = () => {
     localStorage.removeItem("userRole");
@@ -33,11 +44,31 @@ export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
     router.push("/login");
   };
 
+  const getDashboardUrl = () => {
+    if (defaultDashboardUrl) return defaultDashboardUrl;
+    switch (userRole) {
+      case "admin": return "/admin-dashboard";
+      case "teacher": return "/teacher-dashboard";
+      case "student": return "/student-dashboard";
+      case "server": return "/server-dashboard";
+      default: return "/";
+    }
+  };
+
+  const getProfileUrl = () => {
+    switch (userRole) {
+      case "admin": return "/admin-profile";
+      case "teacher": return "/teacher-profile";
+      case "student": return "/student-profile";
+      default: return "/";
+    }
+  };
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
-          <Link href={dashboardUrl}>
+          <Link href={getDashboardUrl()}>
             <Home className="h-[1.2rem] w-[1.2rem]" />
             <span className="sr-only">Dashboard</span>
           </Link>
@@ -56,7 +87,7 @@ export function Header({ dashboardUrl = "/profile", userRole }: HeaderProps) {
       <div className="flex items-center gap-4">
          {userRole !== 'server' && (
             <Button variant="outline" size="icon" asChild>
-                <Link href="/profile">
+                <Link href={getProfileUrl()}>
                     <User className="h-[1.2rem] w-[1.2rem]" />
                     <span className="sr-only">Profile</span>
                 </Link>

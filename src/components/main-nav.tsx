@@ -8,10 +8,27 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Camera, UserPlus, FileText, CreditCard } from "lucide-react";
+import { Camera, UserPlus, FileText, CreditCard, User } from "lucide-react";
+import { useSidebar } from "./ui/sidebar";
+import { useState, useEffect } from "react";
 
 export function MainNav() {
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
+    setUserRole(role);
+  }, []);
+
+  const getProfileUrl = () => {
+    switch (userRole) {
+      case "admin": return "/admin-profile";
+      case "teacher": return "/teacher-profile";
+      case "student": return "/student-profile";
+      default: return "/profile";
+    }
+  };
 
   const menuItems = [
     {
@@ -34,6 +51,11 @@ export function MainNav() {
       label: "ID Card",
       icon: CreditCard,
     },
+    {
+        href: getProfileUrl(),
+        label: "Profile",
+        icon: User,
+    }
   ];
 
   return (

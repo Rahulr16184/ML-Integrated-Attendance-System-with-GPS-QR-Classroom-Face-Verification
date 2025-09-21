@@ -19,9 +19,9 @@ import { format } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
-export default function ProfilePage() {
-  const [userEmail, setUserEmail] = useState<string | null>("user@example.com");
-  const [profileImage, setProfileImage] = useState<string>("https://picsum.photos/seed/1/200/200");
+export default function TeacherProfilePage() {
+  const [userEmail, setUserEmail] = useState<string | null>("teacher@example.com");
+  const [profileImage, setProfileImage] = useState<string>("https://picsum.photos/seed/3/200/200");
   const [isCaptureModalOpen, setCaptureModalOpen] = useState(false);
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -66,7 +66,7 @@ export default function ProfilePage() {
             <Avatar className="h-32 w-32 sm:h-48 sm:w-48 rounded-lg">
               <AvatarImage src={profileImage} alt="User avatar" className="rounded-lg object-cover" data-ai-hint="profile picture" />
               <AvatarFallback className="rounded-lg text-4xl">
-                {userEmail?.[0]?.toUpperCase() ?? 'U'}
+                {userEmail?.[0]?.toUpperCase() ?? 'T'}
               </AvatarFallback>
             </Avatar>
           </div>
@@ -83,11 +83,11 @@ export default function ProfilePage() {
           <div className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" defaultValue="User Name" />
+                <Input id="name" defaultValue="Teacher User" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" defaultValue="Student" disabled />
+                <Input id="role" defaultValue="Teacher" disabled />
               </div>
               <div className="grid gap-2">
                 <Label>Gender</Label>
@@ -102,7 +102,7 @@ export default function ProfilePage() {
                     </div>
                      <div className="flex items-center space-x-2">
                         <RadioGroupItem value="other" id="other" />
-                        <Label htmlFor="other">Other</Label>
+                        <Label htmlFor="other">Other</Label>cU>
                     </div>
                 </RadioGroup>
               </div>
@@ -144,7 +144,7 @@ export default function ProfilePage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+1 234 567 890" />
+                <Input id="phone" type="tel" placeholder="+1 111 222 333" />
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="institution">Institution Name</Label>
@@ -153,14 +153,6 @@ export default function ProfilePage() {
               <div className="grid gap-2">
                 <Label htmlFor="department">Department</Label>
                 <Input id="department" defaultValue="Computer Science" disabled />
-              </div>
-               <div className="grid gap-2">
-                <Label htmlFor="roll-no">Roll No</Label>
-                <Input id="roll-no" defaultValue="22CS001" disabled />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="register-no">Register No</Label>
-                <Input id="register-no" defaultValue="GTA22CS001" disabled />
               </div>
           </div>
         </CardContent>
