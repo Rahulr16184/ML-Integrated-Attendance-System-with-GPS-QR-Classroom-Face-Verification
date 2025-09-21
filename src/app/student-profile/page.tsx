@@ -173,11 +173,11 @@ export default function StudentProfilePage() {
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="roll-no">Roll No</Label>
-                <Input id="roll-no" defaultValue="22CS001" disabled />
+                <Input id="roll-no" defaultValue="22CS001" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="register-no">Register No</Label>
-                <Input id="register-no" defaultValue="GTA22CS001" disabled />
+                <Input id="register-no" defaultValue="GTA22CS001" />
               </div>
           </div>
         </CardContent>
