@@ -17,9 +17,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import users from "@/lib/users.json"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from 'lucide-react'
+import { auth, db } from "@/lib/conf"
+import { signInWithEmailAndPassword } from "firebase/auth"
+import { doc, getDoc } from "firebase/firestore"
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -76,27 +78,53 @@ export default function LoginPage() {
     }
   }
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("")
-    const user = users.users.find(
-      (u) => u.email === email && u.password === password
-    )
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    if (user) {
-      if (rememberMe) {
-        localStorage.setItem("userRole", user.role);
-        localStorage.setItem("userEmail", user.email);
-      } else {
-        sessionStorage.setItem("userRole", user.role);
-        sessionStorage.setItem("userEmail", user.email);
+      if (!user.emailVerified) {
+        setError("Please verify your email before logging in. A new verification link has been sent.");
+        // Consider re-sending verification email here if needed
+        return;
       }
-      toast({
-        title: "Login Successful",
-        description: `Welcome, ${user.role}!`,
-      })
-      redirectToDashboard(user.role)
-    } else {
-      setError("Invalid email or password.")
+      
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const userRole = userData.role;
+
+        if (rememberMe) {
+          localStorage.setItem("userRole", userRole);
+          localStorage.setItem("userEmail", user.email!);
+        } else {
+          sessionStorage.setItem("userRole", userRole);
+          sessionStorage.setItem("userEmail", user.email!);
+        }
+        toast({
+          title: "Login Successful",
+          description: `Welcome, ${userRole}!`,
+        })
+        redirectToDashboard(userRole);
+      } else {
+        setError("User data not found. Please contact support.");
+      }
+    } catch (error: any) {
+       switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+          setError("Invalid email or password.");
+          break;
+        case 'auth/invalid-credential':
+             setError("Invalid email or password.");
+             break;
+        default:
+          setError("An unexpected error occurred. Please try again.");
+          break;
+      }
     }
   }
 

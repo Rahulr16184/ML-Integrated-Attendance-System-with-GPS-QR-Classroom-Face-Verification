@@ -1,14 +1,14 @@
 
-import { db } from '@/lib/conf';
-import { collection, addDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/conf';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { collection, doc, setDoc } from 'firebase/firestore';
 
-// NOTE: In a real-world application, you should NEVER store passwords in plaintext.
-// This is a simplified example. Use Firebase Authentication for secure user management.
+// This is a much improved user registration flow.
 
 type UserRegistrationData = {
     name: string;
     email: string;
-    password: string; // Plaintext password, for demonstration only.
+    password: string; 
     institutionId: string;
     departmentId: string;
     role: string;
@@ -16,25 +16,35 @@ type UserRegistrationData = {
 
 export const registerUser = async (userData: UserRegistrationData): Promise<void> => {
     try {
-        await addDoc(collection(db, 'users'), {
+        // 1. Create user in Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+        const user = userCredential.user;
+
+        // 2. Send email verification
+        await sendEmailVerification(user);
+
+        // 3. Save user data to Firestore (without the password)
+        // We use the user's UID from Auth as the document ID in Firestore
+        await setDoc(doc(db, 'users', user.uid), {
             name: userData.name,
             email: userData.email,
-            password: userData.password, // Storing plaintext password - NOT FOR PRODUCTION
             institutionId: userData.institutionId,
             departmentId: userData.departmentId,
             role: userData.role,
-            isActivated: false, // Account is not active until email verification
+            isActivated: user.emailVerified, // This will be false initially
             createdAt: new Date().toISOString(),
         });
 
-        // In a real application, you would trigger an email sending service here
-        // to send an activation link to the user's email.
-        console.log(`Activation link for ${userData.email} would be sent here.`);
+        console.log(`Verification email sent to ${userData.email}.`);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error registering user: ", error);
-        throw new Error("Could not register user in the database.");
+        // Provide more specific error messages
+        if (error.code === 'auth/email-already-in-use') {
+            throw new Error("This email address is already in use.");
+        } else if (error.code === 'auth/weak-password') {
+            throw new Error("The password is too weak. Please use a stronger password.");
+        }
+        throw new Error("Could not register user. Please try again.");
     }
 };
-
-    

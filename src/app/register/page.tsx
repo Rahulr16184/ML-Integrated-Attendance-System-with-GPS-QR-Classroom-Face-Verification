@@ -104,6 +104,7 @@ export default function RegisterPage() {
             if (department.secretCodes.student === secretCode) role = "student";
             else if (department.secretCodes.teacher === secretCode) role = "teacher";
             else if (department.secretCodes.admin === secretCode) role = "admin";
+            else if (department.secretCodes.server === secretCode) role = "server";
         }
         
         if (!role) {
@@ -126,10 +127,10 @@ export default function RegisterPage() {
                 role
             });
             setIsRegistered(true);
-        } catch (error) {
+        } catch (error: any) {
              toast({
                 title: "Registration Error",
-                description: "An error occurred during registration. Please try again.",
+                description: error.message || "An error occurred during registration. Please try again.",
                 variant: "destructive"
             });
         } finally {
@@ -250,5 +251,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
