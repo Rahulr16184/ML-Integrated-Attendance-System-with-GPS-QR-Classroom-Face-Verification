@@ -16,38 +16,30 @@ type CameraCaptureProps = {
 
 export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing = false }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isCameraOn, setIsCameraOn] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   const stopCamera = useCallback(() => {
-    if (stream) {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
     }
-    if (videoRef.current) {
-        videoRef.current.srcObject = null;
-    }
-    setStream(null);
-    setIsCameraOn(false);
-  }, [stream]);
+  }, []);
 
   const startCamera = useCallback(async () => {
-    if (stream) {
-        return;
-    }
+    stopCamera(); 
     setError(null);
     setCapturedImage(null);
     setIsInitializing(true);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
       }
-      setIsCameraOn(true);
     } catch (err) {
       console.error("Error accessing camera:", err);
       let message = "Could not access the camera. Please check permissions.";
@@ -64,11 +56,11 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
         description: message,
         variant: "destructive",
       });
-      setIsCameraOn(false);
     } finally {
-        setIsInitializing(false);
+      setIsInitializing(false);
     }
-  }, [toast, stream]);
+  }, [toast, stopCamera]);
+
 
   useEffect(() => {
     startCamera();
@@ -76,6 +68,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
       stopCamera();
     };
   }, [startCamera, stopCamera]);
+
 
   const handleCapture = () => {
     if (videoRef.current) {
@@ -106,6 +99,8 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
         setCapturedImage(null); 
     }
   }
+  
+  const isCameraOn = !isInitializing && !error && !capturedImage;
 
   return (
     <Card>
@@ -118,22 +113,22 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
             </div>
           ) : capturedImage ? (
              <Image src={capturedImage} alt="Captured preview" layout="fill" objectFit="cover" />
-          ) : isCameraOn ? (
+          ) : error ? (
+             <div className="text-center text-muted-foreground p-4">
+              <VideoOff className="mx-auto h-12 w-12" />
+              <p className="mt-2">Camera is off or not available.</p>
+              <p className="text-sm text-destructive mt-2">{error}</p>
+              <Button variant="outline" onClick={startCamera} className="mt-4">
+                  <Video className="mr-2 h-4 w-4" /> Retry
+              </Button>
+            </div>
+          ) : (
             <>
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform -scale-x-100" />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="w-3/4 aspect-square border-4 border-dashed border-white/50 rounded-full"></div>
                 </div>
             </>
-          ) : (
-            <div className="text-center text-muted-foreground p-4">
-              <VideoOff className="mx-auto h-12 w-12" />
-              <p className="mt-2">Camera is off or not available.</p>
-              {error && <p className="text-sm text-destructive mt-2">{error}</p>}
-              <Button variant="outline" onClick={startCamera} className="mt-4">
-                  <Video className="mr-2 h-4 w-4" /> Retry
-              </Button>
-            </div>
           )}
         </div>
       </CardContent>
