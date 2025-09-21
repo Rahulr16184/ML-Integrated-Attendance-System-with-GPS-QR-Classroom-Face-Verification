@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Video, VideoOff, Camera } from "lucide-react";
+import { Video, VideoOff, Camera, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type CameraCaptureProps = {
@@ -15,12 +15,25 @@ type CameraCaptureProps = {
 export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing = false }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setIsCameraOn(false);
+    }
+  }, [stream]);
+
   const startCamera = useCallback(async () => {
     setError(null);
+    setIsInitializing(true);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
       setStream(mediaStream);
@@ -45,19 +58,20 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
         variant: "destructive",
       });
       setIsCameraOn(false);
+      stopCamera();
+    } finally {
+        setIsInitializing(false);
     }
-  }, [toast]);
+  }, [toast, stopCamera]);
 
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-      setIsCameraOn(false);
-    }
-  }, [stream]);
+  useEffect(() => {
+    startCamera();
+    // Cleanup on unmount
+    return () => {
+      stopCamera();
+    };
+  }, [startCamera, stopCamera]);
+
 
   const handleCapture = () => {
     if (videoRef.current) {
@@ -73,36 +87,32 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
     }
   };
 
-  useEffect(() => {
-    // Cleanup on unmount
-    return () => {
-      stopCamera();
-    };
-  }, [stopCamera]);
-
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-0 sm:p-4">
         <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden">
-          {isCameraOn ? (
+          {isInitializing ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-2 text-muted-foreground">
+              <Loader2 className="animate-spin h-8 w-8" />
+              <p>Starting camera...</p>
+            </div>
+          ) : isCameraOn ? (
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
-            <div className="text-center text-muted-foreground">
+            <div className="text-center text-muted-foreground p-4">
               <VideoOff className="mx-auto h-12 w-12" />
-              <p>Camera is off</p>
+              <p className="mt-2">Camera is off or not available.</p>
               {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+               {!error && (
+                 <Button variant="outline" onClick={startCamera} className="mt-4">
+                    <Video className="mr-2 h-4 w-4" /> Retry
+                 </Button>
+               )}
             </div>
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-between gap-2">
-        <Button variant="outline" onClick={isCameraOn ? stopCamera : startCamera} className="w-full sm:w-auto">
-          {isCameraOn ? (
-            <><VideoOff className="mr-2 h-4 w-4" /> Stop Camera</>
-          ) : (
-            <><Video className="mr-2 h-4 w-4" /> Start Camera</>
-          )}
-        </Button>
+      <CardFooter className="flex flex-col sm:flex-row justify-center gap-2 pt-4">
         <Button onClick={handleCapture} disabled={!isCameraOn || isCapturing} className="w-full sm:w-auto">
           <Camera className="mr-2 h-4 w-4" />
           {isCapturing ? "Processing..." : captureLabel}

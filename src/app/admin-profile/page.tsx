@@ -1,15 +1,15 @@
 
 "use client"
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import Cropper from 'react-easy-crop'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
-import { Upload, Camera as CameraIcon, Save, X, ShieldAlert, Trash2, CalendarIcon } from "lucide-react";
+import { Upload, Camera as CameraIcon, Save, X, ShieldAlert, Trash2, CalendarIcon, Crop } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import Image from "next/image";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -17,6 +17,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Slider } from "@/components/ui/slider";
+import getCroppedImg from "@/lib/crop-image";
+import type { Area } from 'react-easy-crop';
 
 
 export default function AdminProfilePage() {
@@ -28,6 +31,9 @@ export default function AdminProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [date, setDate] = useState<Date>()
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const handleCapture = (dataUri: string) => {
     setProfileImage(dataUri);
@@ -40,18 +46,29 @@ export default function AdminProfilePage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setUploadedImage(reader.result as string);
+        setZoom(1);
+        setCrop({ x: 0, y: 0 });
       };
       reader.readAsDataURL(file);
     }
   };
   
-  const handleUpload = () => {
-    if (uploadedImage) {
-        setProfileImage(uploadedImage);
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleUpload = useCallback(async () => {
+    if (uploadedImage && croppedAreaPixels) {
+      try {
+        const croppedImage = await getCroppedImg(uploadedImage, croppedAreaPixels);
+        setProfileImage(croppedImage!);
         setUploadModalOpen(false);
         setUploadedImage(null);
+      } catch (e) {
+        console.error(e);
+      }
     }
-  }
+  }, [uploadedImage, croppedAreaPixels]);
 
   const triggerFileSelect = () => fileInputRef.current?.click();
 
@@ -214,20 +231,17 @@ export default function AdminProfilePage() {
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>Capture New Profile Photo</DialogTitle>
-             <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-            </DialogClose>
+             <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="absolute right-4 top-4">
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              </DialogClose>
           </DialogHeader>
           <CameraCapture 
             onCapture={handleCapture}
             captureLabel="Use this photo"
           />
-          <DialogFooter>
-            <div className="flex justify-center w-full">
-                <Button variant="outline" onClick={() => setCaptureModalOpen(false)}>Cancel</Button>
-            </div>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
       
@@ -235,30 +249,54 @@ export default function AdminProfilePage() {
       <Dialog open={isUploadModalOpen} onOpenChange={setUploadModalOpen}>
         <DialogContent>
            <DialogHeader>
-            <DialogTitle>Upload New Profile Photo</DialogTitle>
-             <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
+            <DialogTitle>Upload & Crop Photo</DialogTitle>
+             <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="absolute right-4 top-4">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                </Button>
             </DialogClose>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+            <div className="relative h-64 w-full bg-muted rounded-lg">
               {uploadedImage ? (
-                <div className="relative w-full h-full">
-                    <Image src={uploadedImage} alt="Image preview" layout="fill" objectFit="contain" className="rounded-lg"/>
-                </div>
+                <Cropper
+                  image={uploadedImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  onCropChange={setCrop}
+                  onCropComplete={onCropComplete}
+                  onZoomChange={setZoom}
+                  cropShape="round"
+                  showGrid={false}
+                />
               ) : (
-                <div className="text-center text-muted-foreground">
+                <div className="flex items-center justify-center h-full text-center text-muted-foreground">
                   <p>Image preview will appear here.</p>
                 </div>
               )}
             </div>
+             {uploadedImage && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="zoom" className="text-right">Zoom</Label>
+                <Slider
+                  id="zoom"
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  value={[zoom]}
+                  onValueChange={(value) => setZoom(value[0])}
+                  className="col-span-3"
+                />
+              </div>
+            )}
             <Input 
                 ref={fileInputRef}
                 type="file" 
                 className="hidden" 
                 onChange={handleFileChange}
-                accept="image/png, image/jpeg, image/gif"
+                accept="image/png, image/jpeg"
              />
              <Button variant="outline" className="w-full" onClick={triggerFileSelect}>
                 <Upload className="mr-2 h-4 w-4"/>
@@ -268,8 +306,8 @@ export default function AdminProfilePage() {
            <DialogFooter className="!justify-between flex-col-reverse sm:flex-row gap-2">
                 <Button variant="outline" onClick={() => setUploadModalOpen(false)} className="w-full sm:w-auto">Cancel</Button>
                 <Button onClick={handleUpload} disabled={!uploadedImage} className="w-full sm:w-auto">
-                    <Save className="mr-2 h-4 w-4"/>
-                    Use this image
+                    <Crop className="mr-2 h-4 w-4"/>
+                    Crop & Save
                 </Button>
           </DialogFooter>
         </DialogContent>
