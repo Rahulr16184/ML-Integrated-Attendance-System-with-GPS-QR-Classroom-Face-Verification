@@ -24,18 +24,32 @@ export function Header({ dashboardUrl = "/profile" }: HeaderProps) {
   }, []);
   
   if (!isMounted) {
-    return null; // Don't render server-side
+    // On the server or before hydration, render a placeholder or nothing
+    return (
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
+            {/* Render a simplified or skeleton header */}
+            <div className="flex-1" />
+            <ThemeToggle />
+            <Button variant="outline" size="icon" asChild>
+                <Link href="/profile">
+                    <User className="h-[1.2rem] w-[1.2rem]" />
+                    <span className="sr-only">Profile</span>
+                </Link>
+            </Button>
+        </header>
+    );
   }
+
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-      <Button variant="outline" size="icon" asChild>
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" asChild>
           <Link href={dashboardUrl}>
             <Home className="h-[1.2rem] w-[1.2rem]" />
             <span className="sr-only">Dashboard</span>
           </Link>
         </Button>
-      <div className="flex items-center gap-2">
         {userRole && (
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
