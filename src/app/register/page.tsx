@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { Institution, Department } from "@/lib/types"
 import { getInstitutions } from "@/services/institution-service"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import { registerUser } from "@/services/user-service"
 
 const PasswordStrengthIndicator = ({ password }: { password?: string }) => {
   const getStrength = () => {
@@ -61,6 +62,7 @@ export default function RegisterPage() {
     const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
     const [secretCode, setSecretCode] = useState("");
     const [isRegistered, setIsRegistered] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
 
@@ -82,18 +84,18 @@ export default function RegisterPage() {
         }
     }, [selectedInstitution, institutions]);
     
-    const handleRegister = () => {
-        // Basic validation
+    const handleRegister = async () => {
+        setIsLoading(true);
         if (!name || !email || !password || !selectedInstitution || !selectedDepartment || !secretCode) {
             toast({
                 title: "Registration Failed",
                 description: "Please fill out all fields.",
                 variant: "destructive"
             });
+            setIsLoading(false);
             return;
         }
         
-        // Find role from secret code
         const institution = institutions.find(inst => inst.id === selectedInstitution);
         const department = institution?.departments.find(dept => dept.id === selectedDepartment);
         
@@ -110,14 +112,29 @@ export default function RegisterPage() {
                 description: "The secret code is not valid for the selected department.",
                 variant: "destructive"
             });
+            setIsLoading(false);
             return;
         }
-
-        // In a real app, you would save the new user to your database.
-        // For this demo, we'll just show a success message.
-        console.log({ name, email, password, institution: selectedInstitution, department: selectedDepartment, role });
         
-        setIsRegistered(true);
+        try {
+            await registerUser({
+                name,
+                email,
+                password,
+                institutionId: selectedInstitution,
+                departmentId: selectedDepartment,
+                role
+            });
+            setIsRegistered(true);
+        } catch (error) {
+             toast({
+                title: "Registration Error",
+                description: "An error occurred during registration. Please try again.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     if (isRegistered) {
@@ -219,8 +236,8 @@ export default function RegisterPage() {
                     <Input id="secret-code" placeholder="Enter your role's secret code" required className="pl-10" value={secretCode} onChange={e => setSecretCode(e.target.value)} />
                 </div>
             </div>
-            <Button onClick={handleRegister} className="w-full">
-                Register
+            <Button onClick={handleRegister} disabled={isLoading} className="w-full">
+                {isLoading ? 'Registering...' : 'Register'}
             </Button>
         </CardContent>
         <div className="mt-4 text-center text-sm p-6 pt-0">
@@ -233,5 +250,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
