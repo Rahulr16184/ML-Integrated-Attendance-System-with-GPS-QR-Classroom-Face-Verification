@@ -14,6 +14,7 @@ export type Department = {
     student: string;
     teacher: string;
     admin: string;
+    server: string;
   };
 };
 
@@ -32,3 +33,5 @@ export type Semester = {
   holidays: string[];
   workingDays: number;
 };
+
+    

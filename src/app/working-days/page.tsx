@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { DateRange } from "react-day-picker";
-import { addDays, differenceInDays, isSameDay, isWeekend, format, parseISO } from "date-fns";
+import { differenceInDays, format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -14,14 +14,15 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Calculator, Save, PlusCircle, Pencil, Trash2, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import type { Semester } from "@/lib/types";
-import mockSemesters from "@/lib/working-days.json";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { getSemesters, saveSemester, deleteSemester } from "@/services/working-days-service";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 const SEMESTER_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
-// Helper to parse dates from the JSON file
 const parseSemesterDates = (semester: Semester) => ({
   ...semester,
   dateRange: {
@@ -33,13 +34,15 @@ const parseSemesterDates = (semester: Semester) => ({
 
 
 export default function WorkingDaysPage() {
+  const { userProfile, loading: userLoading } = useUserProfile();
+  const { toast } = useToast();
+
   const [selectedBatch, setSelectedBatch] = useState<string>("");
-  const [semesters, setSemesters] = useState<any[]>(mockSemesters.semesters.map(parseSemesterDates));
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [loadingSemesters, setLoadingSemesters] = useState(false);
   
-  // 'new' for creating, or semester id for editing
   const [editingMode, setEditingMode] = useState<"new" | string | null>(null);
   
-  // Form state for new/editing semester
   const [selectedRoman, setSelectedRoman] = useState<string>("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [holidays, setHolidays] = useState<Date[]>([]);
@@ -48,23 +51,31 @@ export default function WorkingDaysPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
-  const availableRomans = useMemo(() => {
-    const currentSemesterRoman = editingMode !== 'new' ? semesters.find(s => s.id === editingMode)?.roman : null;
-    const usedRomans = semesters
-      .filter(s => s.batch === selectedBatch && s.id !== editingMode)
-      .map(s => s.roman);
-    
-    const options = SEMESTER_ROMANS.filter(r => !usedRomans.includes(r));
-    if (editingMode !== 'new' && currentSemesterRoman && !options.includes(currentSemesterRoman)) {
-        options.unshift(currentSemesterRoman);
+  useEffect(() => {
+    if (userProfile?.departmentName) {
+      // Default batch could be based on current year or user's context
+      const defaultBatch = `${userProfile.departmentName.toLowerCase().replace(/\s/g, '-')}-${new Date().getFullYear()}`;
+      setSelectedBatch(defaultBatch);
     }
-    return options;
-  }, [semesters, selectedBatch, editingMode]);
-  
-  const filteredSemesters = useMemo(() => {
-    return semesters.filter(s => s.batch === selectedBatch).sort((a,b) => SEMESTER_ROMANS.indexOf(a.roman) - SEMESTER_ROMANS.indexOf(b.roman));
-  }, [semesters, selectedBatch]);
+  }, [userProfile]);
 
+  useEffect(() => {
+    async function fetchSemesters() {
+      if (userProfile?.institutionId && userProfile?.departmentId && selectedBatch) {
+        setLoadingSemesters(true);
+        const fetchedSemesters = await getSemesters(userProfile.institutionId, userProfile.departmentId, selectedBatch);
+        setSemesters(fetchedSemesters.map(parseSemesterDates));
+        setLoadingSemesters(false);
+      }
+    }
+    fetchSemesters();
+  }, [selectedBatch, userProfile]);
+
+  const availableRomans = useMemo(() => {
+    const usedRomans = semesters.filter(s => s.id !== editingMode).map(s => s.roman);
+    return SEMESTER_ROMANS.filter(r => !usedRomans.includes(r));
+  }, [semesters, editingMode]);
+  
   const handleStartAddNew = () => {
     setEditingMode("new");
     setSelectedRoman("");
@@ -73,7 +84,7 @@ export default function WorkingDaysPage() {
     setTotalWorkingDays(null);
   };
 
-  const handleSelectExisting = (semester: any) => {
+  const handleSelectExisting = (semester: Semester) => {
     setEditingMode(semester.id);
     setSelectedRoman(semester.roman);
     setDateRange(semester.dateRange);
@@ -83,58 +94,85 @@ export default function WorkingDaysPage() {
   
   const handleCancel = () => {
     setEditingMode(null);
-  }
+  };
 
   const calculateWorkingDays = () => {
     if (!dateRange || !dateRange.from || !dateRange.to) {
       setTotalWorkingDays(null);
       return 0;
     }
-    
-    // Calculate total days in the range (inclusive)
     const totalDays = differenceInDays(dateRange.to, dateRange.from) + 1;
-    
-    // Subtract the number of holidays
     const workingDays = totalDays - holidays.length;
-    
     setTotalWorkingDays(workingDays);
     return workingDays;
   };
   
-  const handleSaveSemester = () => {
-    if (!selectedBatch || !selectedRoman || !dateRange || !dateRange.from || !dateRange.to) {
-        // Add toast notification later
+  const handleSaveSemester = async () => {
+    if (!userProfile?.institutionId || !userProfile?.departmentId || !selectedBatch || !selectedRoman || !dateRange?.from || !dateRange.to) {
+        toast({ title: "Missing Information", description: "Please fill all required fields.", variant: "destructive" });
         return;
     }
     const workingDays = totalWorkingDays === null ? calculateWorkingDays() : totalWorkingDays;
 
-    const newSemester = {
-        id: editingMode === "new" ? `sem-${Date.now()}` : editingMode!,
+    const semesterData: Omit<Semester, 'id'> & { id?: string } = {
         name: `Semester ${selectedRoman}`,
         roman: selectedRoman,
         batch: selectedBatch,
-        dateRange,
-        holidays,
+        dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() },
+        holidays: holidays.map(h => h.toISOString()),
         workingDays,
     };
-
-    if (editingMode === "new") {
-        setSemesters([...semesters, newSemester]);
-    } else {
-        setSemesters(semesters.map(s => s.id === editingMode ? newSemester : s));
+    if (editingMode !== "new") {
+        semesterData.id = editingMode;
     }
-    setEditingMode(null);
+
+    try {
+        const savedId = await saveSemester(userProfile.institutionId, userProfile.departmentId, semesterData);
+        const savedSemester = { ...semesterData, id: editingMode === "new" ? savedId : editingMode! };
+        
+        const newSemesters = editingMode === "new"
+            ? [...semesters, parseSemesterDates(savedSemester as Semester)]
+            : semesters.map(s => s.id === editingMode ? parseSemesterDates(savedSemester as Semester) : s);
+        
+        setSemesters(newSemesters);
+        setEditingMode(null);
+        toast({ title: "Success", description: "Semester saved successfully." });
+    } catch(error) {
+        console.error(error);
+        toast({ title: "Error", description: "Failed to save semester.", variant: "destructive" });
+    }
   };
 
-  const handleDeleteSemester = () => {
-    if (deleteTarget && deleteConfirmation === "CONFIRM") {
-        setSemesters(semesters.filter(s => s.id !== deleteTarget));
-        if (editingMode === deleteTarget) {
-            setEditingMode(null);
+  const handleDeleteSemester = async () => {
+    if (deleteTarget && deleteConfirmation === "CONFIRM" && userProfile?.institutionId && userProfile?.departmentId) {
+        try {
+            await deleteSemester(userProfile.institutionId, userProfile.departmentId, deleteTarget);
+            setSemesters(semesters.filter(s => s.id !== deleteTarget));
+            if (editingMode === deleteTarget) {
+                setEditingMode(null);
+            }
+            toast({ title: "Success", description: "Semester deleted successfully." });
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Error", description: "Failed to delete semester.", variant: "destructive" });
+        } finally {
+            setDeleteTarget(null);
+            setDeleteConfirmation("");
         }
     }
-    setDeleteTarget(null);
-    setDeleteConfirmation("");
+  };
+  
+  if (userLoading) {
+      return (
+          <div className="p-4 sm:p-6 space-y-6">
+              <Skeleton className="h-10 w-1/2" />
+              <Skeleton className="h-6 w-3/4" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <Skeleton className="h-40 lg:col-span-1 rounded-lg"/>
+                  <Skeleton className="h-64 lg:col-span-2 rounded-lg"/>
+              </div>
+          </div>
+      )
   }
 
   return (
@@ -145,38 +183,30 @@ export default function WorkingDaysPage() {
             <p className="text-muted-foreground">Define academic semesters, set holidays, and calculate total working days.</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            {/* Card 1: Batch Selection */}
             <Card className="lg:col-span-1">
                 <CardHeader>
                     <CardTitle>Step 1: Select Batch</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-                        <SelectTrigger id="batch-select">
-                            <SelectValue placeholder="Select a batch/department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="cs-2024">Computer Science - 2024</SelectItem>
-                            <SelectItem value="ba-2024">Business Admin - 2024</SelectItem>
-                            <SelectItem value="me-2024">Mechanical Eng - 2024</SelectItem>
-                        </SelectContent>
-                    </Select>
+                     <Label>Batch / Department</Label>
+                     <Input value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)} placeholder="e.g., cs-2024" />
+                     <p className="text-xs text-muted-foreground mt-2">Enter a unique identifier for the batch (e.g., department-year).</p>
                 </CardContent>
             </Card>
 
-            {/* Card 2: Semester Management */}
             <Card className="lg:col-span-2">
                 <CardHeader>
                     <CardTitle>Step 2: Manage Semesters</CardTitle>
                     <CardDescription>Select a semester to edit or add a new one.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {filteredSemesters.map(semester => (
+                    {loadingSemesters && <Skeleton className="h-20 w-full" />}
+                    {!loadingSemesters && semesters.sort((a,b) => SEMESTER_ROMANS.indexOf(a.roman) - SEMESTER_ROMANS.indexOf(b.roman)).map(semester => (
                         <div key={semester.id} className={cn("flex items-center justify-between p-3 rounded-lg border", editingMode === semester.id ? "bg-accent border-primary" : "bg-background")}>
                             <div>
                                 <p className="font-semibold">{semester.name}</p>
                                 <p className="text-sm text-muted-foreground">
-                                    {format(semester.dateRange.from!, 'MMM dd, yyyy')} - {format(semester.dateRange.to!, 'MMM dd, yyyy')}
+                                    {format(semester.dateRange.from, 'MMM dd, yyyy')} - {format(semester.dateRange.to, 'MMM dd, yyyy')}
                                 </p>
                             </div>
                             <div className="flex items-center gap-1">
@@ -191,25 +221,24 @@ export default function WorkingDaysPage() {
                             </div>
                         </div>
                     ))}
-                    {selectedBatch && (
+                    {selectedBatch && !loadingSemesters && (
                          <Button onClick={handleStartAddNew} className="w-full">
                             <PlusCircle className="mr-2 h-4 w-4"/>
                             Add New Semester
                         </Button>
                     )}
-                     {!selectedBatch && (
+                     {(!selectedBatch || semesters.length === 0) && !loadingSemesters && (
                         <div className="text-center text-muted-foreground p-4 border-dashed border-2 rounded-lg">
-                            <p>Please select a batch first.</p>
+                            <p>{!selectedBatch ? "Please select a batch first." : "No semesters found for this batch."}</p>
                         </div>
                     )}
                 </CardContent>
             </Card>
 
-            {/* Card 3: Editor */}
             {editingMode && (
                 <Card className="lg:col-span-3">
                     <CardHeader>
-                        <CardTitle>{editingMode === 'new' ? 'Create New Semester' : `Editing Semester ${filteredSemesters.find(s => s.id === editingMode)?.roman}`}</CardTitle>
+                        <CardTitle>{editingMode === 'new' ? 'Create New Semester' : `Editing Semester ${semesters.find(s => s.id === editingMode)?.roman}`}</CardTitle>
                         <CardDescription>Set the duration, mark holidays, and calculate working days.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -259,12 +288,12 @@ export default function WorkingDaysPage() {
                             <div className="grid gap-2">
                                 <Label>Mark Holidays</Label>
                                 <Card className="p-2">
-                                    <Calendar mode="multiple" min={1} selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange} defaultMonth={dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
+                                    <Calendar mode="multiple" min={1} selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
                                 </Card>
                             </div>
                         </div>
                     </CardContent>
-                    <CardContent>
+                    <CardFooter>
                         <div className="flex flex-col sm:flex-row gap-4">
                             <Button onClick={handleSaveSemester} className="w-full sm:w-auto" disabled={!dateRange || !selectedRoman}>
                                 <Save className="mr-2 h-4 w-4" /> Save Semester
@@ -276,7 +305,7 @@ export default function WorkingDaysPage() {
                                 Cancel
                             </Button>
                         </div>
-                    </CardContent>
+                    </CardFooter>
                 </Card>
             )}
         </div>
@@ -316,3 +345,5 @@ export default function WorkingDaysPage() {
     </div>
   );
 }
+
+    

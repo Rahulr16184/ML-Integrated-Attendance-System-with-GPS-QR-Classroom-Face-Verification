@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { InstitutionManager } from "@/components/institution-manager";
 import { getInstitutions } from "@/services/institution-service";
 
@@ -18,3 +17,5 @@ export default async function ServerManageInstitutionPage() {
     </div>
   );
 }
+
+    
