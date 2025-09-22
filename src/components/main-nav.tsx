@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -8,7 +9,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Camera, UserPlus, FileText, CreditCard, User, CalendarDays, Map } from "lucide-react";
+import { Camera, UserPlus, FileText, CreditCard, User, CalendarDays, Map, School } from "lucide-react";
 import { useSidebar } from "./ui/sidebar";
 import { useState, useEffect } from "react";
 
@@ -70,6 +71,14 @@ export function MainNav() {
       icon: CalendarDays,
     });
   }
+
+  // Add "Add Department" for all roles as requested
+  menuItems.push({
+    href: "/add-department",
+    label: "Add Department",
+    icon: School
+  });
+
 
   return (
     <SidebarMenu>

@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpen, CheckSquare, Info, CreditCard } from "lucide-react";
+import { BookOpen, CheckSquare, Info, CreditCard, Settings, School } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -85,6 +85,23 @@ export default function StudentDashboardPage() {
             </CardContent>
         </Card>
         
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-6 w-6" />
+                    SETTINGS
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
+                    <Link href="/add-department">
+                        <School className="h-8 w-8" />
+                        <span className="text-sm font-semibold text-center">ADD A DEPARTMENT</span>
+                    </Link>
+                </Button>
+            </CardContent>
+        </Card>
+
       </main>
     </div>
   );
