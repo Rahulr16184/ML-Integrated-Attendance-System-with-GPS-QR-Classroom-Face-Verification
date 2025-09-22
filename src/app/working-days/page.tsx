@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from "react";
 import type { DateRange } from "react-day-picker";
 import { differenceInDays, format, parseISO } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -17,7 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Semester } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { getSemesters, saveSemester, deleteSemester } from "@/services/working-days-service";
+import { getSemesters, saveSemester, deleteSemester, getBatches } from "@/services/working-days-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,6 +37,8 @@ export default function WorkingDaysPage() {
   const { userProfile, loading: userLoading } = useUserProfile();
   const { toast } = useToast();
 
+  const [batches, setBatches] = useState<string[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<string>("");
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [loadingSemesters, setLoadingSemesters] = useState(false);
@@ -52,11 +54,18 @@ export default function WorkingDaysPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   useEffect(() => {
-    if (userProfile?.departmentName) {
-      // Default batch could be based on current year or user's context
-      const defaultBatch = `${userProfile.departmentName.toLowerCase().replace(/\s/g, '-')}-${new Date().getFullYear()}`;
-      setSelectedBatch(defaultBatch);
+    async function fetchBatches() {
+      if (userProfile?.institutionId && userProfile?.departmentId) {
+        setLoadingBatches(true);
+        const fetchedBatches = await getBatches(userProfile.institutionId, userProfile.departmentId);
+        setBatches(fetchedBatches);
+        if (fetchedBatches.length > 0) {
+            setSelectedBatch(fetchedBatches[0]);
+        }
+        setLoadingBatches(false);
+      }
     }
+    fetchBatches();
   }, [userProfile]);
 
   useEffect(() => {
@@ -65,7 +74,10 @@ export default function WorkingDaysPage() {
         setLoadingSemesters(true);
         const fetchedSemesters = await getSemesters(userProfile.institutionId, userProfile.departmentId, selectedBatch);
         setSemesters(fetchedSemesters.map(parseSemesterDates));
+        setEditingMode(null);
         setLoadingSemesters(false);
+      } else {
+        setSemesters([]);
       }
     }
     fetchSemesters();
@@ -134,7 +146,7 @@ export default function WorkingDaysPage() {
             ? [...semesters, parseSemesterDates(savedSemester as Semester)]
             : semesters.map(s => s.id === editingMode ? parseSemesterDates(savedSemester as Semester) : s);
         
-        setSemesters(newSemesters);
+        setSemesters(newSemesters.sort((a,b) => SEMESTER_ROMANS.indexOf(a.roman) - SEMESTER_ROMANS.indexOf(b.roman)));
         setEditingMode(null);
         toast({ title: "Success", description: "Semester saved successfully." });
     } catch(error) {
@@ -189,8 +201,21 @@ export default function WorkingDaysPage() {
                 </CardHeader>
                 <CardContent>
                      <Label>Batch / Department</Label>
-                     <Input value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)} placeholder="e.g., cs-2024" />
-                     <p className="text-xs text-muted-foreground mt-2">Enter a unique identifier for the batch (e.g., department-year).</p>
+                    {loadingBatches ? (
+                        <Skeleton className="h-10 w-full" />
+                    ) : (
+                         <Select onValueChange={setSelectedBatch} value={selectedBatch}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a batch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {batches.length > 0 ? batches.map(batch => (
+                                    <SelectItem key={batch} value={batch}>{batch}</SelectItem>
+                                )) : <SelectItem value="-" disabled>No batches found</SelectItem>}
+                            </SelectContent>
+                        </Select>
+                    )}
+                     <p className="text-xs text-muted-foreground mt-2">Select a batch to manage its semesters.</p>
                 </CardContent>
             </Card>
 
@@ -201,7 +226,7 @@ export default function WorkingDaysPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {loadingSemesters && <Skeleton className="h-20 w-full" />}
-                    {!loadingSemesters && semesters.sort((a,b) => SEMESTER_ROMANS.indexOf(a.roman) - SEMESTER_ROMANS.indexOf(b.roman)).map(semester => (
+                    {!loadingSemesters && semesters.map(semester => (
                         <div key={semester.id} className={cn("flex items-center justify-between p-3 rounded-lg border", editingMode === semester.id ? "bg-accent border-primary" : "bg-background")}>
                             <div>
                                 <p className="font-semibold">{semester.name}</p>
@@ -251,6 +276,7 @@ export default function WorkingDaysPage() {
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            {editingMode !== 'new' && <SelectItem value={selectedRoman}>{selectedRoman}</SelectItem>}
                                             {availableRomans.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
