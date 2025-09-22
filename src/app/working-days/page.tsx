@@ -96,6 +96,13 @@ export default function WorkingDaysPage() {
     return SEMESTER_ROMANS.filter(r => !usedRomans.includes(r));
   }, [semesters, editingMode]);
   
+  const disabledDates = useMemo(() => {
+    if (!editingMode) return [];
+    return semesters
+      .filter(semester => semester.id !== editingMode)
+      .map(semester => semester.dateRange);
+  }, [semesters, editingMode]);
+
   const handleStartAddNew = () => {
     setEditingMode("new");
     setSelectedRoman("");
@@ -302,7 +309,7 @@ export default function WorkingDaysPage() {
                                     </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} />
+                                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} disabled={disabledDates} />
                                     </PopoverContent>
                                 </Popover>
                             </div>
