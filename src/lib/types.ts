@@ -1,3 +1,4 @@
+
 export type AttendanceRecord = {
   id: string;
   employeeId: string;
@@ -28,7 +29,6 @@ export type Semester = {
   id: string;
   name: string;
   roman: string;
-  batch: string;
   dateRange: { from: string; to: string };
   holidays: string[];
   workingDays: number;

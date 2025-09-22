@@ -17,7 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Semester, Department } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { getSemesters, saveSemester, deleteSemester, getBatches } from "@/services/working-days-service";
+import { getSemesters, saveSemester, deleteSemester } from "@/services/working-days-service";
 import { getInstitutions } from "@/services/institution-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -42,9 +42,6 @@ export default function WorkingDaysPage() {
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const [loadingDepartments, setLoadingDepartments] = useState(true);
 
-  const [batches, setBatches] = useState<string[]>([]);
-  const [loadingBatches, setLoadingBatches] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState<string>("");
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [loadingSemesters, setLoadingSemesters] = useState(false);
   
@@ -79,28 +76,10 @@ export default function WorkingDaysPage() {
   }, [userProfile]);
 
   useEffect(() => {
-    async function fetchBatches() {
-      if (userProfile?.institutionId && selectedDepartmentId) {
-        setLoadingBatches(true);
-        setBatches([]);
-        setSelectedBatch("");
-        setSemesters([]);
-        const fetchedBatches = await getBatches(userProfile.institutionId, selectedDepartmentId);
-        setBatches(fetchedBatches);
-        if (fetchedBatches.length > 0) {
-            setSelectedBatch(fetchedBatches[0]);
-        }
-        setLoadingBatches(false);
-      }
-    }
-    fetchBatches();
-  }, [selectedDepartmentId, userProfile?.institutionId]);
-
-  useEffect(() => {
     async function fetchSemesters() {
-      if (userProfile?.institutionId && selectedDepartmentId && selectedBatch) {
+      if (userProfile?.institutionId && selectedDepartmentId) {
         setLoadingSemesters(true);
-        const fetchedSemesters = await getSemesters(userProfile.institutionId, selectedDepartmentId, selectedBatch);
+        const fetchedSemesters = await getSemesters(userProfile.institutionId, selectedDepartmentId);
         setSemesters(fetchedSemesters.map(parseSemesterDates));
         setEditingMode(null);
         setLoadingSemesters(false);
@@ -109,7 +88,7 @@ export default function WorkingDaysPage() {
       }
     }
     fetchSemesters();
-  }, [selectedBatch, selectedDepartmentId, userProfile]);
+  }, [selectedDepartmentId, userProfile]);
 
 
   const availableRomans = useMemo(() => {
@@ -149,7 +128,7 @@ export default function WorkingDaysPage() {
   };
   
   const handleSaveSemester = async () => {
-    if (!userProfile?.institutionId || !selectedDepartmentId || !selectedBatch || !selectedRoman || !dateRange?.from || !dateRange.to) {
+    if (!userProfile?.institutionId || !selectedDepartmentId || !selectedRoman || !dateRange?.from || !dateRange.to) {
         toast({ title: "Missing Information", description: "Please fill all required fields.", variant: "destructive" });
         return;
     }
@@ -158,7 +137,6 @@ export default function WorkingDaysPage() {
     const semesterData: Omit<Semester, 'id'> & { id?: string } = {
         name: `Semester ${selectedRoman}`,
         roman: selectedRoman,
-        batch: selectedBatch,
         dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() },
         holidays: holidays.map(h => h.toISOString()),
         workingDays,
@@ -179,9 +157,6 @@ export default function WorkingDaysPage() {
         setEditingMode(null);
         toast({ title: "Success", description: "Semester saved successfully." });
 
-        if (!batches.includes(selectedBatch)) {
-          setBatches(prev => [...prev, selectedBatch].sort().reverse())
-        }
     } catch(error) {
         console.error(error);
         toast({ title: "Error", description: "Failed to save semester.", variant: "destructive" });
@@ -229,7 +204,7 @@ export default function WorkingDaysPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <Card className="lg:col-span-3">
                 <CardHeader>
-                    <CardTitle>Step 1: Select Department & Batch</CardTitle>
+                    <CardTitle>Step 1: Select Department</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -249,27 +224,13 @@ export default function WorkingDaysPage() {
                             </Select>
                         )}
                     </div>
-                     <div className="space-y-2">
-                        <Label>Batch</Label>
-                        {loadingBatches || loadingDepartments ? (
-                            <Skeleton className="h-10 w-full" />
-                        ) : (
-                            <Input 
-                                placeholder="e.g., 2024-2028"
-                                value={selectedBatch}
-                                onChange={(e) => setSelectedBatch(e.target.value)}
-                                disabled={!selectedDepartmentId}
-                            />
-                        )}
-                        <p className="text-xs text-muted-foreground">Enter a batch to manage its semesters (e.g., 2024-2028).</p>
-                    </div>
                 </CardContent>
             </Card>
 
-            {selectedDepartmentId && selectedBatch && (
+            {selectedDepartmentId && (
                 <Card className="lg:col-span-3">
                     <CardHeader>
-                        <CardTitle>Step 2: Manage Semesters for Batch: {selectedBatch}</CardTitle>
+                        <CardTitle>Step 2: Manage Semesters</CardTitle>
                         <CardDescription>Select a semester to edit or add a new one.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -294,7 +255,7 @@ export default function WorkingDaysPage() {
                                 </div>
                             </div>
                         ))}
-                        {selectedBatch && !loadingSemesters && (
+                        {selectedDepartmentId && !loadingSemesters && (
                             <Button onClick={handleStartAddNew} className="w-full">
                                 <PlusCircle className="mr-2 h-4 w-4"/>
                                 Add New Semester
@@ -302,7 +263,7 @@ export default function WorkingDaysPage() {
                         )}
                         {semesters.length === 0 && !loadingSemesters && (
                             <div className="text-center text-muted-foreground p-4 border-dashed border-2 rounded-lg">
-                                <p>No semesters found for this batch. Add one to get started.</p>
+                                <p>No semesters found for this department. Add one to get started.</p>
                             </div>
                         )}
                     </CardContent>
@@ -318,23 +279,17 @@ export default function WorkingDaysPage() {
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
                          <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label>Semester</Label>
-                                    <Select value={selectedRoman} onValueChange={setSelectedRoman}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {editingMode !== 'new' && <SelectItem value={selectedRoman}>{selectedRoman}</SelectItem>}
-                                            {availableRomans.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                     <Label>Batch</Label>
-                                     <Input value={selectedBatch} disabled />
-                                </div>
+                            <div className="grid gap-2">
+                                <Label>Semester</Label>
+                                <Select value={selectedRoman} onValueChange={setSelectedRoman}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {editingMode !== 'new' && <SelectItem value={selectedRoman}>{selectedRoman}</SelectItem>}
+                                        {availableRomans.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid gap-2">
                                 <Label>Semester Duration (From - To)</Label>
