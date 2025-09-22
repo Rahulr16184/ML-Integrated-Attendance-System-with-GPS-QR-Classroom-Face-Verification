@@ -11,6 +11,7 @@ export function useUserProfile() {
 
     useEffect(() => {
         async function fetchUserData() {
+            setLoading(true);
             const userEmail = localStorage.getItem("userEmail") || sessionStorage.getItem("userEmail");
             if (userEmail) {
                 const data = await getUserData(userEmail);
@@ -22,5 +23,5 @@ export function useUserProfile() {
         fetchUserData();
     }, []);
 
-    return { userProfile, loading };
+    return { userProfile, loading, setUserProfile };
 }

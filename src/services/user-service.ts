@@ -1,7 +1,8 @@
 
-import { auth, db } from '@/lib/conf';
+
+import { auth, db, CLOUDINARY_UPLOAD_URL, CLOUDINARY_UPLOAD_PRESET } from '@/lib/conf';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { collection, doc, setDoc, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, getDoc, updateDoc } from 'firebase/firestore';
 
 // This is a much improved user registration flow.
 
@@ -111,3 +112,27 @@ export const getUserData = async (email: string): Promise<UserProfile | null> =>
         return null;
     }
 }
+
+export const uploadImage = async (file: string): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET!);
+
+  const response = await fetch(CLOUDINARY_UPLOAD_URL!, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Image upload failed');
+  }
+
+  const data = await response.json();
+  return data.secure_url;
+};
+
+export const updateUser = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
+    const userDocRef = doc(db, 'users', uid);
+    await updateDoc(userDocRef, data);
+};
+

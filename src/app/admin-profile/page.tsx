@@ -22,17 +22,26 @@ import getCroppedImg from "@/lib/crop-image";
 import type { Area } from 'react-easy-crop';
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { uploadImage, updateUser } from "@/services/user-service";
+import { useToast } from "@/hooks/use-toast";
+import type { UserProfile } from "@/services/user-service";
 
 
 export default function AdminProfilePage() {
-  const { userProfile, loading } = useUserProfile();
+  const { userProfile, loading, setUserProfile } = useUserProfile();
+  const { toast } = useToast();
+
+  const [profileData, setProfileData] = useState<Partial<UserProfile>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const [profileImage, setProfileImage] = useState<string | undefined>(undefined);
+  const [newProfileImage, setNewProfileImage] = useState<string | null>(null);
+  
   const [isCaptureModalOpen, setCaptureModalOpen] = useState(false);
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [date, setDate] = useState<Date | undefined>()
+  
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -40,15 +49,28 @@ export default function AdminProfilePage() {
 
   useEffect(() => {
     if (userProfile) {
+        setProfileData(userProfile);
         setProfileImage(userProfile.profileImage || `https://picsum.photos/seed/${userProfile.uid}/200/200`);
-        if (userProfile.dob) {
-            setDate(parseISO(userProfile.dob));
-        }
     }
   }, [userProfile]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setProfileData(prev => ({...prev, [id]: value }));
+  }
+
+  const handleRadioChange = (value: string) => {
+    setProfileData(prev => ({...prev, gender: value }));
+  }
+
+  const handleDateChange = (date: Date | undefined) => {
+    if (date) {
+      setProfileData(prev => ({...prev, dob: date.toISOString() }));
+    }
+  }
 
   const handleCapture = (dataUri: string) => {
+    setNewProfileImage(dataUri);
     setProfileImage(dataUri);
     setCaptureModalOpen(false);
   };
@@ -70,10 +92,11 @@ export default function AdminProfilePage() {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
-  const handleUpload = useCallback(async () => {
+  const handleUploadAndCrop = useCallback(async () => {
     if (uploadedImage && croppedAreaPixels) {
       try {
         const croppedImage = await getCroppedImg(uploadedImage, croppedAreaPixels);
+        setNewProfileImage(croppedImage!);
         setProfileImage(croppedImage!);
         setUploadModalOpen(false);
         setUploadedImage(null);
@@ -84,6 +107,42 @@ export default function AdminProfilePage() {
   }, [uploadedImage, croppedAreaPixels]);
 
   const triggerFileSelect = () => fileInputRef.current?.click();
+  
+  const handleSaveChanges = async () => {
+    if (!userProfile) return;
+
+    setIsSaving(true);
+    try {
+      let imageUrl = userProfile.profileImage;
+      if (newProfileImage) {
+        imageUrl = await uploadImage(newProfileImage);
+      }
+      
+      const updatedData = { ...profileData, profileImage: imageUrl };
+
+      await updateUser(userProfile.uid, updatedData);
+      
+      // Update local user profile state after saving
+      if (setUserProfile) {
+        setUserProfile(prev => prev ? {...prev, ...updatedData} : null);
+      }
+
+      toast({
+        title: "Success",
+        description: "Your profile has been updated successfully.",
+      });
+
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const ProfileSkeleton = () => (
     <Card className="w-full max-w-4xl">
@@ -126,6 +185,8 @@ export default function AdminProfilePage() {
     );
   }
 
+  const selectedDate = profileData?.dob ? parseISO(profileData.dob) : undefined;
+
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 sm:p-6">
       <Card className="w-full max-w-4xl">
@@ -154,15 +215,15 @@ export default function AdminProfilePage() {
           <div className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" defaultValue={userProfile?.name} />
+                <Input id="name" value={profileData?.name || ''} onChange={handleInputChange} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" defaultValue={userProfile?.role} disabled className="capitalize" />
+                <Input id="role" value={profileData?.role || ''} disabled className="capitalize" />
               </div>
               <div className="grid gap-2">
                 <Label>Gender</Label>
-                <RadioGroup defaultValue={userProfile?.gender} className="flex items-center space-x-4 pt-2">
+                <RadioGroup value={profileData?.gender} onValueChange={handleRadioChange} className="flex items-center space-x-4 pt-2">
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="male" id="male" />
                         <Label htmlFor="male">Male</Label>
@@ -185,11 +246,11 @@ export default function AdminProfilePage() {
                         variant={"outline"}
                         className={cn(
                             "w-full justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
+                            !selectedDate && "text-muted-foreground"
                         )}
                         >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -198,8 +259,8 @@ export default function AdminProfilePage() {
                         captionLayout="dropdown-buttons"
                         fromYear={1950}
                         toYear={new Date().getFullYear()}
-                        selected={date}
-                        onSelect={setDate}
+                        selected={selectedDate}
+                        onSelect={handleDateChange}
                         initialFocus
                         />
                     </PopoverContent>
@@ -207,32 +268,32 @@ export default function AdminProfilePage() {
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="email">Mail ID</Label>
-                <Input id="email" type="email" defaultValue={userProfile?.email} disabled />
+                <Input id="email" type="email" value={profileData?.email || ''} disabled />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="alt-email">Alternative Mail ID</Label>
-                <Input id="alt-email" type="email" placeholder="alt@example.com" defaultValue={userProfile?.altEmail} />
+                <Label htmlFor="altEmail">Alternative Mail ID</Label>
+                <Input id="altEmail" type="email" placeholder="alt@example.com" value={profileData?.altEmail || ''} onChange={handleInputChange}/>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+1 234 567 890" defaultValue={userProfile?.phone} />
+                <Input id="phone" type="tel" placeholder="+1 234 567 890" value={profileData?.phone || ''} onChange={handleInputChange}/>
               </div>
                <div className="grid gap-2">
-                <Label htmlFor="institution">Institution Name</Label>
-                <Input id="institution" defaultValue={userProfile?.institutionName} disabled />
+                <Label htmlFor="institutionName">Institution Name</Label>
+                <Input id="institutionName" value={profileData?.institutionName || ''} disabled />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="department">Department</Label>
-                <Input id="department" defaultValue={userProfile?.departmentName} disabled />
+                <Label htmlFor="departmentName">Department</Label>
+                <Input id="departmentName" value={profileData?.departmentName || ''} disabled />
               </div>
           </div>
         </CardContent>
         <CardFooter className="flex-col items-center gap-4">
             <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-sm">
-                <Button className="w-full sm:w-auto">
-                    <Save className="mr-2 h-4 w-4" /> Save Changes
+                <Button className="w-full sm:w-auto" onClick={handleSaveChanges} disabled={isSaving}>
+                    <Save className="mr-2 h-4 w-4" /> {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
-                <Button variant="outline" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setProfileData(userProfile || {})}>
                     Cancel
                 </Button>
             </div>
@@ -344,7 +405,7 @@ export default function AdminProfilePage() {
           </div>
            <DialogFooter className="!justify-between flex-col-reverse sm:flex-row gap-2">
                 <Button variant="outline" onClick={() => setUploadModalOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-                <Button onClick={handleUpload} disabled={!uploadedImage} className="w-full sm:w-auto">
+                <Button onClick={handleUploadAndCrop} disabled={!uploadedImage} className="w-full sm:w-auto">
                     <Crop className="mr-2 h-4 w-4"/>
                     Crop & Save
                 </Button>
