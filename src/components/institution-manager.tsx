@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, University, Pen, Trash2, KeyRound, Save, X, ShieldAlert } from 'lucide-react';
 import { createInstitution, createDepartment, updateDepartmentSecretCodes, updateInstitutionName, updateDepartmentName, deleteDepartment, deleteInstitution } from '@/services/institution-service';
-import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface InstitutionManagerProps {
   initialInstitutions: Institution[];
@@ -347,4 +347,5 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   );
 }
 
+    
     
