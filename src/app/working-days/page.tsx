@@ -200,7 +200,7 @@ export default function WorkingDaysPage() {
                     <CardTitle>Step 1: Select Batch</CardTitle>
                 </CardHeader>
                 <CardContent>
-                     <Label>Batch / Department</Label>
+                     <Label>Batch</Label>
                     {loadingBatches ? (
                         <Skeleton className="h-10 w-full" />
                     ) : (
