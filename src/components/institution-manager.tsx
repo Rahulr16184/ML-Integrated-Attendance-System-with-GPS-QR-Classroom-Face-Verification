@@ -84,11 +84,10 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     setEditingDepartment(department);
     // Ensure all keys are present to avoid uncontrolled to controlled input warning
     setSecretCodes({
-      student: '',
-      teacher: '',
-      admin: '',
-      server: '',
-      ...(department.secretCodes || {}),
+      student: department.secretCodes?.student || '',
+      teacher: department.secretCodes?.teacher || '',
+      admin: department.secretCodes?.admin || '',
+      server: department.secretCodes?.server || '',
     });
     setEditingName('');
   };
@@ -316,7 +315,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
         </DialogContent>
       </Dialog>
       
-       <Dialog open={!!deleteTarget} onOpenChange={(open) => { if(!open) setDeleteTarget(null)}}>
+       <Dialog open={!!deleteTarget} onOpenChange={(open) => { if(!open) { setDeleteTarget(null); setDeleteConfirmation(""); }}}>
          <DialogContent>
             <DialogHeader>
                 <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Delete {deleteTarget?.name}?</DialogTitle>
@@ -338,7 +337,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
             />
             <DialogFooter>
                 <DialogClose asChild>
-                    <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteConfirmation("")}}>Cancel</Button>
+                    <Button variant="outline">Cancel</Button>
                 </DialogClose>
                 <Button
                     variant="destructive"
@@ -353,8 +352,3 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     </div>
   );
 }
-
-    
-    
-
-    
