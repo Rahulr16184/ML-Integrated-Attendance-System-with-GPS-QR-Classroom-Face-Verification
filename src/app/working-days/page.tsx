@@ -57,17 +57,18 @@ export default function WorkingDaysPage() {
 
   useEffect(() => {
     async function fetchDepartments() {
-      if (userProfile?.institutionId) {
+      if (userProfile?.institutionId && userProfile.departmentId) {
         setLoadingDepartments(true);
         const institutions = await getInstitutions();
         const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
         if (currentInstitution) {
-          setAllDepartments(currentInstitution.departments);
-          if (userProfile.departmentId && currentInstitution.departments.some(d => d.id === userProfile.departmentId)) {
-            setSelectedDepartmentId(userProfile.departmentId);
-          } else if (currentInstitution.departments.length > 0) {
-            setSelectedDepartmentId(currentInstitution.departments[0].id);
-          }
+            const userDepartment = currentInstitution.departments.find(d => d.id === userProfile.departmentId);
+            if (userDepartment) {
+                setAllDepartments([userDepartment]);
+                setSelectedDepartmentId(userDepartment.id);
+            } else {
+                 setAllDepartments([]);
+            }
         }
         setLoadingDepartments(false);
       }
@@ -220,7 +221,7 @@ export default function WorkingDaysPage() {
                         {loadingDepartments ? (
                             <Skeleton className="h-10 w-full"/>
                         ) : (
-                            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId}>
+                            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length <= 1}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a department" />
                                 </SelectTrigger>
@@ -384,5 +385,3 @@ export default function WorkingDaysPage() {
     </Dialog>
   );
 }
-
-    
