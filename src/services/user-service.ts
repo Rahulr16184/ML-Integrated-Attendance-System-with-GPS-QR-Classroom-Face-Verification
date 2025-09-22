@@ -1,9 +1,29 @@
 
 import { auth, db } from '@/lib/conf';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, getDoc } from 'firebase/firestore';
 
 // This is a much improved user registration flow.
+
+export type UserProfile = {
+    uid: string;
+    name: string;
+    email: string;
+    institutionId: string;
+    departmentId: string;
+    role: string;
+    isActivated: boolean;
+    createdAt: string;
+    dob?: string;
+    gender?: string;
+    altEmail?: string;
+    phone?: string;
+    rollNo?: string;
+    registerNo?: string;
+    profileImage?: string;
+    institutionName?: string;
+    departmentName?: string;
+};
 
 type UserRegistrationData = {
     name: string;
@@ -48,3 +68,46 @@ export const registerUser = async (userData: UserRegistrationData): Promise<void
         throw new Error("Could not register user. Please try again.");
     }
 };
+
+export const getUserData = async (email: string): Promise<UserProfile | null> => {
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            console.log('No matching user found.');
+            return null;
+        }
+
+        const userDoc = querySnapshot.docs[0];
+        const userData = userDoc.data();
+        
+        let institutionName = 'N/A';
+        if (userData.institutionId) {
+            const instDoc = await getDoc(doc(db, 'institutions', userData.institutionId));
+            if (instDoc.exists()) {
+                institutionName = instDoc.data().name;
+            }
+        }
+
+        let departmentName = 'N/A';
+        if (userData.institutionId && userData.departmentId) {
+            const deptDoc = await getDoc(doc(db, `institutions/${userData.institutionId}/departments`, userData.departmentId));
+            if (deptDoc.exists()) {
+                departmentName = deptDoc.data().name;
+            }
+        }
+        
+        return {
+            uid: userDoc.id,
+            ...userData,
+            institutionName,
+            departmentName,
+        } as UserProfile;
+
+    } catch (error) {
+        console.error("Error fetching user data:", error);
+        return null;
+    }
+}

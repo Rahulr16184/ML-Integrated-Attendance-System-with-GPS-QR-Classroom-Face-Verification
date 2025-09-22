@@ -1,39 +1,52 @@
 
 "use client"
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Cropper from 'react-easy-crop'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
-import { Upload, Camera as CameraIcon, Save, X, ShieldAlert, Trash2, CalendarIcon, Crop, RefreshCw, Check } from "lucide-react";
+import { Upload, Camera as CameraIcon, Save, ShieldAlert, Trash2, CalendarIcon, Crop } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Slider } from "@/components/ui/slider";
 import getCroppedImg from "@/lib/crop-image";
 import type { Area } from 'react-easy-crop';
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function AdminProfilePage() {
-  const [userEmail, setUserEmail] = useState<string | null>("admin@example.com");
-  const [profileImage, setProfileImage] = useState<string>("https://picsum.photos/seed/2/200/200");
+  const { userProfile, loading } = useUserProfile();
+
+  const [profileImage, setProfileImage] = useState<string | undefined>(undefined);
   const [isCaptureModalOpen, setCaptureModalOpen] = useState(false);
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [date, setDate] = useState<Date>()
+  const [date, setDate] = useState<Date | undefined>()
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
+  useEffect(() => {
+    if (userProfile) {
+        setProfileImage(userProfile.profileImage || `https://picsum.photos/seed/${userProfile.uid}/200/200`);
+        if (userProfile.dob) {
+            setDate(parseISO(userProfile.dob));
+        }
+    }
+  }, [userProfile]);
+
 
   const handleCapture = (dataUri: string) => {
     setProfileImage(dataUri);
@@ -72,6 +85,47 @@ export default function AdminProfilePage() {
 
   const triggerFileSelect = () => fileInputRef.current?.click();
 
+  const ProfileSkeleton = () => (
+    <Card className="w-full max-w-4xl">
+        <CardHeader className="text-center">
+            <CardTitle className="text-2xl sm:text-3xl font-bold">Manage Account</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center space-y-8">
+            <Skeleton className="h-32 w-32 sm:h-48 sm:w-48 rounded-lg" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-sm">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t">
+                {[...Array(9)].map((_, i) => (
+                    <div key={i} className="grid gap-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                ))}
+            </div>
+        </CardContent>
+         <CardFooter className="flex-col items-center gap-4">
+             <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-sm">
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-24" />
+            </div>
+             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4 pt-4 border-t w-full max-w-sm">
+                <Skeleton className="h-10 w-36" />
+                <Skeleton className="h-10 w-36" />
+            </div>
+        </CardFooter>
+    </Card>
+  );
+
+  if (loading) {
+     return (
+        <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 sm:p-6">
+            <ProfileSkeleton />
+        </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 sm:p-6">
       <Card className="w-full max-w-4xl">
@@ -83,7 +137,7 @@ export default function AdminProfilePage() {
             <Avatar className="h-32 w-32 sm:h-48 sm:w-48 rounded-lg">
               <AvatarImage src={profileImage} alt="User avatar" className="rounded-lg object-cover" data-ai-hint="profile picture" />
               <AvatarFallback className="rounded-lg text-4xl">
-                {userEmail?.[0]?.toUpperCase() ?? 'A'}
+                {userProfile?.name?.[0]?.toUpperCase() ?? 'A'}
               </AvatarFallback>
             </Avatar>
           </div>
@@ -100,15 +154,15 @@ export default function AdminProfilePage() {
           <div className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" defaultValue="Admin User" />
+                <Input id="name" defaultValue={userProfile?.name} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" defaultValue="Admin" disabled />
+                <Input id="role" defaultValue={userProfile?.role} disabled className="capitalize" />
               </div>
               <div className="grid gap-2">
                 <Label>Gender</Label>
-                <RadioGroup defaultValue="male" className="flex items-center space-x-4 pt-2">
+                <RadioGroup defaultValue={userProfile?.gender} className="flex items-center space-x-4 pt-2">
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="male" id="male" />
                         <Label htmlFor="male">Male</Label>
@@ -153,23 +207,23 @@ export default function AdminProfilePage() {
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="email">Mail ID</Label>
-                <Input id="email" type="email" defaultValue={userEmail || ""} disabled />
+                <Input id="email" type="email" defaultValue={userProfile?.email} disabled />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="alt-email">Alternative Mail ID</Label>
-                <Input id="alt-email" type="email" placeholder="alt@example.com" />
+                <Input id="alt-email" type="email" placeholder="alt@example.com" defaultValue={userProfile?.altEmail} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+1 234 567 890" />
+                <Input id="phone" type="tel" placeholder="+1 234 567 890" defaultValue={userProfile?.phone} />
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="institution">Institution Name</Label>
-                <Input id="institution" defaultValue="Global Tech Academy" disabled />
+                <Input id="institution" defaultValue={userProfile?.institutionName} disabled />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="department">Department</Label>
-                <Input id="department" defaultValue="Administration" disabled />
+                <Input id="department" defaultValue={userProfile?.departmentName} disabled />
               </div>
           </div>
         </CardContent>
