@@ -14,10 +14,11 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Calculator, Save, PlusCircle, Pencil, Trash2, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { Semester } from "@/lib/types";
+import type { Semester, Department } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getSemesters, saveSemester, deleteSemester, getBatches } from "@/services/working-days-service";
+import { getInstitutions } from "@/services/institution-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,6 +38,10 @@ export default function WorkingDaysPage() {
   const { userProfile, loading: userLoading } = useUserProfile();
   const { toast } = useToast();
 
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
+
   const [batches, setBatches] = useState<string[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<string>("");
@@ -54,10 +59,33 @@ export default function WorkingDaysPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   useEffect(() => {
+    async function fetchDepartments() {
+      if (userProfile?.institutionId) {
+        setLoadingDepartments(true);
+        const institutions = await getInstitutions();
+        const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
+        if (currentInstitution) {
+          setAllDepartments(currentInstitution.departments);
+          if (userProfile.departmentId && currentInstitution.departments.some(d => d.id === userProfile.departmentId)) {
+            setSelectedDepartmentId(userProfile.departmentId);
+          } else if (currentInstitution.departments.length > 0) {
+            setSelectedDepartmentId(currentInstitution.departments[0].id);
+          }
+        }
+        setLoadingDepartments(false);
+      }
+    }
+    fetchDepartments();
+  }, [userProfile]);
+
+  useEffect(() => {
     async function fetchBatches() {
-      if (userProfile?.institutionId && userProfile?.departmentId) {
+      if (userProfile?.institutionId && selectedDepartmentId) {
         setLoadingBatches(true);
-        const fetchedBatches = await getBatches(userProfile.institutionId, userProfile.departmentId);
+        setBatches([]);
+        setSelectedBatch("");
+        setSemesters([]);
+        const fetchedBatches = await getBatches(userProfile.institutionId, selectedDepartmentId);
         setBatches(fetchedBatches);
         if (fetchedBatches.length > 0) {
             setSelectedBatch(fetchedBatches[0]);
@@ -66,13 +94,13 @@ export default function WorkingDaysPage() {
       }
     }
     fetchBatches();
-  }, [userProfile]);
+  }, [selectedDepartmentId, userProfile?.institutionId]);
 
   useEffect(() => {
     async function fetchSemesters() {
-      if (userProfile?.institutionId && userProfile?.departmentId && selectedBatch) {
+      if (userProfile?.institutionId && selectedDepartmentId && selectedBatch) {
         setLoadingSemesters(true);
-        const fetchedSemesters = await getSemesters(userProfile.institutionId, userProfile.departmentId, selectedBatch);
+        const fetchedSemesters = await getSemesters(userProfile.institutionId, selectedDepartmentId, selectedBatch);
         setSemesters(fetchedSemesters.map(parseSemesterDates));
         setEditingMode(null);
         setLoadingSemesters(false);
@@ -81,7 +109,8 @@ export default function WorkingDaysPage() {
       }
     }
     fetchSemesters();
-  }, [selectedBatch, userProfile]);
+  }, [selectedBatch, selectedDepartmentId, userProfile]);
+
 
   const availableRomans = useMemo(() => {
     const usedRomans = semesters.filter(s => s.id !== editingMode).map(s => s.roman);
@@ -120,7 +149,7 @@ export default function WorkingDaysPage() {
   };
   
   const handleSaveSemester = async () => {
-    if (!userProfile?.institutionId || !userProfile?.departmentId || !selectedBatch || !selectedRoman || !dateRange?.from || !dateRange.to) {
+    if (!userProfile?.institutionId || !selectedDepartmentId || !selectedBatch || !selectedRoman || !dateRange?.from || !dateRange.to) {
         toast({ title: "Missing Information", description: "Please fill all required fields.", variant: "destructive" });
         return;
     }
@@ -139,7 +168,7 @@ export default function WorkingDaysPage() {
     }
 
     try {
-        const savedId = await saveSemester(userProfile.institutionId, userProfile.departmentId, semesterData);
+        const savedId = await saveSemester(userProfile.institutionId, selectedDepartmentId, semesterData);
         const savedSemester = { ...semesterData, id: editingMode === "new" ? savedId : editingMode! };
         
         const newSemesters = editingMode === "new"
@@ -160,9 +189,9 @@ export default function WorkingDaysPage() {
   };
 
   const handleDeleteSemester = async () => {
-    if (deleteTarget && deleteConfirmation === "CONFIRM" && userProfile?.institutionId && userProfile?.departmentId) {
+    if (deleteTarget && deleteConfirmation === "CONFIRM" && userProfile?.institutionId && selectedDepartmentId) {
         try {
-            await deleteSemester(userProfile.institutionId, userProfile.departmentId, deleteTarget);
+            await deleteSemester(userProfile.institutionId, selectedDepartmentId, deleteTarget);
             setSemesters(semesters.filter(s => s.id !== deleteTarget));
             if (editingMode === deleteTarget) {
                 setEditingMode(null);
@@ -193,71 +222,93 @@ export default function WorkingDaysPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if(!open) setDeleteTarget(null)}}>
         <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Manage Working Days</h1>
             <p className="text-muted-foreground">Define academic semesters, set holidays, and calculate total working days.</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <Card className="lg:col-span-1">
+            <Card className="lg:col-span-3">
                 <CardHeader>
-                    <CardTitle>Step 1: Select Batch</CardTitle>
+                    <CardTitle>Step 1: Select Department & Batch</CardTitle>
                 </CardHeader>
-                <CardContent>
-                     <Label>Batch</Label>
-                    {loadingBatches ? (
-                        <Skeleton className="h-10 w-full" />
-                    ) : (
-                         <Input 
-                            placeholder="e.g., 2024-2028"
-                            value={selectedBatch}
-                            onChange={(e) => setSelectedBatch(e.target.value)}
-                         />
-                    )}
-                     <p className="text-xs text-muted-foreground mt-2">Enter a batch to manage its semesters.</p>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Department</Label>
+                        {loadingDepartments ? (
+                            <Skeleton className="h-10 w-full"/>
+                        ) : (
+                            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a department" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allDepartments.map(dept => (
+                                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Batch</Label>
+                        {loadingBatches || loadingDepartments ? (
+                            <Skeleton className="h-10 w-full" />
+                        ) : (
+                            <Input 
+                                placeholder="e.g., 2024-2028"
+                                value={selectedBatch}
+                                onChange={(e) => setSelectedBatch(e.target.value)}
+                                disabled={!selectedDepartmentId}
+                            />
+                        )}
+                        <p className="text-xs text-muted-foreground">Enter a batch to manage its semesters (e.g., 2024-2028).</p>
+                    </div>
                 </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Step 2: Manage Semesters</CardTitle>
-                    <CardDescription>Select a semester to edit or add a new one.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {loadingSemesters && <Skeleton className="h-20 w-full" />}
-                    {!loadingSemesters && semesters.map(semester => (
-                        <div key={semester.id} className={cn("flex items-center justify-between p-3 rounded-lg border", editingMode === semester.id ? "bg-accent border-primary" : "bg-background")}>
-                            <div>
-                                <p className="font-semibold">{semester.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    {format(semester.dateRange.from, 'MMM dd, yyyy')} - {format(semester.dateRange.to, 'MMM dd, yyyy')}
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => handleSelectExisting(semester)}>
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                 <DialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(semester.id)}>
-                                        <Trash2 className="h-4 w-4" />
+            {selectedDepartmentId && selectedBatch && (
+                <Card className="lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle>Step 2: Manage Semesters for Batch: {selectedBatch}</CardTitle>
+                        <CardDescription>Select a semester to edit or add a new one.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {loadingSemesters && <Skeleton className="h-20 w-full" />}
+                        {!loadingSemesters && semesters.map(semester => (
+                            <div key={semester.id} className={cn("flex items-center justify-between p-3 rounded-lg border", editingMode === semester.id ? "bg-accent border-primary" : "bg-background")}>
+                                <div>
+                                    <p className="font-semibold">{semester.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {format(semester.dateRange.from, 'MMM dd, yyyy')} - {format(semester.dateRange.to, 'MMM dd, yyyy')}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Button variant="ghost" size="icon" onClick={() => handleSelectExisting(semester)}>
+                                        <Pencil className="h-4 w-4" />
                                     </Button>
-                                 </DialogTrigger>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(semester.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                    {selectedBatch && !loadingSemesters && (
-                         <Button onClick={handleStartAddNew} className="w-full">
-                            <PlusCircle className="mr-2 h-4 w-4"/>
-                            Add New Semester
-                        </Button>
-                    )}
-                     {(!selectedBatch || semesters.length === 0) && !loadingSemesters && (
-                        <div className="text-center text-muted-foreground p-4 border-dashed border-2 rounded-lg">
-                            <p>{!selectedBatch ? "Please enter a batch first." : "No semesters found for this batch."}</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        ))}
+                        {selectedBatch && !loadingSemesters && (
+                            <Button onClick={handleStartAddNew} className="w-full">
+                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                Add New Semester
+                            </Button>
+                        )}
+                        {semesters.length === 0 && !loadingSemesters && (
+                            <div className="text-center text-muted-foreground p-4 border-dashed border-2 rounded-lg">
+                                <p>No semesters found for this batch. Add one to get started.</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
 
             {editingMode && (
                 <Card className="lg:col-span-3">
@@ -334,6 +385,7 @@ export default function WorkingDaysPage() {
                 </Card>
             )}
         </div>
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if(!open) setDeleteTarget(null)}}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Are you absolutely sure?</DialogTitle>
@@ -370,7 +422,5 @@ export default function WorkingDaysPage() {
     </div>
   );
 }
-
-    
 
     
