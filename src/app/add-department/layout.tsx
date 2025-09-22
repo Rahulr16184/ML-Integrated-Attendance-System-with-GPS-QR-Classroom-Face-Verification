@@ -12,7 +12,7 @@ import { Header } from "@/components/header";
 import { Bot } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "TRACEIN - Add Department",
+  title: "TRACEIN - Join Department",
   description: "ML integrated attendance system",
 };
 
