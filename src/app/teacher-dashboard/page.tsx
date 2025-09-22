@@ -102,7 +102,7 @@ export default function TeacherDashboardPage() {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
+                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal">
                     <Link href="/add-department">
                         <School className="h-8 w-8" />
                         <span className="text-sm font-semibold text-center">ADD A DEPARTMENT</span>
