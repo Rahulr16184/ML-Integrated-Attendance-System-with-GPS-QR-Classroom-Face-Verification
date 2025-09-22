@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, University, Pen, Trash2, KeyRound, Save, X, ShieldAlert } from 'lucide-react';
-import { createInstitution, createDepartment, updateDepartmentSecretCodes, updateInstitutionName, updateDepartmentName, deleteDepartment, deleteInstitution } from '@/services/institution-service';
+import { createInstitution, createDepartment, updateDepartmentSecretCodes, updateInstitutionName, updateDepartmentName, deleteDepartment, deleteInstitution, getInstitutions } from '@/services/institution-service';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface InstitutionManagerProps {
@@ -82,7 +82,14 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   
   const handleOpenEditModal = (department: Department) => {
     setEditingDepartment(department);
-    setSecretCodes(department.secretCodes);
+    // Ensure all keys are present to avoid uncontrolled to controlled input warning
+    setSecretCodes({
+      student: '',
+      teacher: '',
+      admin: '',
+      server: '',
+      ...(department.secretCodes || {}),
+    });
     setEditingName('');
   };
 
@@ -348,4 +355,6 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
 }
 
     
+    
+
     
