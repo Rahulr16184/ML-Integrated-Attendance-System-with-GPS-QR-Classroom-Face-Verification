@@ -98,8 +98,8 @@ export default function IdCardPage() {
                   <span className="break-words">{userProfile.institutionName || "--"}</span>
                </div>
                <div className="grid grid-cols-2 items-center text-left">
-                  <span className="font-medium text-muted-foreground">DEPARTMENT:</span>
-                  <span className="break-words">{userProfile.departmentName || "--"}</span>
+                  <span className="font-medium text-muted-foreground">DEPARTMENTS:</span>
+                  <span className="break-words">{userProfile.departmentNames?.join(', ') || "--"}</span>
                </div>
                {userProfile.role === 'student' && (
                 <>

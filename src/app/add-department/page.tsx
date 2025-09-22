@@ -26,6 +26,7 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import type { Department } from "@/lib/types";
 import { KeyRound, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { arrayUnion } from "firebase/firestore";
 
 export default function JoinDepartmentPage() {
   const { userProfile, setUserProfile, loading: userLoading } = useUserProfile();
@@ -43,8 +44,8 @@ export default function JoinDepartmentPage() {
         const institutions = await getInstitutions();
         const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
         if (currentInstitution) {
-          // Filter out the department the user is already in
-          const availableDepts = currentInstitution.departments.filter(dept => dept.id !== userProfile.departmentId);
+          // Filter out the departments the user is already in
+          const availableDepts = currentInstitution.departments.filter(dept => !userProfile.departmentIds?.includes(dept.id));
           setDepartments(availableDepts);
         }
       }
@@ -82,16 +83,23 @@ export default function JoinDepartmentPage() {
 
     setIsLoading(true);
     try {
-      // Update the user's department in the database
-      const newDepartmentData = {
-        departmentId: selectedDept.id,
-        departmentName: selectedDept.name,
-      };
-      await updateUser(userProfile.uid, newDepartmentData);
+      // Add the new department ID to the user's list of department IDs
+      await updateUser(userProfile.uid, {
+          departmentIds: [selectedDept.id]
+      });
 
       // Update local state
       if (setUserProfile) {
-        setUserProfile(prev => prev ? { ...prev, ...newDepartmentData } : null);
+        setUserProfile(prev => {
+            if (!prev) return null;
+            const newDepartmentIds = [...(prev.departmentIds || []), selectedDept.id];
+            const newDepartmentNames = [...(prev.departmentNames || []), selectedDept.name];
+            return {
+                ...prev,
+                departmentIds: newDepartmentIds,
+                departmentNames: newDepartmentNames,
+            };
+        });
       }
       
       toast({
@@ -122,7 +130,7 @@ export default function JoinDepartmentPage() {
         <CardHeader>
           <CardTitle>Join a New Department</CardTitle>
           <CardDescription>
-            Select a department you wish to join and enter its secret code. This will change your current department.
+            Select a department you wish to join and enter its secret code. You can be a member of multiple departments.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

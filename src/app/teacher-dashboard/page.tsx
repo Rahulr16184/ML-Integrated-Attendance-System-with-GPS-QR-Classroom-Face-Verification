@@ -67,8 +67,8 @@ export default function TeacherDashboardPage() {
                             <p className="text-sm text-muted-foreground break-words">{userProfile.institutionName || "--"}</p>
                         </div>
                         <div className="grid grid-cols-2 items-center">
-                            <p className="text-sm font-medium">DEPARTMENT</p>
-                            <p className="text-sm text-muted-foreground break-words">{userProfile.departmentName || "--"}</p>
+                            <p className="text-sm font-medium">DEPARTMENTS</p>
+                            <p className="text-sm text-muted-foreground break-words">{userProfile.departmentNames?.join(', ') || "--"}</p>
                         </div>
                     </>
                  ) : (

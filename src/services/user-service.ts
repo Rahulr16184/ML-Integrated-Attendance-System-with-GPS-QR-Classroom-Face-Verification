@@ -2,7 +2,7 @@
 
 import { auth, db, CLOUDINARY_UPLOAD_URL, CLOUDINARY_UPLOAD_PRESET } from '@/lib/conf';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { collection, doc, setDoc, getDocs, query, where, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 // This is a much improved user registration flow.
 
@@ -11,7 +11,7 @@ export type UserProfile = {
     name: string;
     email: string;
     institutionId: string;
-    departmentId: string;
+    departmentIds: string[];
     role: string;
     isActivated: boolean;
     createdAt: string;
@@ -23,7 +23,7 @@ export type UserProfile = {
     registerNo?: string;
     profileImage?: string;
     institutionName?: string;
-    departmentName?: string;
+    departmentNames?: string[];
 };
 
 type UserRegistrationData = {
@@ -50,7 +50,7 @@ export const registerUser = async (userData: UserRegistrationData): Promise<void
             name: userData.name,
             email: userData.email,
             institutionId: userData.institutionId,
-            departmentId: userData.departmentId,
+            departmentIds: [userData.departmentId],
             role: userData.role,
             isActivated: user.emailVerified, // This will be false initially
             createdAt: new Date().toISOString(),
@@ -92,19 +92,21 @@ export const getUserData = async (email: string): Promise<UserProfile | null> =>
             }
         }
 
-        let departmentName = 'N/A';
-        if (userData.institutionId && userData.departmentId) {
-            const deptDoc = await getDoc(doc(db, `institutions/${userData.institutionId}/departments`, userData.departmentId));
-            if (deptDoc.exists()) {
-                departmentName = deptDoc.data().name;
-            }
+        let departmentNames: string[] = [];
+        if (userData.institutionId && userData.departmentIds && userData.departmentIds.length > 0) {
+           for (const deptId of userData.departmentIds) {
+                const deptDoc = await getDoc(doc(db, `institutions/${userData.institutionId}/departments`, deptId));
+                if (deptDoc.exists()) {
+                    departmentNames.push(deptDoc.data().name);
+                }
+           }
         }
         
         return {
             uid: userDoc.id,
             ...userData,
             institutionName,
-            departmentName,
+            departmentNames,
         } as UserProfile;
 
     } catch (error) {
@@ -133,6 +135,18 @@ export const uploadImage = async (file: string): Promise<string> => {
 
 export const updateUser = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
     const userDocRef = doc(db, 'users', uid);
-    await updateDoc(userDocRef, data);
+    
+    // Handle departmentIds update specifically if it is being updated
+    if (data.departmentIds && Array.isArray(data.departmentIds)) {
+      const { departmentIds, ...restData } = data;
+      const updatePayload: any = { ...restData };
+
+      // Use arrayUnion to add new department ID without duplicates
+      updatePayload.departmentIds = arrayUnion(...departmentIds);
+
+      await updateDoc(userDocRef, updatePayload);
+    } else {
+       await updateDoc(userDocRef, data);
+    }
 };
 

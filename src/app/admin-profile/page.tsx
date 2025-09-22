@@ -282,9 +282,9 @@ export default function AdminProfilePage() {
                 <Label htmlFor="institutionName">Institution Name</Label>
                 <Input id="institutionName" value={profileData?.institutionName || ''} disabled />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="departmentName">Department</Label>
-                <Input id="departmentName" value={profileData?.departmentName || ''} disabled />
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="departmentName">Departments</Label>
+                <Input id="departmentName" value={profileData?.departmentNames?.join(', ') || ''} disabled />
               </div>
           </div>
         </CardContent>
@@ -298,7 +298,7 @@ export default function AdminProfilePage() {
                 </Button>
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4 pt-4 border-t w-full max-w-sm">
-                <Button variant="secondary" className="w-full sm:w-auto">Change Password</Button>
+                <Button variant="secondary" className="w-full smw-auto">Change Password</Button>
                 <Dialog>
                     <DialogTrigger asChild>
                         <Button variant="destructive" className="w-full sm:w-auto">

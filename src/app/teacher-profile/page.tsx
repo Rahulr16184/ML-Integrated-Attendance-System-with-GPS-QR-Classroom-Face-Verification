@@ -282,9 +282,9 @@ export default function TeacherProfilePage() {
                 <Label htmlFor="institutionName">Institution Name</Label>
                 <Input id="institutionName" value={profileData?.institutionName || ''} disabled />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="departmentName">Department</Label>
-                <Input id="departmentName" value={profileData?.departmentName || ''} disabled />
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="departmentName">Departments</Label>
+                <Input id="departmentName" value={profileData?.departmentNames?.join(', ') || ''} disabled />
               </div>
           </div>
         </CardContent>

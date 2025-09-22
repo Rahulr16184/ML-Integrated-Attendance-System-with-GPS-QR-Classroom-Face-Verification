@@ -270,19 +270,19 @@ export default function StudentProfilePage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="altEmail">Alternative Mail ID</Label>
-                <Input id="altEmail" type="email" placeholder="alt@example.com" value={profileData?.altEmail || ''} onChange={handleInputChange} />
+                <Input id="altEmail" type="email" placeholder="alt@example.com" value={profileData?.altEmail || ''} onChange={handleInputChange}/>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+1 234 567 890" value={profileData?.phone || ''} onChange={handleInputChange} />
+                <Input id="phone" type="tel" placeholder="+1 234 567 890" value={profileData?.phone || ''} onChange={handleInputChange}/>
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="institutionName">Institution Name</Label>
                 <Input id="institutionName" value={profileData?.institutionName || ''} disabled />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="departmentName">Department</Label>
-                <Input id="departmentName" value={profileData?.departmentName || ''} disabled />
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="departmentName">Departments</Label>
+                <Input id="departmentName" value={profileData?.departmentNames?.join(', ') || ''} disabled />
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="rollNo">Roll No</Label>
