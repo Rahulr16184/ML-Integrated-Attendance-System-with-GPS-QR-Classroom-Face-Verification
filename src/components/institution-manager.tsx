@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, University, Pen, Trash2, KeyRound, Save, X, ShieldAlert } from 'lucide-react';
 import { createInstitution, createDepartment, updateDepartmentSecretCodes, updateInstitutionName, updateDepartmentName, deleteDepartment, deleteInstitution, getInstitutions } from '@/services/institution-service';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 interface InstitutionManagerProps {
   initialInstitutions: Institution[];
@@ -27,7 +27,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [secretCodes, setSecretCodes] = useState<Department['secretCodes']>({ student: '', teacher: '', admin: '', server: '' });
+  const [secretCodes, setSecretCodes] = useState<Department['secretCodes']>({ student: '', teacher: '', admin: '' });
   
   const [deleteTarget, setDeleteTarget] = useState<{id: string, type: 'institution' | 'department', name: string} | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -87,7 +87,6 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
       student: department.secretCodes?.student || '',
       teacher: department.secretCodes?.teacher || '',
       admin: department.secretCodes?.admin || '',
-      server: department.secretCodes?.server || '',
     });
     setEditingName('');
   };
@@ -106,7 +105,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     }
   };
 
-  const handleCodeChange = (role: 'student' | 'teacher' | 'admin' | 'server', value: string) => {
+  const handleCodeChange = (role: 'student' | 'teacher' | 'admin', value: string) => {
     setSecretCodes(prev => ({...prev, [role]: value}));
   };
 
@@ -306,10 +305,6 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                   <Label htmlFor="admin-code" className="text-right">Admin</Label>
                   <Input id="admin-code" value={secretCodes.admin} onChange={(e) => handleCodeChange('admin', e.target.value)} className="col-span-3" />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="server-code" className="text-right">Server</Label>
-                  <Input id="server-code" value={secretCodes.server} onChange={(e) => handleCodeChange('server', e.target.value)} className="col-span-3" />
-              </div>
             </div>
             <DialogFooter>
               <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -327,9 +322,9 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
           </DialogHeader>
           <Alert variant="destructive">
               <AlertTitle>Warning</AlertTitle>
-              <AlertDescription>
+              <DialogDescription>
                   To confirm, please type <strong>CONFIRM</strong> in the box below.
-              </AlertDescription>
+              </DialogDescription>
           </Alert>
           <Input 
               id="delete-confirm" 

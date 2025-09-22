@@ -15,7 +15,6 @@ export type Department = {
     student: string;
     teacher: string;
     admin: string;
-    server: string;
   };
 };
 

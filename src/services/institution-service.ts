@@ -11,7 +11,6 @@ const generateSecretCodes = (institutionAcronym: string, departmentAcronym: stri
         student: `${instCode}-${deptCode}-STU-${year}`,
         teacher: `${instCode}-${deptCode}-TEA-${year}`,
         admin: `${instCode}-${deptCode}-ADM-${year}`,
-        server: `${instCode}-${deptCode}-SRV-${year}`,
     };
 };
 

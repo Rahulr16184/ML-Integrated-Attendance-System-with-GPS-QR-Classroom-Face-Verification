@@ -104,7 +104,6 @@ export default function RegisterPage() {
             if (department.secretCodes.student === secretCode) role = "student";
             else if (department.secretCodes.teacher === secretCode) role = "teacher";
             else if (department.secretCodes.admin === secretCode) role = "admin";
-            else if (department.secretCodes.server === secretCode) role = "server";
         }
         
         if (!role) {
