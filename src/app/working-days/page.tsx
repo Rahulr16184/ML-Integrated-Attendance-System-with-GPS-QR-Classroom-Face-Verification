@@ -149,6 +149,10 @@ export default function WorkingDaysPage() {
         setSemesters(newSemesters.sort((a,b) => SEMESTER_ROMANS.indexOf(a.roman) - SEMESTER_ROMANS.indexOf(b.roman)));
         setEditingMode(null);
         toast({ title: "Success", description: "Semester saved successfully." });
+
+        if (!batches.includes(selectedBatch)) {
+          setBatches(prev => [...prev, selectedBatch].sort().reverse())
+        }
     } catch(error) {
         console.error(error);
         toast({ title: "Error", description: "Failed to save semester.", variant: "destructive" });
@@ -204,18 +208,13 @@ export default function WorkingDaysPage() {
                     {loadingBatches ? (
                         <Skeleton className="h-10 w-full" />
                     ) : (
-                         <Select onValueChange={setSelectedBatch} value={selectedBatch}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a batch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {batches.length > 0 ? batches.map(batch => (
-                                    <SelectItem key={batch} value={batch}>{batch}</SelectItem>
-                                )) : <SelectItem value="-" disabled>No batches found</SelectItem>}
-                            </SelectContent>
-                        </Select>
+                         <Input 
+                            placeholder="e.g., 2024-2028"
+                            value={selectedBatch}
+                            onChange={(e) => setSelectedBatch(e.target.value)}
+                         />
                     )}
-                     <p className="text-xs text-muted-foreground mt-2">Select a batch to manage its semesters.</p>
+                     <p className="text-xs text-muted-foreground mt-2">Enter a batch to manage its semesters.</p>
                 </CardContent>
             </Card>
 
@@ -254,7 +253,7 @@ export default function WorkingDaysPage() {
                     )}
                      {(!selectedBatch || semesters.length === 0) && !loadingSemesters && (
                         <div className="text-center text-muted-foreground p-4 border-dashed border-2 rounded-lg">
-                            <p>{!selectedBatch ? "Please select a batch first." : "No semesters found for this batch."}</p>
+                            <p>{!selectedBatch ? "Please enter a batch first." : "No semesters found for this batch."}</p>
                         </div>
                     )}
                 </CardContent>
@@ -371,5 +370,7 @@ export default function WorkingDaysPage() {
     </div>
   );
 }
+
+    
 
     
