@@ -36,6 +36,14 @@ export default function GpsPage() {
     }), []);
 
     const fetchCurrentLocation = useCallback((showToast = false) => {
+        if (typeof navigator.geolocation === 'undefined') {
+            toast({ title: "Geolocation Not Supported", description: "Your browser does not support geolocation.", variant: "destructive" });
+            const fallbackPos: LatLngExpression = [51.505, -0.09];
+            setPosition(fallbackPos);
+            setAccuracy(null);
+            return;
+        }
+
         setIsFetchingLocation(true);
         navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -79,21 +87,27 @@ export default function GpsPage() {
                 setLoadingDepartments(false);
             }
         }
-        fetchDepartments();
-    }, [userProfile, selectedDepartmentId]);
+        if (!userLoading) {
+          fetchDepartments();
+        }
+    }, [userProfile, userLoading, selectedDepartmentId]);
 
     useEffect(() => {
-        if (selectedDepartmentId) {
+        if (selectedDepartmentId && departments.length > 0) {
             const department = departments.find(d => d.id === selectedDepartmentId);
-            if (department?.location) {
+            if (department?.location?.lat && department?.location?.lng) {
                 setPosition([department.location.lat, department.location.lng]);
                 setRadius(department.radius || 100);
-                setAccuracy(null); // Accuracy is only relevant for live location
+                setAccuracy(null); // Accuracy is only relevant for live location, not saved ones
             } else {
-                fetchCurrentLocation();
+                // If the selected department has no location, fetch the current one
+                fetchCurrentLocation(false);
             }
+        } else if (!selectedDepartmentId && !userLoading && departments.length > 0) {
+             // If no department is selected (e.g. on first load), fetch current location
+             fetchCurrentLocation(false);
         }
-    }, [selectedDepartmentId, departments, fetchCurrentLocation]);
+    }, [selectedDepartmentId, departments, fetchCurrentLocation, userLoading]);
 
     const handleSave = async () => {
         if (!userProfile?.institutionId || !selectedDepartmentId || !position || radius <= 0) {
@@ -106,13 +120,11 @@ export default function GpsPage() {
             const location = Array.isArray(position) ? { lat: position[0], lng: position[1] } : position;
             await updateDepartmentGps(userProfile.institutionId, selectedDepartmentId, location, radius);
             toast({ title: "Success", description: "GPS location updated successfully." });
-            // Refresh departments data locally
-            const updatedInstitutions = await getInstitutions();
-            const currentInstitution = updatedInstitutions.find(inst => inst.id === userProfile.institutionId);
-            if (currentInstitution) {
-                 const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
-                 setDepartments(userDepartments);
-            }
+            
+            // Refresh departments data locally to reflect the change
+            setDepartments(prevDepts => prevDepts.map(d => 
+                d.id === selectedDepartmentId ? { ...d, location, radius } : d
+            ));
 
         } catch (error) {
             console.error(error);
@@ -124,13 +136,15 @@ export default function GpsPage() {
     
     const handlePositionChange = (newPosition: LatLngExpression) => {
         setPosition(newPosition);
+         // When user drags marker, accuracy is no longer relevant for the manually set point
+        setAccuracy(null);
     }
     
     const getAccuracyBadgeVariant = () => {
         if (accuracy === null) return 'secondary';
-        if (accuracy <= 10) return 'default'; // Success (green)
-        if (accuracy <= 30) return 'secondary'; // Warning (yellow)
-        return 'destructive'; // Error (red)
+        if (accuracy <= 10) return 'default'; // Good (greenish)
+        if (accuracy <= 30) return 'secondary'; // Okay (yellowish)
+        return 'destructive'; // Poor (red)
     }
 
     return (
@@ -147,7 +161,7 @@ export default function GpsPage() {
                              {userLoading || loadingDepartments ? <Skeleton className="h-10 w-full" /> : (
                                 <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={departments.length === 0}>
                                     <SelectTrigger id="department">
-                                        <SelectValue placeholder="Select a department" />
+                                        <SelectValue placeholder="Select your department" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {departments.map((dept) => (
@@ -171,7 +185,7 @@ export default function GpsPage() {
                             />
                         </div>
                     </div>
-                    <div className="md:col-span-2 h-80 md:h-full min-h-[300px] rounded-lg overflow-hidden">
+                    <div className="md:col-span-2 h-80 md:h-full min-h-[300px] rounded-lg overflow-hidden border">
                         {position ? (
                            <Map position={position} radius={radius} onPositionChange={handlePositionChange} draggable={true} />
                         ) : (
