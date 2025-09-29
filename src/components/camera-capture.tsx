@@ -101,6 +101,7 @@ export function CameraCapture({ onCapture, captureLabel = "Capture", isCapturing
     if (capturedImage) {
         onCapture(capturedImage);
         setCapturedImage(null); 
+        stopCamera();
     }
   }
 
