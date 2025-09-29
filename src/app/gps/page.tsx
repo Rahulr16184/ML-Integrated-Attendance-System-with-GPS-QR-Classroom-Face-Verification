@@ -3,6 +3,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions, updateDepartmentGps } from "@/services/institution-service";
 import type { Department } from "@/lib/types";
@@ -20,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, 
 
 
 export default function GpsPage() {
+    const router = useRouter();
     const { userProfile, loading: userLoading } = useUserProfile();
     const { toast } = useToast();
 
@@ -32,6 +34,16 @@ export default function GpsPage() {
     const [loadingDepartments, setLoadingDepartments] = useState(true);
     const [isFetchingLocation, setIsFetchingLocation] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
+    const [isAuthorized, setIsAuthorized] = useState(false);
+
+    useEffect(() => {
+        const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
+        if (role !== 'admin' && role !== 'teacher') {
+            router.push('/login');
+        } else {
+            setIsAuthorized(true);
+        }
+    }, [router]);
 
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
@@ -93,12 +105,13 @@ export default function GpsPage() {
                 setLoadingDepartments(false);
             }
         }
-        if (!userLoading) {
+        if (!userLoading && isAuthorized) {
           fetchDepartments();
         }
-    }, [userProfile, userLoading, selectedDepartmentId]);
+    }, [userProfile, userLoading, selectedDepartmentId, isAuthorized]);
 
     useEffect(() => {
+        if (!isAuthorized) return;
         const department = departments.find(d => d.id === selectedDepartmentId);
         if (department) {
             setRadius(department.radius || 100);
@@ -109,7 +122,7 @@ export default function GpsPage() {
                 fetchCurrentLocation(false);
             }
         }
-    }, [selectedDepartmentId, departments, fetchCurrentLocation]);
+    }, [selectedDepartmentId, departments, fetchCurrentLocation, isAuthorized]);
 
     const handleSave = async () => {
         if (!userProfile?.institutionId || !selectedDepartmentId || !position || radius <= 0) {
@@ -147,6 +160,10 @@ export default function GpsPage() {
         if (accuracy <= 10) return 'default'; // Good (greenish)
         if (accuracy <= 30) return 'secondary'; // Okay (yellowish)
         return 'destructive'; // Poor (red)
+    }
+
+    if (!isAuthorized) {
+        return null; // or a loading spinner
     }
 
     return (
@@ -235,3 +252,5 @@ export default function GpsPage() {
 
     
 }
+
+    

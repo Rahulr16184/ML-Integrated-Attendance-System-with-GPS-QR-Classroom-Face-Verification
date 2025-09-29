@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -35,6 +36,7 @@ const parseSemesterDates = (semester: Semester) => ({
 
 
 export default function WorkingDaysPage() {
+  const router = useRouter();
   const { userProfile, loading: userLoading } = useUserProfile();
   const { toast } = useToast();
 
@@ -54,6 +56,17 @@ export default function WorkingDaysPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  useEffect(() => {
+      const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
+      if (role !== 'admin' && role !== 'teacher') {
+          router.push('/login');
+      } else {
+          setIsAuthorized(true);
+      }
+  }, [router]);
 
   useEffect(() => {
     async function fetchDepartments() {
@@ -82,8 +95,10 @@ export default function WorkingDaysPage() {
         setLoadingDepartments(false);
       }
     }
-    fetchDepartments();
-  }, [userProfile, selectedDepartmentId]);
+    if (isAuthorized) {
+      fetchDepartments();
+    }
+  }, [userProfile, selectedDepartmentId, isAuthorized]);
 
   useEffect(() => {
     async function fetchSemesters() {
@@ -97,8 +112,10 @@ export default function WorkingDaysPage() {
         setSemesters([]);
       }
     }
-    fetchSemesters();
-  }, [selectedDepartmentId, userProfile]);
+    if (isAuthorized) {
+      fetchSemesters();
+    }
+  }, [selectedDepartmentId, userProfile, isAuthorized]);
 
 
   const availableRomans = useMemo(() => {
@@ -216,7 +233,7 @@ export default function WorkingDaysPage() {
     }
   };
   
-  if (userLoading) {
+  if (!isAuthorized || userLoading) {
       return (
           <div className="p-4 sm:p-6 space-y-6">
               <Skeleton className="h-10 w-1/2" />
@@ -321,7 +338,7 @@ export default function WorkingDaysPage() {
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {editingMode !== 'new' && <SelectItem value={selectedRoman} disabled>{selectedRoman}</SelectItem>}
+                                        {editingMode !== 'new' ? <SelectItem value={selectedRoman}>{selectedRoman}</SelectItem> : null}
                                         {availableRomans.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
