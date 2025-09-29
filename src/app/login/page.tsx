@@ -55,15 +55,17 @@ export default function LoginPage() {
 
 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
-    if (userRole) {
-      toast({
-        title: "Already logged in",
-        description: `Redirecting to your dashboard.`,
-      })
-      redirectToDashboard(userRole)
+    if (isMounted) {
+      const userRole = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
+      if (userRole) {
+        toast({
+          title: "Already logged in",
+          description: `Redirecting to your dashboard.`,
+        })
+        redirectToDashboard(userRole)
+      }
     }
-  }, [router, toast])
+  }, [isMounted, router, toast])
 
   const redirectToDashboard = (role: string) => {
     switch (role) {
