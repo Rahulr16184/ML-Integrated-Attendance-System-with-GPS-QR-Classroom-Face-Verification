@@ -81,7 +81,7 @@ const Map = ({ position, radius = 100, onPositionChange, draggable = false }: Ma
     }
 
     return (
-        <div ref={mapRef} style={{ height: '100%', width: '100%' }}></div>
+        <div ref={mapRef} style={{ height: '100%', width: '100%', zIndex: 0 }}></div>
     );
 };
 
