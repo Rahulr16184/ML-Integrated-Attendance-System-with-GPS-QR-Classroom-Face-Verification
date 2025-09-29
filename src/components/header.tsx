@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
-import { User, Home, LogOut, ShieldAlert } from "lucide-react";
+import { User, Home, LogOut, ShieldAlert, Book, Camera, UserPlus, FileText, CreditCard, Map, CalendarDays, School } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useState, useEffect } from "react";
 
 type HeaderProps = {
@@ -63,6 +70,50 @@ export function Header({ dashboardUrl: defaultDashboardUrl, userRole: initialUse
       default: return "/";
     }
   };
+  
+    const menuItems = [
+    {
+      href: "/attendance",
+      label: "Attendance",
+      icon: Camera,
+    },
+    {
+      href: "/enrollment",
+      label: "Enrollment",
+      icon: UserPlus,
+    },
+    {
+      href: "/reports",
+      label: "Reports",
+      icon: FileText,
+    },
+    {
+      href: "/idcard",
+      label: "ID Card",
+      icon: CreditCard,
+    },
+    {
+      href: "/gps",
+      label: "GPS",
+      icon: Map,
+    },
+  ];
+
+  if (userRole === "admin" || userRole === "teacher") {
+    menuItems.push({
+      href: "/working-days",
+      label: "Working Days",
+      icon: CalendarDays,
+    });
+  }
+  
+  if (userRole !== 'server') {
+      menuItems.push({
+        href: "/add-department",
+        label: "Add Department",
+        icon: School
+      });
+  }
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
@@ -73,6 +124,26 @@ export function Header({ dashboardUrl: defaultDashboardUrl, userRole: initialUse
             <span className="sr-only">Dashboard</span>
           </Link>
         </Button>
+        {userRole && userRole !== 'server' && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Book className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {menuItems.map(item => (
+                <DropdownMenuItem key={item.href} asChild>
+                   <Link href={item.href} className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         {userRole && (
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
