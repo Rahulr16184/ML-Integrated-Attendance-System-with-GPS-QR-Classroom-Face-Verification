@@ -27,10 +27,10 @@ const SEMESTER_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 const parseSemesterDates = (semester: Semester) => ({
   ...semester,
   dateRange: {
-    from: parseISO(semester.dateRange.from),
-    to: parseISO(semester.dateRange.to),
+    from: parseISO(semester.dateRange.from as unknown as string),
+    to: parseISO(semester.dateRange.to as unknown as string),
   },
-  holidays: semester.holidays.map(h => parseISO(h)),
+  holidays: semester.holidays.map(h => parseISO(h as unknown as string)),
 });
 
 
@@ -57,24 +57,33 @@ export default function WorkingDaysPage() {
 
   useEffect(() => {
     async function fetchDepartments() {
-      if (userProfile?.institutionId && userProfile.departmentId) {
+      if (userProfile?.institutionId && userProfile.departmentIds) {
         setLoadingDepartments(true);
         const institutions = await getInstitutions();
         const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
         if (currentInstitution) {
-            const userDepartment = currentInstitution.departments.find(d => d.id === userProfile.departmentId);
-            if (userDepartment) {
-                setAllDepartments([userDepartment]);
-                setSelectedDepartmentId(userDepartment.id);
+            // If admin, show all departments of the institution. Otherwise, show only user's departments.
+            if (userProfile.role === 'admin') {
+                setAllDepartments(currentInstitution.departments);
+                // Set the first one as default if not set
+                if (!selectedDepartmentId && currentInstitution.departments.length > 0) {
+                    setSelectedDepartmentId(currentInstitution.departments[0].id);
+                }
             } else {
-                 setAllDepartments([]);
+                const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
+                setAllDepartments(userDepartments);
+                if (userDepartments.length > 0 && !selectedDepartmentId) {
+                    setSelectedDepartmentId(userDepartments[0].id);
+                }
             }
+        } else {
+            setAllDepartments([]);
         }
         setLoadingDepartments(false);
       }
     }
     fetchDepartments();
-  }, [userProfile]);
+  }, [userProfile, selectedDepartmentId]);
 
   useEffect(() => {
     async function fetchSemesters() {
@@ -99,9 +108,12 @@ export default function WorkingDaysPage() {
   
   const disabledDates = useMemo(() => {
     if (!editingMode) return [];
-    return semesters
-      .filter(semester => semester.id !== editingMode)
-      .map(semester => semester.dateRange);
+    const otherSemesters = semesters.filter(semester => semester.id !== editingMode);
+    
+    // Add weekends (Saturday and Sunday) to disabled dates
+    const weekends = { dayOfWeek: [0, 6] };
+    
+    return [weekends, ...otherSemesters.map(s => s.dateRange)];
   }, [semesters, editingMode]);
 
   const handleStartAddNew = () => {
@@ -130,7 +142,15 @@ export default function WorkingDaysPage() {
       return 0;
     }
     const totalDays = differenceInDays(dateRange.to, dateRange.from) + 1;
-    const workingDays = totalDays - holidays.length;
+    let weekends = 0;
+    for (let d = new Date(dateRange.from); d <= dateRange.to; d.setDate(d.getDate() + 1)) {
+        const dayOfWeek = d.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            weekends++;
+        }
+    }
+
+    const workingDays = totalDays - weekends - holidays.length;
     setTotalWorkingDays(workingDays);
     return workingDays;
   };
@@ -141,6 +161,12 @@ export default function WorkingDaysPage() {
         return;
     }
     const workingDays = totalWorkingDays === null ? calculateWorkingDays() : totalWorkingDays;
+    
+    if (workingDays < 0) {
+      toast({ title: "Invalid Calculation", description: "Working days cannot be negative. Check your holidays and date range.", variant: "destructive" });
+      return;
+    }
+
 
     const semesterData: Omit<Semester, 'id'> & { id?: string } = {
         name: `Semester ${selectedRoman}`,
@@ -221,7 +247,7 @@ export default function WorkingDaysPage() {
                         {loadingDepartments ? (
                             <Skeleton className="h-10 w-full"/>
                         ) : (
-                            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length <= 1}>
+                            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length <= 1 && userProfile?.role !== 'admin'}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a department" />
                                 </SelectTrigger>
@@ -284,7 +310,7 @@ export default function WorkingDaysPage() {
                 <Card className="lg:col-span-3">
                     <CardHeader>
                         <CardTitle>{editingMode === 'new' ? 'Create New Semester' : `Editing Semester ${semesters.find(s => s.id === editingMode)?.roman}`}</CardTitle>
-                        <CardDescription>Set the duration, mark holidays, and calculate working days.</CardDescription>
+                        <CardDescription>Set the duration, mark holidays, and calculate total working days.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
                          <div className="space-y-6">
@@ -295,7 +321,7 @@ export default function WorkingDaysPage() {
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {editingMode !== 'new' && <SelectItem value={selectedRoman}>{selectedRoman}</SelectItem>}
+                                        {editingMode !== 'new' && <SelectItem value={selectedRoman} disabled>{selectedRoman}</SelectItem>}
                                         {availableRomans.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -358,9 +384,9 @@ export default function WorkingDaysPage() {
           </DialogHeader>
           <Alert variant="destructive">
               <AlertTitle>Warning</AlertTitle>
-              <AlertDescription>
+              <DialogDescription>
                   To confirm, please type <strong>CONFIRM</strong> in the box below.
-              </AlertDescription>
+              </DialogDescription>
           </Alert>
           <Input 
               id="delete-confirm" 
@@ -385,3 +411,5 @@ export default function WorkingDaysPage() {
     </Dialog>
   );
 }
+
+    
