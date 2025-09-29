@@ -99,21 +99,17 @@ export default function GpsPage() {
     }, [userProfile, userLoading, selectedDepartmentId]);
 
     useEffect(() => {
-        if (selectedDepartmentId && departments.length > 0) {
-            const department = departments.find(d => d.id === selectedDepartmentId);
-            if (department?.location?.lat && department?.location?.lng) {
+        const department = departments.find(d => d.id === selectedDepartmentId);
+        if (department) {
+            setRadius(department.radius || 100);
+            if (department.location?.lat && department.location.lng) {
                 setPosition([department.location.lat, department.location.lng]);
-                setRadius(department.radius || 100);
-                setAccuracy(null); // Accuracy is only relevant for live location, not saved ones
+                setAccuracy(null);
             } else {
-                // If the selected department has no location, fetch the current one
                 fetchCurrentLocation(false);
             }
-        } else if (!selectedDepartmentId && !userLoading && departments.length > 0) {
-             // If no department is selected (e.g. on first load), fetch current location
-             fetchCurrentLocation(false);
         }
-    }, [selectedDepartmentId, departments, fetchCurrentLocation, userLoading]);
+    }, [selectedDepartmentId, departments, fetchCurrentLocation]);
 
     const handleSave = async () => {
         if (!userProfile?.institutionId || !selectedDepartmentId || !position || radius <= 0) {
@@ -238,3 +234,4 @@ export default function GpsPage() {
     )
 
     
+}
