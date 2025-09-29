@@ -47,6 +47,12 @@ export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
@@ -185,14 +191,16 @@ export default function LoginPage() {
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="remember-me" 
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              />
-              <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
-            </div>
+            {isMounted && (
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="remember-me" 
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                />
+                <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
+              </div>
+            )}
             <Link href="#" className="inline-block text-sm underline">
                 Forgot your password?
             </Link>
