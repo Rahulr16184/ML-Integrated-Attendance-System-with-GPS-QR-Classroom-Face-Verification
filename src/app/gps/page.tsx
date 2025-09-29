@@ -14,8 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import type { LatLngExpression } from "leaflet";
-import { Save, RefreshCw } from "lucide-react";
+import { Save, RefreshCw, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
+
 
 export default function GpsPage() {
     const { userProfile, loading: userLoading } = useUserProfile();
@@ -29,6 +31,8 @@ export default function GpsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [loadingDepartments, setLoadingDepartments] = useState(true);
     const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+    const [locationError, setLocationError] = useState<string | null>(null);
+
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
         loading: () => <Skeleton className="h-full w-full" />,
@@ -37,7 +41,7 @@ export default function GpsPage() {
 
     const fetchCurrentLocation = useCallback((showToast = false) => {
         if (typeof navigator.geolocation === 'undefined') {
-            toast({ title: "Geolocation Not Supported", description: "Your browser does not support geolocation.", variant: "destructive" });
+            setLocationError("Your browser does not support geolocation.");
             const fallbackPos: LatLngExpression = [51.505, -0.09];
             setPosition(fallbackPos);
             setAccuracy(null);
@@ -55,14 +59,16 @@ export default function GpsPage() {
                     toast({ title: "Success", description: "Location updated." });
                 }
             },
-            () => {
+            (error: GeolocationPositionError) => {
+                let message = "Could not fetch location. Using a fallback. Please enable location services in your browser settings.";
+                 if (error.code === error.PERMISSION_DENIED) {
+                    message = "Location access was denied. Please enable it in your browser settings to use this feature.";
+                }
+                setLocationError(message);
                 const fallbackPos: LatLngExpression = [51.505, -0.09];
                 setPosition(fallbackPos);
                 setAccuracy(null);
                 setIsFetchingLocation(false);
-                if (showToast) {
-                    toast({ title: "Error", description: "Could not fetch location. Using fallback.", variant: "destructive" });
-                }
             },
             { enableHighAccuracy: true }
         );
@@ -149,6 +155,18 @@ export default function GpsPage() {
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
+             <AlertDialog open={!!locationError} onOpenChange={() => setLocationError(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2"><AlertCircle /> Location Services Disabled</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {locationError}
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogAction onClick={() => setLocationError(null)}>OK</AlertDialogAction>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">GPS Location Setup</h1>
             <Card>
                 <CardHeader>
@@ -218,4 +236,5 @@ export default function GpsPage() {
             </Card>
         </div>
     )
-}
+
+    
