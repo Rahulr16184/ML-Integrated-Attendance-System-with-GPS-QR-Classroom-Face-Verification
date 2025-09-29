@@ -16,6 +16,11 @@ export type Department = {
     teacher: string;
     admin: string;
   };
+  location?: {
+    lat: number;
+    lng: number;
+  };
+  radius?: number;
 };
 
 export type Institution = {

@@ -1,9 +1,12 @@
+
 "use client";
 
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { Icon, LatLngExpression } from 'leaflet';
-import { useEffect, useState } from 'react';
+import 'leaflet-draw/dist/leaflet.draw.css';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { Icon, LatLngExpression, LatLng } from 'leaflet';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { Marker as LeafletMarker } from 'leaflet';
 
 const customIcon = new Icon({
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -14,45 +17,73 @@ const customIcon = new Icon({
     shadowSize: [41, 41]
 });
 
-const Map = () => {
-    const [position, setPosition] = useState<LatLngExpression | null>(null);
+type MapProps = {
+    position: LatLngExpression;
+    radius?: number;
+    onPositionChange?: (position: LatLngExpression) => void;
+    draggable?: boolean;
+}
 
-    useEffect(() => {
-        // Default to a central location if geolocation is not available
-        let initialPosition: LatLngExpression = [51.505, -0.09]; 
+const DraggableMarker = ({ initialPosition, onPositionChange }: { initialPosition: LatLng, onPositionChange: (pos: LatLngExpression) => void }) => {
+  const [position, setPosition] = useState<LatLng>(initialPosition);
+  const markerRef = useRef<LeafletMarker>(null);
 
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const { latitude, longitude } = pos.coords;
-                    setPosition([latitude, longitude]);
-                },
-                (err) => {
-                    console.warn(`ERROR(${err.code}): ${err.message}`);
-                    setPosition(initialPosition);
-                }
-            );
-        } else {
-             console.log("Geolocation is not supported by this browser.");
-             setPosition(initialPosition);
+  const eventHandlers = useMemo(
+    () => ({
+      dragend() {
+        const marker = markerRef.current;
+        if (marker != null) {
+          const newPos = marker.getLatLng();
+          setPosition(newPos);
+          onPositionChange([newPos.lat, newPos.lng]);
         }
-    }, []);
+      },
+    }),
+    [onPositionChange],
+  );
+
+  useEffect(() => {
+    setPosition(new LatLng(initialPosition.lat, initialPosition.lng));
+  }, [initialPosition]);
+
+  return (
+    <Marker
+      draggable={true}
+      eventHandlers={eventHandlers}
+      position={position}
+      ref={markerRef}
+      icon={customIcon}
+      >
+      <Popup>Drag to set location</Popup>
+    </Marker>
+  );
+};
+
+
+const Map = ({ position, radius = 100, onPositionChange, draggable = false }: MapProps) => {
 
     if (!position) {
-        return <div className="flex items-center justify-center h-full">Loading map...</div>
+        return <div className="flex items-center justify-center h-full bg-muted">Loading map...</div>
     }
 
+    const mapCenter = Array.isArray(position) ? new LatLng(position[0], position[1]) : new LatLng(position.lat, position.lng);
+    
     return (
-        <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%' }}>
+        <MapContainer center={mapCenter} zoom={15} style={{ height: '100%', width: '100%' }} key={mapCenter.toString()}>
             <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
-            <Marker position={position} icon={customIcon}>
-                <Popup>
-                    You are here.
-                </Popup>
-            </Marker>
+            {draggable && onPositionChange ? (
+                <DraggableMarker initialPosition={mapCenter} onPositionChange={onPositionChange} />
+            ) : (
+                <Marker position={mapCenter} icon={customIcon}>
+                    <Popup>
+                        Configured Location.
+                    </Popup>
+                </Marker>
+            )}
+            <Circle center={mapCenter} radius={radius} pathOptions={{ color: 'blue' }} />
         </MapContainer>
     );
 };

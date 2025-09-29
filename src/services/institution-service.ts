@@ -1,6 +1,7 @@
+
 import { db } from '@/lib/conf';
 import { collection, getDocs, addDoc, doc, updateDoc, getDoc, writeBatch, deleteDoc } from 'firebase/firestore';
-import type { Institution, Department } from '@/lib/types';
+import type { Department, Institution } from '@/lib/types';
 
 // Helper to generate a set of codes for a new department
 const generateSecretCodes = (institutionAcronym: string, departmentAcronym: string) => {
@@ -86,4 +87,8 @@ export const deleteDepartment = async (institutionId: string, departmentId: stri
     await deleteDoc(departmentDoc);
 }
 
+export const updateDepartmentGps = async (institutionId: string, departmentId: string, location: { lat: number; lng: number }, radius: number): Promise<void> => {
+    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    await updateDoc(departmentDoc, { location, radius });
+};
     
