@@ -62,8 +62,14 @@ export default function GpsPage() {
             } else {
                  // Fetch current location if no location is set for the department
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => setPosition([pos.coords.latitude, pos.coords.longitude]),
-                    () => setPosition([51.505, -0.09]) // Fallback
+                    (pos) => {
+                        const newPos: LatLngExpression = [pos.coords.latitude, pos.coords.longitude];
+                        setPosition(newPos);
+                    },
+                    () => {
+                        const fallbackPos: LatLngExpression = [51.505, -0.09];
+                        setPosition(fallbackPos);
+                    }
                 );
             }
         }
