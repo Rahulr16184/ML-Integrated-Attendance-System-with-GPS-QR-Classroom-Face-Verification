@@ -93,7 +93,12 @@ export default function StudentDashboardPage() {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p className="text-sm text-muted-foreground">Access your attendance records and reports.</p>
+                <Button asChild className="w-full">
+                    <Link href="/mark-attendance">
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        MARK MASTER ATTENDANCE
+                    </Link>
+                </Button>
             </CardContent>
         </Card>
 
