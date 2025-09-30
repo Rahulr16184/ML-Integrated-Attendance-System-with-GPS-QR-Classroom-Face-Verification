@@ -13,11 +13,12 @@ import type { Department, ClassroomPhoto } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { loadModels } from '@/lib/face-api';
 import * as faceapi from 'face-api.js';
 import type { LatLngExpression } from 'leaflet';
 import { Progress } from '@/components/ui/progress';
-import Image from 'next/image';
+import { getFaceApi } from '@/lib/face-api';
+import { getCachedDescriptor, cacheDescriptor, getCachedClassroomDescriptors, cacheClassroomDescriptors } from '@/services/descriptor-cache-service';
+
 
 const STEPS = [
     { id: 'gps', title: 'GPS', icon: MapPin },
@@ -87,7 +88,6 @@ export default function VerifyAttendanceMode1Page() {
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const [referenceDescriptors, setReferenceDescriptors] = useState<Float32Array[]>([]);
-    const [modelsReady, setModelsReady] = useState(false);
 
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
@@ -106,6 +106,7 @@ export default function VerifyAttendanceMode1Page() {
                 return;
             }
             if (userProfile?.institutionId) {
+                setLoading(true);
                 try {
                     const institutions = await getInstitutions();
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
@@ -123,7 +124,7 @@ export default function VerifyAttendanceMode1Page() {
                 } finally {
                     setLoading(false);
                 }
-            } else {
+            } else if (!userProfile) {
                  setError('Could not load user profile.');
                  setLoading(false);
             }
@@ -207,11 +208,20 @@ export default function VerifyAttendanceMode1Page() {
     }, [deviceHeading, userLocation, department, stepStatus]);
     
     // Classroom Verification Logic
-    const fetchImageAndComputeDescriptor = async (imageUrl: string) => {
+    const fetchImageAndComputeDescriptor = async (imageUrl: string): Promise<Float32Array[]> => {
         if (!imageUrl) return [];
+        const faceapi = getFaceApi();
         try {
+            // Check cache first
+            const cached = getCachedDescriptor(imageUrl);
+            if (cached) return [cached];
+
             const img = await faceapi.fetchImage(imageUrl);
-            const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
+            const detections = await faceapi.detectAllFaces(img).withFaceLandmarks().withFaceDescriptors();
+            
+            // Cache the descriptors
+            detections.forEach(d => cacheDescriptor(imageUrl, d.descriptor));
+
             return detections.map(d => d.descriptor);
         } catch (e) {
             console.error('Failed to process reference image', e);
@@ -221,21 +231,32 @@ export default function VerifyAttendanceMode1Page() {
     
     useEffect(() => {
         const prepareClassroomDescriptors = async () => {
-            if (department) {
+            if (department?.id) {
                 setStatusMessage("Preparing verification models...");
-                // The models are pre-loaded on login page, we can directly use them.
-                await loadModels(); // This ensures models are loaded if not already
-                setModelsReady(true);
+                
+                const cached = getCachedClassroomDescriptors(department.id);
+                if (cached) {
+                    setReferenceDescriptors(cached);
+                    setStatusMessage("Models ready.");
+                    return;
+                }
 
                 const allPhotos = [
                     ...(department.classroomPhotoUrls || []),
                     ...(department.studentsInClassroomPhotoUrls || [])
                 ].filter(p => p.embedded && p.url);
 
+                if (allPhotos.length === 0) {
+                     setReferenceDescriptors([]);
+                     setStatusMessage("No reference classroom photos found.");
+                     return;
+                }
+
                 const descriptorsPromises = allPhotos.map(photo => fetchImageAndComputeDescriptor(photo.url));
                 const descriptorsArrays = await Promise.all(descriptorsPromises);
                 const flatDescriptors = descriptorsArrays.flat();
 
+                cacheClassroomDescriptors(department.id, flatDescriptors);
                 setReferenceDescriptors(flatDescriptors);
                 setStatusMessage("Models ready.");
             }
@@ -276,8 +297,9 @@ export default function VerifyAttendanceMode1Page() {
         if (!videoRef.current || !isCameraLive) return;
         setStepStatus('verifying');
         setStatusMessage(`Scanning... Keep the camera steady.`);
+        const faceapi = getFaceApi();
 
-        const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
+        const detections = await faceapi.detectAllFaces(videoRef.current).withFaceLandmarks().withFaceDescriptors();
         
         let bestMatch = 0;
         if (detections.length > 0 && referenceDescriptors.length > 0) {
@@ -292,16 +314,13 @@ export default function VerifyAttendanceMode1Page() {
         
         // Also check if the current user's face is in the picture
         let userFaceFound = false;
-        if (userProfile?.profileImage && detections.length > 0) {
-            const userImg = await faceapi.fetchImage(userProfile.profileImage);
-            const userDetection = await faceapi.detectSingleFace(userImg).withFaceLandmarks().withFaceDescriptor();
-            if (userDetection) {
-                 const faceMatcher = new faceapi.FaceMatcher([userDetection.descriptor]);
-                 detections.forEach(d => {
-                     const match = faceMatcher.findBestMatch(d.descriptor);
-                     if (match.label !== 'unknown') userFaceFound = true;
-                 })
-            }
+        const userDescriptor = getCachedDescriptor('userProfileImage');
+        if (userDescriptor && detections.length > 0) {
+             const faceMatcher = new faceapi.FaceMatcher([userDescriptor]);
+             detections.forEach(d => {
+                 const match = faceMatcher.findBestMatch(d.descriptor);
+                 if (match.label !== 'unknown') userFaceFound = true;
+             })
         }
 
         const overallScore = userFaceFound ? (bestMatch + 1) / 2 : bestMatch / 2; // Weight user face detection
@@ -325,7 +344,7 @@ export default function VerifyAttendanceMode1Page() {
                  stopCamera();
             }
         }
-    }, [isCameraLive, referenceDescriptors, userProfile, classroomVerificationSubstep, stopCamera]);
+    }, [isCameraLive, referenceDescriptors, classroomVerificationSubstep, stopCamera]);
     
     const startScan = useCallback(() => {
         setIsScanning(true);
@@ -458,8 +477,8 @@ export default function VerifyAttendanceMode1Page() {
                     {currentStep === 1 && stepStatus === 'instructions' && !isScanning ? (
                         <div className="flex flex-col items-center gap-4">
                             <p className="text-muted-foreground">{statusMessage || `Get ready to scan the classroom.`}</p>
-                            <Button onClick={startClassroomVerification} disabled={!modelsReady || referenceDescriptors.length === 0}>
-                                {modelsReady ? (referenceDescriptors.length > 0 ? "Start Classroom Verification" : "No classroom photos available") : "Loading Models..."}
+                            <Button onClick={startClassroomVerification} disabled={referenceDescriptors.length === 0}>
+                                {referenceDescriptors.length > 0 ? "Start Classroom Verification" : "Loading/No Classroom Photos"}
                             </Button>
                         </div>
                     ) : content}
@@ -553,7 +572,3 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
-
-    
-
-    
