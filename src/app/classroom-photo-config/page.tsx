@@ -42,13 +42,14 @@ const PhotoUploadSection = ({
   photos?: ClassroomPhoto[];
   onUploadClick: () => void;
   onCaptureClick: () => void;
-  onDeleteClick: (photo: ClassroomPhoto) => void;
+  onDeleteClick: (category: PhotoCategory, photo: ClassroomPhoto) => void;
   onEmbedClick: () => void;
   isUploading: boolean;
   isEmbedding: boolean;
   category: PhotoCategory;
 }) => {
   const hasNewPhotos = useMemo(() => photos?.some(p => !p.embedded), [photos]);
+  const validPhotos = useMemo(() => photos?.filter(p => p && p.url), [photos]);
 
   return (
   <Card>
@@ -71,16 +72,16 @@ const PhotoUploadSection = ({
           </div>
         ) : null}
 
-        {photos && photos.length > 0 ? (
+        {validPhotos && validPhotos.length > 0 ? (
           <ScrollArea className="h-64 w-full">
             <div className="grid grid-cols-4 gap-2 p-2">
-              {photos.map((photo, index) => (
+              {validPhotos.map((photo, index) => (
                 <div key={index} className="relative group aspect-square">
                    <Image src={photo.url} alt={`${title} ${index + 1}`} fill className="object-cover rounded-md" data-ai-hint="classroom" />
                     <div className={cn("absolute inset-0 rounded-md border-4", photo.embedded ? "border-green-500" : "border-transparent")}></div>
                     {photo.embedded && <CheckCircle className="absolute top-1 left-1 h-5 w-5 text-white bg-green-500 rounded-full p-0.5" />}
                    <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => onDeleteClick(category, photo)}>
                         <Trash2 className="h-3 w-3" />
                     </Button>
                    </AlertDialogTrigger>
@@ -333,7 +334,7 @@ export default function ClassroomPhotoConfigPage() {
               photos={selectedDepartment?.classroomPhotoUrls}
               onUploadClick={() => onUploadClick('classroomPhotoUrls')}
               onCaptureClick={() => onCaptureClick('classroomPhotoUrls')}
-              onDeleteClick={(photo) => onDeleteClick('classroomPhotoUrls', photo)}
+              onDeleteClick={onDeleteClick}
               onEmbedClick={() => handleEmbed('classroomPhotoUrls')}
               isUploading={isUploading && activePhotoCategory === 'classroomPhotoUrls'}
               isEmbedding={isEmbedding === 'classroomPhotoUrls'}
@@ -345,7 +346,7 @@ export default function ClassroomPhotoConfigPage() {
               photos={selectedDepartment?.studentsInClassroomPhotoUrls}
               onUploadClick={() => onUploadClick('studentsInClassroomPhotoUrls')}
               onCaptureClick={() => onCaptureClick('studentsInClassroomPhotoUrls')}
-              onDeleteClick={(photo) => onDeleteClick('studentsInClassroomPhotoUrls', photo)}
+              onDeleteClick={onDeleteClick}
               onEmbedClick={() => handleEmbed('studentsInClassroomPhotoUrls')}
               isUploading={isUploading && activePhotoCategory === 'studentsInClassroomPhotoUrls'}
               isEmbedding={isEmbedding === 'studentsInClassroomPhotoUrls'}
@@ -405,4 +406,5 @@ export default function ClassroomPhotoConfigPage() {
     </>
   );
 }
+
 
