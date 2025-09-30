@@ -67,7 +67,6 @@ export default function VerifyAttendanceMode1Page() {
 
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const watchIdRef = useRef<number | null>(null);
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
         loading: () => <Skeleton className="h-full w-full" />,
@@ -83,7 +82,8 @@ export default function VerifyAttendanceMode1Page() {
                 return;
             }
             if (userProfile?.institutionId) {
-                setLoading(true);
+                // Ensure we don't re-set loading if department is already fetched
+                if (!department) setLoading(true);
                 try {
                     const institutions = await getInstitutions();
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
@@ -106,7 +106,7 @@ export default function VerifyAttendanceMode1Page() {
         if (userProfile) {
             fetchDepartmentDetails();
         }
-    }, [departmentId, userProfile]);
+    }, [departmentId, userProfile, department]);
 
     // Load Face-API Models
     useEffect(() => {
@@ -116,14 +116,7 @@ export default function VerifyAttendanceMode1Page() {
         };
         loadMLModels();
     }, []);
-
-    const stopGpsWatch = useCallback(() => {
-        if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-            watchIdRef.current = null;
-        }
-    }, []);
-
+    
     const startGpsVerification = useCallback(() => {
         if (!department?.location) {
             setStatusMessage("GPS location for this department is not set. Skipping.");
@@ -136,7 +129,7 @@ export default function VerifyAttendanceMode1Page() {
         setStatusMessage('Getting your location...');
         setDirectionalSuggestion(null);
 
-        watchIdRef.current = navigator.geolocation.watchPosition(
+        navigator.geolocation.getCurrentPosition(
             (position) => {
                 const currentUserLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
                 setUserLocation(currentUserLocation);
@@ -148,7 +141,6 @@ export default function VerifyAttendanceMode1Page() {
                         setStatusMessage(`Location verified! You are inside the zone.`);
                         setStepStatus('success');
                         setDirectionalSuggestion(null);
-                        stopGpsWatch();
                         setTimeout(() => setCurrentStep(1), 1500);
                     } else {
                         const direction = getDirection(currentUserLocation, department.location);
@@ -162,10 +154,9 @@ export default function VerifyAttendanceMode1Page() {
                 setStatusMessage(`Could not get location: ${err.message}. Please enable location services.`);
                 setStepStatus('failed');
                 setDirectionalSuggestion(null);
-                stopGpsWatch();
             }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [department, stopGpsWatch]);
+    }, [department]);
     
     // Effect to trigger verification for the current step
     useEffect(() => {
@@ -174,12 +165,7 @@ export default function VerifyAttendanceMode1Page() {
         if (currentStep === 0 && stepStatus === 'pending') {
             startGpsVerification();
         }
-        
-        // Cleanup function
-        return () => {
-             stopGpsWatch();
-        };
-    }, [currentStep, stepStatus, loading, department, startGpsVerification, stopGpsWatch]);
+    }, [currentStep, stepStatus, loading, department, startGpsVerification]);
 
 
     const renderStepContent = () => {
@@ -210,7 +196,7 @@ export default function VerifyAttendanceMode1Page() {
                         </div>
                     )}
                     
-                    {stepStatus === 'failed' && !directionalSuggestion && (
+                    {stepStatus === 'failed' && (
                         <Button onClick={startGpsVerification}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Retry
@@ -243,7 +229,7 @@ export default function VerifyAttendanceMode1Page() {
     }
     
     const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
-    const markerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
+    const userMarkerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
@@ -282,7 +268,7 @@ export default function VerifyAttendanceMode1Page() {
                          <CardTitle>Verification Map</CardTitle>
                      </CardHeader>
                      <CardContent className="h-80 w-full p-0">
-                         <Map position={mapCenter} userPosition={markerPosition} radius={department?.radius} draggable={false} />
+                         <Map position={mapCenter} userPosition={userMarkerPosition} radius={department?.radius} draggable={false} />
                      </CardContent>
                  </Card>
             )}
@@ -290,3 +276,4 @@ export default function VerifyAttendanceMode1Page() {
     );
 }
 
+    
