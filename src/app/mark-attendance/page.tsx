@@ -143,12 +143,11 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                          <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                            {isModeActive('mode1') ? (
-                                <Button size="lg" onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
-                                    Start Verification <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            ) : (
-                                <p className="text-muted-foreground">This mode is not currently active. Please check the schedule or try another mode.</p>
+                            <Button size="lg" disabled={!isModeActive('mode1')} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
+                                Start Verification <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                            {!isModeActive('mode1') && (
+                                <p className="text-muted-foreground mt-4 text-sm">This mode is not currently active. Please check the schedule or try another mode.</p>
                             )}
                         </CardContent>
                     </Card>
@@ -169,12 +168,11 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                           {isModeActive('mode2') ? (
-                                <Button size="lg" onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
-                                   Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            ) : (
-                                <p className="text-muted-foreground">This mode is not currently active. Please check the schedule or try another mode.</p>
+                            <Button size="lg" disabled={!isModeActive('mode2')} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
+                               Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                            {!isModeActive('mode2') && (
+                               <p className="text-muted-foreground mt-4 text-sm">This mode is not currently active. Please check the schedule or try another mode.</p>
                             )}
                         </CardContent>
                     </Card>
