@@ -33,6 +33,7 @@ export default function QrGeneratorPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [countdown, setCountdown] = useState(QR_REFRESH_INTERVAL);
   const [scanCount, setScanCount] = useState(0);
+  const [wasScanned, setWasScanned] = useState(false);
   
   const [isAuthorized, setIsAuthorized] = useState(false);
 
@@ -75,24 +76,39 @@ export default function QrGeneratorPage() {
     }
   }, [userProfile, isAuthorized, toast]);
 
-  const generateQrCode = useCallback(() => {
-    if (!selectedDepartmentId) return;
-    // Generate a unique token for the QR code
-    const uniqueToken = `tracein-qr;dept:${selectedDepartmentId};ts:${Date.now()};rand:${Math.random()}`;
-    const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(uniqueToken)}&size=250x250`;
-    setQrCodeUrl(url);
-    setCountdown(QR_REFRESH_INTERVAL);
-  }, [selectedDepartmentId]);
-
-  const stopGenerator = () => {
+  const stopGenerator = useCallback(() => {
     setIsGenerating(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
     setQrCodeUrl("");
-    setScanCount(0); // Reset scan count when stopped
-  };
+    setScanCount(0);
+  }, []);
+
+  const generateQrCode = useCallback(() => {
+    if (!selectedDepartmentId) return;
+    const uniqueToken = `tracein-qr;dept:${selectedDepartmentId};ts:${Date.now()};rand:${Math.random()}`;
+    const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(uniqueToken)}&size=250x250`;
+    setQrCodeUrl(url);
+    setCountdown(QR_REFRESH_INTERVAL);
+    setWasScanned(false);
+  }, [selectedDepartmentId]);
+
+  const handleInterval = useCallback(() => {
+    if (wasScanned) {
+      // If scanned, generate a new one and continue
+      generateQrCode();
+    } else {
+      // If not scanned, stop the generator
+      stopGenerator();
+      toast({
+        title: "QR Generator Stopped",
+        description: "The code was not scanned within the time limit.",
+        variant: "destructive"
+      });
+    }
+  }, [wasScanned, generateQrCode, stopGenerator, toast]);
 
   const startGenerator = () => {
     if (!selectedDepartmentId) {
@@ -102,12 +118,14 @@ export default function QrGeneratorPage() {
     setIsGenerating(true);
     setScanCount(0);
     generateQrCode();
-    intervalRef.current = setInterval(generateQrCode, QR_REFRESH_INTERVAL * 1000);
+    intervalRef.current = setInterval(handleInterval, QR_REFRESH_INTERVAL * 1000);
   };
 
   const simulateScan = () => {
     if (!isGenerating) return;
+    
     setScanCount(prev => prev + 1);
+    setWasScanned(true); // Mark as scanned
     toast({ title: "Scan Simulated", description: "Generating new QR code." });
     
     // Immediately generate a new QR and reset the interval
@@ -115,9 +133,8 @@ export default function QrGeneratorPage() {
         clearInterval(intervalRef.current);
     }
     generateQrCode();
-    intervalRef.current = setInterval(generateQrCode, QR_REFRESH_INTERVAL * 1000);
+    intervalRef.current = setInterval(handleInterval, QR_REFRESH_INTERVAL * 1000);
   };
-
 
   useEffect(() => {
     let countdownInterval: NodeJS.Timeout | null = null;
@@ -160,7 +177,7 @@ export default function QrGeneratorPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><QrCode/> QR Code Generator</CardTitle>
           <CardDescription>
-            Generate a unique, single-use QR code for attendance. The code will automatically refresh.
+            Generate a unique, single-use QR code for attendance. The code will automatically refresh or stop if not used.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -190,7 +207,7 @@ export default function QrGeneratorPage() {
                         <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
                     )}
                     <div className="w-full max-w-xs text-center">
-                        <p className="text-sm text-muted-foreground">Refreshing in {countdown}s...</p>
+                        <p className="text-sm text-muted-foreground">Generator will stop or refresh in {countdown}s...</p>
                         <Progress value={(countdown / QR_REFRESH_INTERVAL) * 100} className="mt-2" />
                     </div>
                     <div className="text-center">
@@ -223,3 +240,5 @@ export default function QrGeneratorPage() {
     </div>
   );
 }
+
+    
