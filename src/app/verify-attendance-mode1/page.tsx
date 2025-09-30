@@ -9,13 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions } from '@/services/institution-service';
-import type { Department } from '@/lib/types';
+import type { Department, ClassroomPhoto } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { loadModels, getFaceApi } from '@/lib/face-api';
+import { loadModels } from '@/lib/face-api';
 import * as faceapi from 'face-api.js';
 import type { LatLngExpression } from 'leaflet';
+import { Progress } from '@/components/ui/progress';
+import Image from 'next/image';
 
 const STEPS = [
     { id: 'gps', title: 'GPS', icon: MapPin },
@@ -38,7 +40,6 @@ const getDistance = (from: { lat: number; lng: number }, to: { lat: number; lng:
     return R * c; // in metres
 };
 
-// Returns the bearing from point A to B in degrees
 const getBearing = (start: {lat: number, lng: number}, end: {lat: number, lng: number}) => {
     const toRadians = (deg: number) => deg * Math.PI / 180;
     const toDegrees = (rad: number) => rad * 180 / Math.PI;
@@ -55,6 +56,9 @@ const getBearing = (start: {lat: number, lng: number}, end: {lat: number, lng: n
     return (brng + 360) % 360;
 };
 
+const CLASSROOM_VERIFICATION_PROMPTS = ['left', 'right', 'front'];
+const SCAN_DURATION = 5; // seconds
+const SIMILARITY_THRESHOLD = 0.5; // Adjust as needed (0 to 1)
 
 export default function VerifyAttendanceMode1Page() {
     const searchParams = useSearchParams();
@@ -66,7 +70,7 @@ export default function VerifyAttendanceMode1Page() {
     const [error, setError] = useState<string | null>(null);
 
     const [currentStep, setCurrentStep] = useState(0);
-    const [stepStatus, setStepStatus] = useState<'pending' | 'verifying' | 'success' | 'failed'>('pending');
+    const [stepStatus, setStepStatus] = useState<'pending' | 'verifying' | 'success' | 'failed' | 'instructions'>('pending');
     const [statusMessage, setStatusMessage] = useState('');
     const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
@@ -75,6 +79,16 @@ export default function VerifyAttendanceMode1Page() {
 
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Classroom verification state
+    const [isCameraLive, setIsCameraLive] = useState(false);
+    const [classroomVerificationSubstep, setClassroomVerificationSubstep] = useState(0);
+    const [scanCountdown, setScanCountdown] = useState(SCAN_DURATION);
+    const [isScanning, setIsScanning] = useState(false);
+    const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [referenceDescriptors, setReferenceDescriptors] = useState<Float32Array[]>([]);
+
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
         loading: () => <Skeleton className="h-full w-full" />,
@@ -132,51 +146,48 @@ export default function VerifyAttendanceMode1Page() {
     }, []);
 
     const startGpsVerification = useCallback(() => {
-        if (!department) return; // Guard against running before department is loaded
+        if (!department) return;
 
         if (!department?.location) {
             setStatusMessage("GPS location for this department is not set. Skipping.");
             setStepStatus('success');
-            setTimeout(() => setCurrentStep(1), 2000);
+            setTimeout(() => {
+                setCurrentStep(1);
+                setStepStatus('instructions');
+            }, 2000);
             return;
         }
 
         setStepStatus('verifying');
         setStatusMessage('Getting your location...');
         
-        // Request permission for device orientation
         if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
             (DeviceOrientationEvent as any).requestPermission()
                 .then((permissionState: string) => {
-                    if (permissionState === 'granted') {
-                        window.addEventListener('deviceorientation', handleOrientation, true);
-                    }
-                })
-                .catch(console.error);
+                    if (permissionState === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
+                }).catch(console.error);
         } else {
             window.addEventListener('deviceorientation', handleOrientation, true);
         }
-
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const currentUserLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
                 setUserLocation(currentUserLocation);
                 
-                if (department?.location) {
+                if (department.location) {
                     const distance = getDistance(currentUserLocation, department.location);
-                    
                     if (distance <= (department.radius || 100)) {
                         setStatusMessage(`Location verified! You are inside the zone.`);
                         setStepStatus('success');
                         window.removeEventListener('deviceorientation', handleOrientation, true);
-                        setTimeout(() => setCurrentStep(1), 1500);
+                        setTimeout(() => {
+                            setCurrentStep(1);
+                            setStepStatus('instructions');
+                        }, 1500);
                     } else {
                         const bearing = getBearing(currentUserLocation, department.location);
-                        if(deviceHeading !== null) {
-                            setArrowRotation(bearing - deviceHeading);
-                        }
-                        const direction = getBearing(currentUserLocation, department.location);
+                        if(deviceHeading !== null) setArrowRotation(bearing - deviceHeading);
                         setStatusMessage(`You are ${distance.toFixed(0)}m away. Follow the arrow to get in range.`);
                         setStepStatus('failed');
                     }
@@ -189,7 +200,6 @@ export default function VerifyAttendanceMode1Page() {
         );
     }, [department, deviceHeading, handleOrientation]);
 
-    // Update arrow rotation in real-time
     useEffect(() => {
         if (stepStatus === 'failed' && deviceHeading !== null && userLocation && department?.location) {
             const bearing = getBearing(userLocation, department.location);
@@ -197,6 +207,145 @@ export default function VerifyAttendanceMode1Page() {
         }
     }, [deviceHeading, userLocation, department, stepStatus]);
     
+    // Classroom Verification Logic
+    const fetchImageAndComputeDescriptor = async (imageUrl: string) => {
+        try {
+            const img = await faceapi.fetchImage(imageUrl);
+            const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
+            return detections.map(d => d.descriptor);
+        } catch (e) {
+            console.error('Failed to process reference image', e);
+            return [];
+        }
+    };
+    
+    useEffect(() => {
+        const prepareClassroomDescriptors = async () => {
+            if (modelsLoaded && department) {
+                setStatusMessage("Preparing verification models...");
+                const allPhotos = [
+                    ...(department.classroomPhotoUrls || []),
+                    ...(department.studentsInClassroomPhotoUrls || [])
+                ].filter(p => p.embedded);
+
+                const descriptorsPromises = allPhotos.map(photo => fetchImageAndComputeDescriptor(photo.url));
+                const descriptorsArrays = await Promise.all(descriptorsPromises);
+                const flatDescriptors = descriptorsArrays.flat();
+
+                setReferenceDescriptors(flatDescriptors);
+                setStatusMessage("Models ready.");
+            }
+        };
+        prepareClassroomDescriptors();
+    }, [modelsLoaded, department]);
+
+
+    const startCamera = useCallback(async () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+        setIsCameraLive(false);
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+                await videoRef.current.play();
+                setIsCameraLive(true);
+            }
+        } catch (err) {
+            setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
+            setStepStatus('failed');
+        }
+    }, []);
+
+    const stopCamera = useCallback(() => {
+         if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach((track) => track.stop());
+            videoRef.current.srcObject = null;
+            setIsCameraLive(false);
+        }
+    }, []);
+
+    const handleClassroomVerification = async () => {
+        if (!videoRef.current || !isCameraLive) return;
+        setStepStatus('verifying');
+        setStatusMessage(`Scanning... Keep the camera steady.`);
+
+        const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
+        
+        let bestMatch = 0;
+        if (detections.length > 0 && referenceDescriptors.length > 0) {
+            const faceMatcher = new faceapi.FaceMatcher(referenceDescriptors);
+            detections.forEach(detection => {
+                const match = faceMatcher.findBestMatch(detection.descriptor);
+                if (match.distance < bestMatch || bestMatch === 0) {
+                    bestMatch = 1 - match.distance; // Higher is better
+                }
+            });
+        }
+        
+        // Also check if the current user's face is in the picture
+        let userFaceFound = false;
+        if (userProfile?.profileImage && detections.length > 0) {
+            const userImg = await faceapi.fetchImage(userProfile.profileImage);
+            const userDescriptor = await faceapi.computeFaceDescriptor(userImg);
+            if (userDescriptor) {
+                 const faceMatcher = new faceapi.FaceMatcher([userDescriptor]);
+                 detections.forEach(d => {
+                     const match = faceMatcher.findBestMatch(d.descriptor);
+                     if (match.label !== 'unknown') userFaceFound = true;
+                 })
+            }
+        }
+
+        const overallScore = userFaceFound ? (bestMatch + 1) / 2 : bestMatch / 2; // Weight user face detection
+
+        if (overallScore > SIMILARITY_THRESHOLD) {
+            setStatusMessage(`Verification successful for this angle! Score: ${Math.round(overallScore * 100)}%`);
+            setStepStatus('success');
+            setTimeout(() => {
+                setCurrentStep(2);
+                setStepStatus('instructions');
+                stopCamera();
+            }, 2000);
+        } else {
+            if (classroomVerificationSubstep < CLASSROOM_VERIFICATION_PROMPTS.length - 1) {
+                setClassroomVerificationSubstep(prev => prev + 1);
+                setStepStatus('instructions');
+                setStatusMessage(`Low match. Score: ${Math.round(overallScore * 100)}%. Let's try another angle.`);
+            } else {
+                setStatusMessage(`Could not verify classroom. Please try again. Score: ${Math.round(overallScore * 100)}%`);
+                setStepStatus('failed');
+                 stopCamera();
+            }
+        }
+    };
+    
+    const startScan = useCallback(() => {
+        setIsScanning(true);
+        setScanCountdown(SCAN_DURATION);
+
+        countdownIntervalRef.current = setInterval(() => {
+            setScanCountdown(prev => prev > 0 ? prev - 1 : 0);
+        }, 1000);
+
+        scanIntervalRef.current = setTimeout(() => {
+            clearInterval(countdownIntervalRef.current!);
+            handleClassroomVerification();
+            setIsScanning(false);
+        }, SCAN_DURATION * 1000);
+
+    }, [handleClassroomVerification]);
+
+    const startClassroomVerification = async () => {
+        setStepStatus('verifying');
+        setStatusMessage('Starting camera...');
+        await startCamera();
+        setStepStatus('instructions');
+    }
+
     // Effect to trigger verification for the current step
     useEffect(() => {
         if (loading || !department) return;
@@ -205,16 +354,90 @@ export default function VerifyAttendanceMode1Page() {
             startGpsVerification();
         }
 
-        // Cleanup listener when component unmounts or step changes
         return () => {
-             window.removeEventListener('deviceorientation', handleOrientation, true);
+            window.removeEventListener('deviceorientation', handleOrientation, true);
+            if(scanIntervalRef.current) clearTimeout(scanIntervalRef.current);
+            if(countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            stopCamera();
         }
-    }, [currentStep, stepStatus, loading, department, startGpsVerification, handleOrientation]);
+    }, [currentStep, stepStatus, loading, department, startGpsVerification, handleOrientation, stopCamera]);
 
 
     const renderStepContent = () => {
         const CurrentIcon = STEPS[currentStep].icon;
         
+        const renderGpsContent = () => (
+            <>
+                <p className="text-muted-foreground font-medium">{statusMessage}</p>
+                {stepStatus === 'failed' && (
+                    <div className="flex flex-col items-center gap-2 text-sm text-center">
+                        <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed">
+                            <ArrowUp className="h-10 w-10 text-primary transition-transform duration-500" style={{ transform: `rotate(${arrowRotation}deg)`}}/>
+                        </div>
+                        <Button onClick={startGpsVerification}>
+                            <RefreshCw className="mr-2 h-4 w-4" /> Retry
+                        </Button>
+                    </div>
+                )}
+            </>
+        );
+
+        const renderClassroomContent = () => {
+            if (stepStatus === 'instructions') {
+                return (
+                    <div className="flex flex-col items-center gap-4">
+                        <p className="text-muted-foreground font-medium">{statusMessage || `Point your camera at the ${CLASSROOM_VERIFICATION_PROMPTS[classroomVerificationSubstep]} of the classroom.`}</p>
+                        <Button onClick={startScan}>Start {CLASSROOM_VERIFICATION_PROMPTS[classroomVerificationSubstep]} Scan</Button>
+                    </div>
+                )
+            }
+             if (stepStatus === 'verifying' && isScanning) {
+                return (
+                     <div className="flex flex-col items-center gap-4">
+                        <p className="text-muted-foreground font-medium">Scanning... Keep camera still for {scanCountdown}s.</p>
+                        <Progress value={((SCAN_DURATION - scanCountdown) / SCAN_DURATION) * 100} className="w-full" />
+                    </div>
+                )
+            }
+             if (stepStatus === 'verifying' && !isScanning) {
+                return <p className="text-muted-foreground font-medium">{statusMessage}</p>
+             }
+
+             if (stepStatus === 'failed') {
+                 return (
+                     <div className="flex flex-col items-center gap-4">
+                        <p className="text-muted-foreground font-medium">{statusMessage}</p>
+                        <Button onClick={startClassroomVerification}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
+                     </div>
+                 )
+             }
+
+            return <p className="text-muted-foreground font-medium">{statusMessage}</p>;
+        };
+
+        const renderFaceContent = () => (
+            <p>Face verification coming soon...</p>
+        );
+
+        let content;
+        let showMainIcon = true;
+        switch (currentStep) {
+            case 0:
+                content = renderGpsContent();
+                break;
+            case 1:
+                if (stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning)) {
+                    showMainIcon = false; // Hide main status icon during instructions/scanning
+                }
+                content = renderClassroomContent();
+                break;
+            case 2:
+                content = renderFaceContent();
+                break;
+            default:
+                content = <p>Something went wrong.</p>;
+        }
+
         return (
             <Card>
                 <CardHeader>
@@ -222,31 +445,21 @@ export default function VerifyAttendanceMode1Page() {
                         <CurrentIcon className="h-5 w-5" />
                         Step {currentStep + 1}: {STEPS[currentStep].title} Verification
                     </CardTitle>
-                    <CardDescription>
-                        {`Verifying for department: ${department?.name}`}
-                    </CardDescription>
+                     {department && <CardDescription>Department: {department.name}</CardDescription>}
                 </CardHeader>
                 <CardContent className="min-h-[200px] flex flex-col items-center justify-center gap-4 text-center">
-                    {stepStatus === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
-                    {stepStatus === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
-                    {stepStatus === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
+                    {showMainIcon && stepStatus === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
+                    {showMainIcon && stepStatus === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
+                    {showMainIcon && stepStatus === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
 
-                    <p className="text-muted-foreground font-medium">{statusMessage}</p>
-
-                     {stepStatus === 'failed' && (
-                        <div className="flex flex-col items-center gap-2 text-sm text-center">
-                           <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed">
-                               <ArrowUp 
-                                   className="h-10 w-10 text-primary transition-transform duration-500"
-                                   style={{ transform: `rotate(${arrowRotation}deg)`}}
-                                />
-                           </div>
-                           <Button onClick={startGpsVerification}>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Retry
+                    {currentStep === 1 && stepStatus === 'instructions' ? (
+                        <div className="flex flex-col items-center gap-4">
+                            <p className="text-muted-foreground">{statusMessage || `Get ready to scan the classroom.`}</p>
+                            <Button onClick={startClassroomVerification} disabled={!modelsLoaded || referenceDescriptors.length === 0}>
+                                {modelsLoaded ? "Start Classroom Verification" : "Loading Models..."}
                             </Button>
                         </div>
-                    )}
+                    ) : content}
                 </CardContent>
             </Card>
         );
@@ -283,7 +496,6 @@ export default function VerifyAttendanceMode1Page() {
                 {department && <p className="text-muted-foreground">Department: {department.name}</p>}
             </div>
 
-            {/* Stepper UI */}
             <div className="flex justify-between items-center max-w-2xl mx-auto">
                 {STEPS.map((step, index) => (
                     <React.Fragment key={step.id}>
@@ -305,6 +517,23 @@ export default function VerifyAttendanceMode1Page() {
             </div>
             
             <div className="max-w-2xl mx-auto">
+                {currentStep === 1 && (stepStatus === 'verifying' || stepStatus === 'instructions') ? (
+                     <Card>
+                        <CardContent className="p-4">
+                           <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
+                                <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover transform -scale-x-100 ${isCameraLive ? "block" : "hidden"}`}/>
+                                {!isCameraLive && <p className="text-muted-foreground">Camera is starting...</p>}
+                                {isScanning && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white gap-2">
+                                        <Loader2 className="h-8 w-8 animate-spin" />
+                                        <p>Scanning... {scanCountdown}s</p>
+                                    </div>
+                                )}
+                           </div>
+                        </CardContent>
+                     </Card>
+                ) : null}
+
                 {renderStepContent()}
             </div>
             
@@ -321,3 +550,4 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
+
