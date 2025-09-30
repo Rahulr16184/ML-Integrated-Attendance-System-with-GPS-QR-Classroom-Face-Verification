@@ -62,6 +62,7 @@ const getBearing = (start: {lat: number, lng: number}, end: {lat: number, lng: n
 const CLASSROOM_VERIFICATION_PROMPTS = ['left', 'right', 'front'];
 const SCAN_DURATION = 5; // seconds
 const SIMILARITY_THRESHOLD = 0.5; // Adjust as needed (0 to 1)
+const FACE_MATCH_THRESHOLD = 0.45; // Stricter for user's own face
 
 export default function VerifyAttendanceMode1Page() {
     const searchParams = useSearchParams();
@@ -94,6 +95,7 @@ export default function VerifyAttendanceMode1Page() {
     const [showCodeInput, setShowCodeInput] = useState(false);
     const [verificationCode, setVerificationCode] = useState("");
     const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+    const [userProfileDescriptor, setUserProfileDescriptor] = useState<Float32Array | null>(null);
 
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
@@ -101,9 +103,9 @@ export default function VerifyAttendanceMode1Page() {
         ssr: false 
     }), []);
 
-    // Load Department Details
+    // Load Department Details & User Profile Descriptor
     useEffect(() => {
-        async function fetchDepartmentDetails() {
+        async function fetchInitialData() {
             if (userProfileLoading) return;
             
             if (!departmentId) {
@@ -111,10 +113,11 @@ export default function VerifyAttendanceMode1Page() {
                 setLoading(false);
                 return;
             }
+
             if (userProfile?.institutionId) {
                 setLoading(true);
                 try {
-                    await loadModels(); // Ensure models are loaded before anything else
+                    await getFaceApi(); // Ensure models are loaded before anything else
                     const institutions = await getInstitutions();
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
                     const currentDept = currentInstitution?.departments.find(dept => dept.id === departmentId);
@@ -125,15 +128,24 @@ export default function VerifyAttendanceMode1Page() {
                         if(status.needsUpdate) {
                            await updateClassroomDescriptorsCache(currentDept);
                         }
-                        const cachedDescriptors = getCachedDescriptor(`classroom_${currentDept.id}`);
-                        if (cachedDescriptors) {
-                            setReferenceDescriptors([cachedDescriptors]);
+                        const cachedClassroomDescriptors = getCachedDescriptor(`classroom_${currentDept.id}`);
+                        if (cachedClassroomDescriptors) {
+                             const flatDescriptors = JSON.parse(new TextDecoder().decode(cachedClassroomDescriptors));
+                             setReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
                         }
                         setError(null);
                     } else {
                         setError(`Department not found.`);
                         setDepartment(null);
                     }
+
+                    // Load user profile descriptor
+                    const cachedProfileDescriptor = getCachedDescriptor('userProfileImage');
+                    if (cachedProfileDescriptor) {
+                        const descriptorArray = JSON.parse(new TextDecoder().decode(cachedProfileDescriptor));
+                        setUserProfileDescriptor(new Float32Array(descriptorArray));
+                    }
+
                 } catch (err) {
                     setError('Failed to fetch department details.');
                 } finally {
@@ -144,7 +156,7 @@ export default function VerifyAttendanceMode1Page() {
                  setLoading(false);
             }
         }
-        fetchDepartmentDetails();
+        fetchInitialData();
     }, [departmentId, userProfile, userProfileLoading]);
 
 
@@ -222,7 +234,7 @@ export default function VerifyAttendanceMode1Page() {
         }
     }, [deviceHeading, userLocation, department, stepStatus]);
     
-    // Classroom Verification Logic
+    // Camera & Verification Logic
     useEffect(() => {
         if (department?.id) {
             const descriptors = getCachedDescriptor(`classroom_${department.id}`);
@@ -241,7 +253,7 @@ export default function VerifyAttendanceMode1Page() {
         }
         setIsCameraLive(false);
         try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
                 await videoRef.current.play();
@@ -281,19 +293,16 @@ export default function VerifyAttendanceMode1Page() {
             });
         }
         
-        // Also check if the current user's face is in the picture
         let userFaceFound = false;
-        const userDescriptor = getCachedDescriptor('userProfileImage');
-        if (userDescriptor && detections.length > 0) {
-             const userFloatDescriptor = new Float32Array(JSON.parse(new TextDecoder().decode(userDescriptor)));
-             const faceMatcher = new faceapi.FaceMatcher([userFloatDescriptor]);
+        if (userProfileDescriptor && detections.length > 0) {
+             const faceMatcher = new faceapi.FaceMatcher([userProfileDescriptor]);
              detections.forEach(d => {
                  const match = faceMatcher.findBestMatch(d.descriptor);
-                 if (match.label !== 'unknown') userFaceFound = true;
+                 if (match.label !== 'unknown' && 1 - match.distance > FACE_MATCH_THRESHOLD) userFaceFound = true;
              })
         }
 
-        const overallScore = userFaceFound ? (bestMatch + 1) / 2 : bestMatch / 2; // Weight user face detection
+        const overallScore = userFaceFound ? (bestMatch + 1) / 2 : bestMatch / 2;
 
         if (overallScore > SIMILARITY_THRESHOLD) {
             setStatusMessage(`Verification successful for this angle! Score: ${Math.round(overallScore * 100)}%`);
@@ -314,7 +323,7 @@ export default function VerifyAttendanceMode1Page() {
                  stopCamera();
             }
         }
-    }, [isCameraLive, referenceDescriptors, classroomVerificationSubstep, stopCamera]);
+    }, [isCameraLive, referenceDescriptors, classroomVerificationSubstep, stopCamera, userProfileDescriptor]);
     
     const startScan = useCallback(() => {
         setIsScanning(true);
@@ -326,11 +335,12 @@ export default function VerifyAttendanceMode1Page() {
 
         scanIntervalRef.current = setTimeout(() => {
             clearInterval(countdownIntervalRef.current!);
-            handleClassroomVerification();
+            if (currentStep === 1) handleClassroomVerification();
+            if (currentStep === 2) handleFaceVerification();
             setIsScanning(false);
         }, SCAN_DURATION * 1000);
 
-    }, [handleClassroomVerification]);
+    }, [handleClassroomVerification, currentStep]);
 
     const startClassroomVerification = async () => {
         setShowCodeInput(false);
@@ -367,6 +377,46 @@ export default function VerifyAttendanceMode1Page() {
             setIsVerifyingCode(false);
         }
     }
+
+    const startFaceVerification = async () => {
+        setStepStatus('verifying');
+        setStatusMessage('Starting camera for face verification...');
+        await startCamera();
+        setStepStatus('instructions');
+    }
+
+    const handleFaceVerification = useCallback(async () => {
+        if (!videoRef.current || !isCameraLive || !userProfileDescriptor) {
+            setStatusMessage('User profile data not found for verification.');
+            setStepStatus('failed');
+            return;
+        }
+        
+        setStepStatus('verifying');
+        setStatusMessage('Scanning face...');
+        const faceapi = await getFaceApi();
+
+        const detection = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
+
+        if (detection) {
+            const faceMatcher = new faceapi.FaceMatcher(userProfileDescriptor);
+            const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+            
+            if (bestMatch.label !== 'unknown' && 1 - bestMatch.distance > FACE_MATCH_THRESHOLD) {
+                setStatusMessage(`Face verified successfully! Attendance marked.`);
+                setStepStatus('success');
+                stopCamera();
+                // TODO: Here you would make an API call to record the attendance
+            } else {
+                setStatusMessage(`Face does not match profile. Please try again.`);
+                setStepStatus('failed');
+            }
+        } else {
+            setStatusMessage('No face detected. Please position your face in the center.');
+            setStepStatus('failed');
+        }
+
+    }, [isCameraLive, userProfileDescriptor, stopCamera]);
 
 
     // Effect to trigger verification for the current step
@@ -464,23 +514,54 @@ export default function VerifyAttendanceMode1Page() {
             return <p className="text-muted-foreground font-medium">{statusMessage}</p>;
         };
 
-        const renderFaceContent = () => (
-            <p>Face verification coming soon...</p>
-        );
+        const renderFaceContent = () => {
+             if (stepStatus === 'instructions') {
+                return (
+                    <div className="flex flex-col items-center gap-4">
+                        <p className="text-muted-foreground font-medium">{statusMessage || 'Center your face in the camera.'}</p>
+                        <Button onClick={handleFaceVerification}>Start Face Scan</Button>
+                    </div>
+                )
+            }
+             if (stepStatus === 'failed') {
+                 return (
+                     <div className="flex flex-col items-center gap-4">
+                        <p className="text-muted-foreground font-medium">{statusMessage}</p>
+                        <Button onClick={startFaceVerification}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
+                     </div>
+                 )
+             }
+              if (stepStatus === 'success') {
+                 return (
+                     <div className="flex flex-col items-center gap-4">
+                        <p className="font-semibold text-green-600">{statusMessage}</p>
+                        <Button onClick={() => window.location.href = '/student-dashboard'}>Go to Dashboard</Button>
+                     </div>
+                 )
+             }
+            return <p className="text-muted-foreground font-medium">{statusMessage}</p>
+        };
 
         let content;
         let showMainIcon = true;
+        let isCameraStep = false;
+
         switch (currentStep) {
             case 0:
                 content = renderGpsContent();
                 break;
             case 1:
+                isCameraStep = true;
                 if (showCodeInput || stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning)) {
-                    showMainIcon = false; // Hide main status icon during instructions/scanning/code input
+                    showMainIcon = false;
                 }
                 content = renderClassroomContent();
                 break;
             case 2:
+                isCameraStep = true;
+                 if (stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning)) {
+                    showMainIcon = false;
+                }
                 content = renderFaceContent();
                 break;
             default:
@@ -497,16 +578,17 @@ export default function VerifyAttendanceMode1Page() {
                 </CardHeader>
                 <CardContent className="min-h-[200px] flex flex-col items-center justify-center gap-4 text-center">
                     {showMainIcon && stepStatus === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
-                    {showMainIcon && stepStatus === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
+                    {showMainIcon && stepStatus === 'success' && currentStep < 2 && <CheckCircle className="h-12 w-12 text-green-500" />}
+                    {showMainIcon && stepStatus === 'success' && currentStep === 2 && null}
                     {showMainIcon && stepStatus === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
 
-                    {currentStep === 1 && stepStatus === 'pending' ? (
+                    {isCameraStep && stepStatus === 'pending' ? (
                         <div className="flex flex-col items-center gap-4">
-                            <p className="text-muted-foreground">{statusMessage || `Get ready to scan the classroom.`}</p>
-                            <Button onClick={startClassroomVerification} disabled={referenceDescriptors.length === 0}>
-                                {referenceDescriptors.length > 0 ? "Start Classroom Verification" : "Loading/No Classroom Photos"}
+                             <p className="text-muted-foreground">{statusMessage || `Get ready for the next step.`}</p>
+                             <Button onClick={currentStep === 1 ? startClassroomVerification : startFaceVerification} disabled={currentStep === 2 && !userProfileDescriptor}>
+                                {currentStep === 2 && !userProfileDescriptor ? "Loading Profile..." : `Start ${STEPS[currentStep].title} Verification`}
                             </Button>
-                            <Button variant="link" onClick={() => setShowCodeInput(true)}>Enter Code Instead</Button>
+                             {currentStep === 1 && <Button variant="link" onClick={() => setShowCodeInput(true)}>Enter Code Instead</Button>}
                         </div>
                     ) : content}
                 </CardContent>
@@ -537,6 +619,8 @@ export default function VerifyAttendanceMode1Page() {
     
     const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
     const userMarkerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
+    const isCameraStep = (currentStep === 1 || currentStep === 2) && !showCodeInput && stepStatus !== 'success';
+
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
@@ -566,7 +650,7 @@ export default function VerifyAttendanceMode1Page() {
             </div>
             
             <div className="max-w-2xl mx-auto">
-                {currentStep === 1 && (stepStatus === 'verifying' || stepStatus === 'instructions' || stepStatus === 'pending') && !showCodeInput ? (
+                {isCameraStep && (stepStatus === 'verifying' || stepStatus === 'instructions' || stepStatus === 'pending') ? (
                      <Card>
                         <CardContent className="p-4">
                            <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
@@ -599,3 +683,5 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
+
+    
