@@ -39,6 +39,13 @@ export default function MarkAttendancePage() {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
     const [loadingDepartments, setLoadingDepartments] = useState(true);
+    const [time, setTime] = useState(new Date());
+
+    // Update time every second to re-evaluate active modes
+    useEffect(() => {
+      const timer = setInterval(() => setTime(new Date()), 1000);
+      return () => clearInterval(timer);
+    }, []);
 
     const selectedDepartment = useMemo(() => {
         return departments.find(d => d.id === selectedDepartmentId);
@@ -70,7 +77,8 @@ export default function MarkAttendancePage() {
         if (userProfile) {
             fetchDepartments();
         }
-    }, [userProfile, userLoading, toast, selectedDepartmentId]);
+    }, [userProfile, userLoading, toast]);
+
 
     const isModeActive = (mode: 'mode1' | 'mode2'): boolean => {
         if (!selectedDepartment || !selectedDepartment.modes?.[mode]) {
@@ -152,7 +160,10 @@ export default function MarkAttendancePage() {
                                 Start Verification <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                             {!mode1Active && (
-                                <p className="text-muted-foreground mt-4 text-sm">This mode is not currently active. Please check the schedule or try another mode.</p>
+                                <p className="text-muted-foreground mt-4 text-sm">
+                                    This mode is not currently active.
+                                    {selectedDepartment?.modes?.mode1.enabled && ` It will be active between ${selectedDepartment.modes.mode1.startTime} and ${selectedDepartment.modes.mode1.endTime}.`}
+                                </p>
                             )}
                         </CardContent>
                     </Card>
@@ -177,7 +188,10 @@ export default function MarkAttendancePage() {
                                Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                             {!mode2Active && (
-                               <p className="text-muted-foreground mt-4 text-sm">This mode is not currently active. Please check the schedule or try another mode.</p>
+                               <p className="text-muted-foreground mt-4 text-sm">
+                                   This mode is not currently active.
+                                   {selectedDepartment?.modes?.mode2.enabled && ` It will be active between ${selectedDepartment.modes.mode2.startTime} and ${selectedDepartment.modes.mode2.endTime}.`}
+                               </p>
                             )}
                         </CardContent>
                     </Card>
