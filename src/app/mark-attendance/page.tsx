@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
-import type { Department, ModeConfig } from "@/lib/types";
+import type { Department } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -17,27 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Camera, UserCheck, QrCode, ArrowRight } from "lucide-react";
 
 
-const isTimeWithinRange = (startTime: string, endTime: string): boolean => {
-    try {
-        const now = new Date();
-        
-        const start = new Date(now);
-        const [startHours, startMinutes] = startTime.split(':').map(Number);
-        if (isNaN(startHours) || isNaN(startMinutes)) return false;
-        start.setHours(startHours, startMinutes, 0, 0);
-        
-        const end = new Date(now);
-        const [endHours, endMinutes] = endTime.split(':').map(Number);
-        if (isNaN(endHours) || isNaN(endMinutes)) return false;
-        end.setHours(endHours, endMinutes, 0, 0);
-
-        return now >= start && now <= end;
-    } catch (e) {
-        console.error("Error parsing time:", e);
-        return false;
-    }
-}
-
 export default function MarkAttendancePage() {
     const router = useRouter();
     const { userProfile, loading: userLoading } = useUserProfile();
@@ -46,13 +25,6 @@ export default function MarkAttendancePage() {
     const [allDepartments, setAllDepartments] = useState<Department[]>([]);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
     const [loadingDepartments, setLoadingDepartments] = useState(true);
-    const [currentTime, setCurrentTime] = useState(new Date());
-
-    // Update time every second to re-evaluate active modes in real-time
-    useEffect(() => {
-      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-      return () => clearInterval(timer);
-    }, []);
 
     useEffect(() => {
         async function fetchDepartments() {
@@ -87,19 +59,8 @@ export default function MarkAttendancePage() {
         return allDepartments.find(d => d.id === selectedDepartmentId);
     }, [allDepartments, selectedDepartmentId]);
     
-    const isModeActive = (modeKey: 'mode1' | 'mode2'): boolean => {
-        if (!selectedDepartment || !selectedDepartment.modes || !selectedDepartment.modes[modeKey]) {
-            return false;
-        }
-        const modeConfig = selectedDepartment.modes[modeKey];
-        if (!modeConfig.enabled) {
-            return false;
-        }
-        return isTimeWithinRange(modeConfig.startTime, modeConfig.endTime);
-    };
-    
-    const mode1Active = isModeActive('mode1');
-    const mode2Active = isModeActive('mode2');
+    const mode1Active = useMemo(() => selectedDepartment?.modes?.mode1?.enabled ?? false, [selectedDepartment]);
+    const mode2Active = useMemo(() => selectedDepartment?.modes?.mode2?.enabled ?? false, [selectedDepartment]);
 
     if (userLoading || loadingDepartments) {
         return (
@@ -152,7 +113,7 @@ export default function MarkAttendancePage() {
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 1</span>
                                  <Badge variant={mode1Active ? 'default' : 'destructive'}>
-                                    {mode1Active ? 'Active' : 'Inactive'}
+                                    {mode1Active ? 'Enabled' : 'Disabled'}
                                 </Badge>
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -166,12 +127,9 @@ export default function MarkAttendancePage() {
                             <Button size="lg" disabled={!mode1Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
                                 Start Verification <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                            {!mode1Active && selectedDepartment?.modes?.mode1 && (
+                            {!mode1Active && (
                                 <p className="text-muted-foreground mt-4 text-sm">
-                                    {!selectedDepartment.modes.mode1.enabled 
-                                        ? `This mode is currently disabled by your teacher.`
-                                        : `This mode is scheduled to be active between ${selectedDepartment.modes.mode1.startTime} and ${selectedDepartment.modes.mode1.endTime}.`
-                                    }
+                                    This mode is currently disabled by your teacher.
                                 </p>
                             )}
                         </CardContent>
@@ -183,7 +141,7 @@ export default function MarkAttendancePage() {
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 2</span>
                                <Badge variant={mode2Active ? 'default' : 'destructive'}>
-                                    {mode2Active ? 'Active' : 'Inactive'}
+                                    {mode2Active ? 'Enabled' : 'Disabled'}
                                 </Badge>
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -196,12 +154,9 @@ export default function MarkAttendancePage() {
                             <Button size="lg" disabled={!mode2Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
                                Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                            {!mode2Active && selectedDepartment?.modes?.mode2 && (
+                            {!mode2Active && (
                                <p className="text-muted-foreground mt-4 text-sm">
-                                   {!selectedDepartment.modes.mode2.enabled
-                                        ? `This mode is currently disabled by your teacher.`
-                                        : `This mode is scheduled to be active between ${selectedDepartment.modes.mode2.startTime} and ${selectedDepartment.modes.mode2.endTime}.`
-                                    }
+                                   This mode is currently disabled by your teacher.
                                </p>
                             )}
                         </CardContent>
@@ -217,4 +172,3 @@ export default function MarkAttendancePage() {
         </div>
     );
 }
-    

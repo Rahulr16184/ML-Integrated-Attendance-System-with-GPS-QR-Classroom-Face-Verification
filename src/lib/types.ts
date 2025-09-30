@@ -16,8 +16,6 @@ export type ClassroomPhoto = {
 
 export type ModeConfig = {
     enabled: boolean;
-    startTime: string;
-    endTime: string;
 };
 
 export type Department = {
@@ -59,3 +57,4 @@ export type Semester = {
     
 
     
+

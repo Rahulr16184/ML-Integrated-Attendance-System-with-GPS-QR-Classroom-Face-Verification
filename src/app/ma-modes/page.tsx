@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Camera, QrCode, UserCheck, Save, Settings } from "lucide-react";
 
@@ -25,8 +24,6 @@ interface DepartmentModes {
 
 const initialModeConfig: ModeConfig = {
     enabled: false,
-    startTime: "09:00",
-    endTime: "17:00",
 };
 
 const initialDepartmentModes: DepartmentModes = {
@@ -83,7 +80,7 @@ export default function MaModesPage() {
         if (isAuthorized && userProfile) {
             fetchDepartments();
         }
-    }, [userProfile, isAuthorized, toast]);
+    }, [userProfile, isAuthorized, toast, selectedDepartmentId]);
     
     useEffect(() => {
         const selectedDept = departments.find(d => d.id === selectedDepartmentId);
@@ -93,13 +90,13 @@ export default function MaModesPage() {
     }, [selectedDepartmentId, departments]);
 
 
-    const handleModeChange = (mode: 'mode1' | 'mode2', field: keyof ModeConfig, value: boolean | string) => {
+    const handleModeChange = (mode: 'mode1' | 'mode2', value: boolean) => {
         if (!selectedDepartmentId) return;
         setModesConfig(prev => ({
             ...prev,
             [mode]: {
                 ...prev[mode],
-                [field]: value,
+                enabled: value,
             }
         }));
     };
@@ -146,7 +143,7 @@ export default function MaModesPage() {
         <div className="p-4 sm:p-6 space-y-6">
             <div className="space-y-1">
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Master Attendance Modes</h1>
-                <p className="text-muted-foreground">Enable, disable, and schedule attendance verification modes for each department.</p>
+                <p className="text-muted-foreground">Enable or disable attendance verification modes for each department.</p>
             </div>
             
             <Card>
@@ -178,10 +175,10 @@ export default function MaModesPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
-                                <span>Mode 1</span>
+                                <span>Enable Mode 1</span>
                                 <Switch
                                     checked={modesConfig.mode1.enabled}
-                                    onCheckedChange={(checked) => handleModeChange('mode1', 'enabled', checked)}
+                                    onCheckedChange={(checked) => handleModeChange('mode1', checked)}
                                 />
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -191,27 +188,10 @@ export default function MaModesPage() {
                                 <span>GPS + Classroom + Face Verification</span>
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="mode1-start">Enable Automatically At</Label>
-                                <Input 
-                                    id="mode1-start" 
-                                    type="time" 
-                                    value={modesConfig.mode1.startTime}
-                                    onChange={(e) => handleModeChange('mode1', 'startTime', e.target.value)}
-                                    disabled={!modesConfig.mode1.enabled}
-                                />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="mode1-end">Disable Automatically At</Label>
-                                <Input 
-                                    id="mode1-end" 
-                                    type="time" 
-                                    value={modesConfig.mode1.endTime}
-                                    onChange={(e) => handleModeChange('mode1', 'endTime', e.target.value)}
-                                    disabled={!modesConfig.mode1.enabled}
-                                />
-                            </div>
+                         <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                Use the switch to enable or disable this attendance mode for the selected department.
+                            </p>
                         </CardContent>
                     </Card>
 
@@ -219,10 +199,10 @@ export default function MaModesPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
-                                <span>Mode 2</span>
+                                <span>Enable Mode 2</span>
                                 <Switch
                                     checked={modesConfig.mode2.enabled}
-                                    onCheckedChange={(checked) => handleModeChange('mode2', 'enabled', checked)}
+                                    onCheckedChange={(checked) => handleModeChange('mode2', checked)}
                                 />
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -231,27 +211,10 @@ export default function MaModesPage() {
                                 <span>QR + Face Verification</span>
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="mode2-start">Enable Automatically At</Label>
-                                <Input 
-                                    id="mode2-start" 
-                                    type="time"
-                                    value={modesConfig.mode2.startTime}
-                                    onChange={(e) => handleModeChange('mode2', 'startTime', e.target.value)}
-                                    disabled={!modesConfig.mode2.enabled}
-                                />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="mode2-end">Disable Automatically At</Label>
-                                <Input 
-                                    id="mode2-end" 
-                                    type="time"
-                                    value={modesConfig.mode2.endTime}
-                                    onChange={(e) => handleModeChange('mode2', 'endTime', e.target.value)}
-                                    disabled={!modesConfig.mode2.enabled}
-                                />
-                            </div>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                Use the switch to enable or disable this attendance mode for the selected department.
+                            </p>
                         </CardContent>
                     </Card>
 
