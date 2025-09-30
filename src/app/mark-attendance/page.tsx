@@ -17,18 +17,25 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Camera, UserCheck, QrCode, ArrowRight } from "lucide-react";
 
 
-const isTimeWithinRange = (startTime: string, endTime: string) => {
-    const now = new Date();
-    const start = new Date(now);
-    const end = new Date(now);
-    
-    const [startHours, startMinutes] = startTime.split(':').map(Number);
-    start.setHours(startHours, startMinutes, 0, 0);
-    
-    const [endHours, endMinutes] = endTime.split(':').map(Number);
-    end.setHours(endHours, endMinutes, 0, 0);
+const isTimeWithinRange = (startTime: string, endTime: string): boolean => {
+    try {
+        const now = new Date();
+        
+        const start = new Date(now);
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        if (isNaN(startHours) || isNaN(startMinutes)) return false;
+        start.setHours(startHours, startMinutes, 0, 0);
+        
+        const end = new Date(now);
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+        if (isNaN(endHours) || isNaN(endMinutes)) return false;
+        end.setHours(endHours, endMinutes, 0, 0);
 
-    return now >= start && now <= end;
+        return now >= start && now <= end;
+    } catch (e) {
+        console.error("Error parsing time:", e);
+        return false;
+    }
 }
 
 export default function MarkAttendancePage() {
@@ -36,20 +43,16 @@ export default function MarkAttendancePage() {
     const { userProfile, loading: userLoading } = useUserProfile();
     const { toast } = useToast();
 
-    const [departments, setDepartments] = useState<Department[]>([]);
+    const [allDepartments, setAllDepartments] = useState<Department[]>([]);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
     const [loadingDepartments, setLoadingDepartments] = useState(true);
-    const [time, setTime] = useState(new Date());
+    const [currentTime, setCurrentTime] = useState(new Date());
 
-    // Update time every second to re-evaluate active modes
+    // Update time every second to re-evaluate active modes in real-time
     useEffect(() => {
-      const timer = setInterval(() => setTime(new Date()), 1000);
+      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
       return () => clearInterval(timer);
     }, []);
-
-    const selectedDepartment = useMemo(() => {
-        return departments.find(d => d.id === selectedDepartmentId);
-    }, [departments, selectedDepartmentId]);
 
     useEffect(() => {
         async function fetchDepartments() {
@@ -60,7 +63,7 @@ export default function MarkAttendancePage() {
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
                     if (currentInstitution) {
                         const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
-                        setDepartments(userDepartments);
+                        setAllDepartments(userDepartments);
                         if (userDepartments.length > 0 && !selectedDepartmentId) {
                             setSelectedDepartmentId(userDepartments[0].id);
                         }
@@ -80,11 +83,15 @@ export default function MarkAttendancePage() {
     }, [userProfile, userLoading, toast]);
 
 
-    const isModeActive = (mode: 'mode1' | 'mode2'): boolean => {
-        if (!selectedDepartment || !selectedDepartment.modes || !selectedDepartment.modes[mode]) {
+    const selectedDepartment = useMemo(() => {
+        return allDepartments.find(d => d.id === selectedDepartmentId);
+    }, [allDepartments, selectedDepartmentId]);
+    
+    const isModeActive = (modeKey: 'mode1' | 'mode2'): boolean => {
+        if (!selectedDepartment || !selectedDepartment.modes || !selectedDepartment.modes[modeKey]) {
             return false;
         }
-        const modeConfig = selectedDepartment.modes[mode];
+        const modeConfig = selectedDepartment.modes[modeKey];
         if (!modeConfig.enabled) {
             return false;
         }
@@ -121,12 +128,12 @@ export default function MarkAttendancePage() {
                 <CardContent>
                      <div className="max-w-md space-y-2">
                         <Label htmlFor="department">Select your department</Label>
-                        <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={departments.length === 0}>
+                        <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length === 0}>
                         <SelectTrigger id="department">
                             <SelectValue placeholder="Select a department" />
                         </SelectTrigger>
                         <SelectContent>
-                            {departments.map((dept) => (
+                            {allDepartments.map((dept) => (
                             <SelectItem key={dept.id} value={dept.id}>
                                 {dept.name}
                             </SelectItem>
@@ -161,9 +168,10 @@ export default function MarkAttendancePage() {
                             </Button>
                             {!mode1Active && selectedDepartment?.modes?.mode1 && (
                                 <p className="text-muted-foreground mt-4 text-sm">
-                                    This mode is not currently active.
-                                    {selectedDepartment.modes.mode1.enabled && ` It will be active between ${selectedDepartment.modes.mode1.startTime} and ${selectedDepartment.modes.mode1.endTime}.`}
-                                    {!selectedDepartment.modes.mode1.enabled && ` This mode is currently disabled by your teacher.`}
+                                    {!selectedDepartment.modes.mode1.enabled 
+                                        ? `This mode is currently disabled by your teacher.`
+                                        : `This mode is scheduled to be active between ${selectedDepartment.modes.mode1.startTime} and ${selectedDepartment.modes.mode1.endTime}.`
+                                    }
                                 </p>
                             )}
                         </CardContent>
@@ -190,9 +198,10 @@ export default function MarkAttendancePage() {
                             </Button>
                             {!mode2Active && selectedDepartment?.modes?.mode2 && (
                                <p className="text-muted-foreground mt-4 text-sm">
-                                   This mode is not currently active.
-                                   {selectedDepartment.modes.mode2.enabled && ` It will be active between ${selectedDepartment.modes.mode2.startTime} and ${selectedDepartment.modes.mode2.endTime}.`}
-                                   {!selectedDepartment.modes.mode2.enabled && ` This mode is currently disabled by your teacher.`}
+                                   {!selectedDepartment.modes.mode2.enabled
+                                        ? `This mode is currently disabled by your teacher.`
+                                        : `This mode is scheduled to be active between ${selectedDepartment.modes.mode2.startTime} and ${selectedDepartment.modes.mode2.endTime}.`
+                                    }
                                </p>
                             )}
                         </CardContent>
@@ -208,3 +217,4 @@ export default function MarkAttendancePage() {
         </div>
     );
 }
+    
