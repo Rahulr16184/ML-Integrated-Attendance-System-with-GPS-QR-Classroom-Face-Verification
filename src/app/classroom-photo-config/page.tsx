@@ -56,7 +56,7 @@ const PhotoUploadSection = ({
           </div>
         ) : imageUrls && imageUrls.length > 0 ? (
           <ScrollArea className="h-64 w-full">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-2">
+            <div className="grid grid-cols-4 gap-2 p-2">
               {imageUrls.map((url, index) => (
                 <div key={index} className="relative group aspect-square">
                    <Image src={url} alt={`${title} ${index + 1}`} fill className="object-cover rounded-md" data-ai-hint="classroom" />
