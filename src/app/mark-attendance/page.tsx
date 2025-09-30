@@ -19,8 +19,8 @@ import { MapPin, Camera, UserCheck, QrCode, ArrowRight } from "lucide-react";
 
 const isTimeWithinRange = (startTime: string, endTime: string) => {
     const now = new Date();
-    const start = new Date();
-    const end = new Date();
+    const start = new Date(now);
+    const end = new Date(now);
     
     const [startHours, startMinutes] = startTime.split(':').map(Number);
     start.setHours(startHours, startMinutes, 0, 0);
@@ -80,6 +80,9 @@ export default function MarkAttendancePage() {
         }
         return isTimeWithinRange(modeConfig.startTime, modeConfig.endTime);
     };
+    
+    const mode1Active = isModeActive('mode1');
+    const mode2Active = isModeActive('mode2');
 
     if (userLoading || loadingDepartments) {
         return (
@@ -127,12 +130,12 @@ export default function MarkAttendancePage() {
             {selectedDepartmentId ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Mode 1 Card */}
-                    <Card className={!isModeActive('mode1') ? 'bg-muted/50' : ''}>
+                    <Card className={!mode1Active ? 'bg-muted/50' : ''}>
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 1</span>
-                                 <Badge variant={isModeActive('mode1') ? 'default' : 'destructive'}>
-                                    {isModeActive('mode1') ? 'Active' : 'Inactive'}
+                                 <Badge variant={mode1Active ? 'default' : 'destructive'}>
+                                    {mode1Active ? 'Active' : 'Inactive'}
                                 </Badge>
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -143,22 +146,22 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                          <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                            <Button size="lg" disabled={!isModeActive('mode1')} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
+                            <Button size="lg" disabled={!mode1Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
                                 Start Verification <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                            {!isModeActive('mode1') && (
+                            {!mode1Active && (
                                 <p className="text-muted-foreground mt-4 text-sm">This mode is not currently active. Please check the schedule or try another mode.</p>
                             )}
                         </CardContent>
                     </Card>
 
                      {/* Mode 2 Card */}
-                    <Card className={!isModeActive('mode2') ? 'bg-muted/50' : ''}>
+                    <Card className={!mode2Active ? 'bg-muted/50' : ''}>
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 2</span>
-                               <Badge variant={isModeActive('mode2') ? 'default' : 'destructive'}>
-                                    {isModeActive('mode2') ? 'Active' : 'Inactive'}
+                               <Badge variant={mode2Active ? 'default' : 'destructive'}>
+                                    {mode2Active ? 'Active' : 'Inactive'}
                                 </Badge>
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -168,10 +171,10 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                            <Button size="lg" disabled={!isModeActive('mode2')} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
+                            <Button size="lg" disabled={!mode2Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
                                Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                            {!isModeActive('mode2') && (
+                            {!mode2Active && (
                                <p className="text-muted-foreground mt-4 text-sm">This mode is not currently active. Please check the schedule or try another mode.</p>
                             )}
                         </CardContent>
@@ -188,4 +191,3 @@ export default function MarkAttendancePage() {
     );
 }
 
-    
