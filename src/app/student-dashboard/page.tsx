@@ -93,10 +93,10 @@ export default function StudentDashboardPage() {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <Button asChild className="w-full">
+                <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
                     <Link href="/mark-attendance">
-                        <CheckSquare className="mr-2 h-4 w-4" />
-                        MARK MASTER ATTENDANCE
+                        <CheckSquare className="h-8 w-8" />
+                        <span className="text-sm font-semibold">MARK MASTER ATTENDANCE</span>
                     </Link>
                 </Button>
             </CardContent>
