@@ -156,7 +156,7 @@ export const updateDepartmentModes = async (institutionId: string, departmentId:
 
 export const generateClassroomCode = async (institutionId: string, departmentId: string): Promise<string> => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 2 * 60 * 1000; // 2 minutes from now
+    const expiresAt = Timestamp.fromMillis(Date.now() + 2 * 60 * 1000); // 2 minutes from now
 
     const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
     await updateDoc(departmentDoc, {
@@ -178,17 +178,21 @@ export const verifyClassroomCode = async (institutionId: string, departmentId: s
     }
 
     const departmentData = departmentDoc.data() as Department;
-    const storedCode = departmentData.classroomCode;
+    const storedCodeData = departmentData.classroomCode;
 
-    if (!storedCode || !storedCode.code) {
+    if (!storedCodeData || !storedCodeData.code) {
         return { success: false, message: "No active code for this department." };
     }
 
-    if (storedCode.expiresAt < Date.now()) {
+    const expirationTime = storedCodeData.expiresAt instanceof Timestamp 
+        ? storedCodeData.expiresAt.toMillis()
+        : storedCodeData.expiresAt;
+
+    if (expirationTime < Date.now()) {
         return { success: false, message: "The code has expired." };
     }
 
-    if (storedCode.code !== code) {
+    if (storedCodeData.code !== code) {
         return { success: false, message: "Invalid code." };
     }
 
