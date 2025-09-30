@@ -31,14 +31,16 @@ const PhotoUploadSection = ({
   onCaptureClick,
   onDeleteClick,
   isUploading,
+  category,
 }: {
   title: string;
   description: string;
   imageUrls?: string[];
   onUploadClick: () => void;
   onCaptureClick: () => void;
-  onDeleteClick: (url: string) => void;
+  onDeleteClick: (category: PhotoCategory, url: string) => void;
   isUploading: boolean;
+  category: PhotoCategory;
 }) => (
   <Card>
     <CardHeader>
@@ -61,7 +63,7 @@ const PhotoUploadSection = ({
                      <Image src={url} alt={`${title} ${index + 1}`} fill className="object-contain" data-ai-hint="classroom" />
                    </div>
                    <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onDeleteClick(url)}>
+                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onDeleteClick(category, url)}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
                    </AlertDialogTrigger>
@@ -111,26 +113,6 @@ export default function ClassroomPhotoConfigPage() {
   const selectedDepartment = useMemo(() => departments.find(d => d.id === selectedDepartmentId), [departments, selectedDepartmentId]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const referrer = document.referrer;
-        const currentHost = window.location.host;
-        const referrerHost = referrer ? new URL(referrer).host : '';
-
-        if (referrerHost !== currentHost) {
-             router.push('/login');
-             return;
-        }
-
-        const validReferrers = ['/admin-dashboard', '/teacher-dashboard'];
-        const referrerPath = referrer ? new URL(referrer).pathname : '';
-        const isFromDashboard = validReferrers.some(path => referrerPath === path);
-
-        if (!isFromDashboard) {
-            router.push('/login');
-            return;
-        }
-    }
-
     async function fetchInitialData() {
         if (userLoading) return;
         if (!userProfile) {
@@ -264,6 +246,18 @@ export default function ClassroomPhotoConfigPage() {
   return (
     <>
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the photo.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
         <div className="p-4 sm:p-6 space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Classroom Photo Configuration</h1>
         <div className="max-w-md space-y-2">
@@ -290,8 +284,9 @@ export default function ClassroomPhotoConfigPage() {
                 imageUrls={selectedDepartment?.classroomPhotoUrls}
                 onUploadClick={() => onUploadClick('classroomPhotoUrls')}
                 onCaptureClick={() => onCaptureClick('classroomPhotoUrls')}
-                onDeleteClick={(url) => onDeleteClick('classroomPhotoUrls', url)}
+                onDeleteClick={onDeleteClick}
                 isUploading={isUploading && activePhotoCategory === 'classroomPhotoUrls'}
+                category="classroomPhotoUrls"
             />
             <PhotoUploadSection
                 title="Classroom with Students"
@@ -299,8 +294,9 @@ export default function ClassroomPhotoConfigPage() {
                 imageUrls={selectedDepartment?.studentsInClassroomPhotoUrls}
                 onUploadClick={() => onUploadClick('studentsInClassroomPhotoUrls')}
                 onCaptureClick={() => onCaptureClick('studentsInClassroomPhotoUrls')}
-                onDeleteClick={(url) => onDeleteClick('studentsInClassroomPhotoUrls', url)}
+                onDeleteClick={onDeleteClick}
                 isUploading={isUploading && activePhotoCategory === 'studentsInClassroomPhotoUrls'}
+                category="studentsInClassroomPhotoUrls"
             />
             </div>
         ) : (
@@ -351,21 +347,6 @@ export default function ClassroomPhotoConfigPage() {
                 )}
             </DialogContent>
         </Dialog>
-
-        {/* Delete Confirmation */}
-       
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the photo.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
         
         </div>
       </AlertDialog>
