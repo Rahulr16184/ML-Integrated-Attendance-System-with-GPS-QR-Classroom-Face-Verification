@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,10 +11,11 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions } from '@/services/institution-service';
 import type { Department, ClassroomPhoto } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, MoveUp, MoveDown, MoveLeft, MoveRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { loadModels, getFaceApi } from '@/lib/face-api';
 import * as faceapi from 'face-api.js';
+import type { LatLngExpression } from 'leaflet';
 
 const STEPS = [
     { id: 'gps', title: 'GPS', icon: MapPin },
@@ -36,6 +38,17 @@ const getDistance = (from: { lat: number; lng: number }, to: { lat: number; lng:
     return R * c; // in metres
 };
 
+const getDirection = (from: { lat: number, lng: number }, to: { lat: number, lng: number }) => {
+    const latDiff = to.lat - from.lat;
+    const lngDiff = to.lng - from.lng;
+
+    if (Math.abs(latDiff) > Math.abs(lngDiff)) {
+        return latDiff > 0 ? { name: 'North', icon: ArrowUp } : { name: 'South', icon: ArrowDown };
+    } else {
+        return lngDiff > 0 ? { name: 'East', icon: ArrowRight } : { name: 'West', icon: ArrowLeft };
+    }
+}
+
 export default function VerifyAttendanceMode1Page() {
     const searchParams = useSearchParams();
     const departmentId = searchParams.get('deptId');
@@ -48,9 +61,15 @@ export default function VerifyAttendanceMode1Page() {
     const [currentStep, setCurrentStep] = useState(0);
     const [stepStatus, setStepStatus] = useState<'pending' | 'verifying' | 'success' | 'failed'>('pending');
     const [statusMessage, setStatusMessage] = useState('');
+    const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
+        loading: () => <Skeleton className="h-full w-full" />,
+        ssr: false 
+    }), []);
 
     // Load Department Details
     useEffect(() => {
@@ -98,10 +117,8 @@ export default function VerifyAttendanceMode1Page() {
     const verifyGps = useCallback(() => {
         if (!department?.location) {
             setStatusMessage("GPS location for this department is not set. Skipping.");
-            setTimeout(() => {
-                setStepStatus('success');
-                setCurrentStep(1);
-            }, 2000);
+            setStepStatus('success');
+            setTimeout(() => setCurrentStep(1), 2000);
             return;
         }
 
@@ -109,15 +126,17 @@ export default function VerifyAttendanceMode1Page() {
         setStatusMessage('Getting your location...');
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-                const distance = getDistance(userLocation, department.location!);
-
+                const currentUserLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+                setUserLocation(currentUserLocation);
+                const distance = getDistance(currentUserLocation, department.location!);
+                
                 if (distance <= (department.radius || 100)) {
-                    setStatusMessage(`Location verified! You are ${distance.toFixed(0)}m from the center.`);
+                    setStatusMessage(`Location verified! You are at the center.`);
                     setStepStatus('success');
                     setTimeout(() => setCurrentStep(1), 1500);
                 } else {
-                    setStatusMessage(`You are too far from the classroom (${distance.toFixed(0)}m away). Please move closer.`);
+                    const direction = getDirection(currentUserLocation, department.location!);
+                    setStatusMessage(`You are ${distance.toFixed(0)}m ${direction.name} of the zone. Please move towards the center.`);
                     setStepStatus('failed');
                 }
             },
@@ -142,6 +161,22 @@ export default function VerifyAttendanceMode1Page() {
     const renderStepContent = () => {
         const CurrentIcon = STEPS[currentStep].icon;
         
+        let directionalSuggestion = null;
+        if (stepStatus === 'failed' && userLocation && department?.location) {
+            const distance = getDistance(userLocation, department.location);
+            if (distance > (department.radius || 100)) {
+                const directionToCenter = getDirection(userLocation, department.location);
+                const DirectionIcon = directionToCenter.icon;
+                directionalSuggestion = (
+                    <div className="flex flex-col items-center gap-2 text-sm text-center">
+                        <p>Move {distance.toFixed(0)} meters towards the zone.</p>
+                        <DirectionIcon className="h-8 w-8 animate-pulse" />
+                    </div>
+                );
+            }
+        }
+
+
         return (
             <Card>
                 <CardHeader>
@@ -161,10 +196,13 @@ export default function VerifyAttendanceMode1Page() {
                     <p className="text-muted-foreground font-medium">{statusMessage}</p>
 
                     {stepStatus === 'failed' && (
-                        <Button onClick={verifyGps}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Retry
-                        </Button>
+                        <>
+                            <Button onClick={verifyGps}>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Retry
+                            </Button>
+                            {directionalSuggestion}
+                        </>
                     )}
                 </CardContent>
             </Card>
@@ -192,6 +230,7 @@ export default function VerifyAttendanceMode1Page() {
         );
     }
     
+    const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
@@ -223,6 +262,17 @@ export default function VerifyAttendanceMode1Page() {
             <div className="max-w-2xl mx-auto">
                 {renderStepContent()}
             </div>
+            
+            {currentStep === 0 && mapCenter && (
+                 <Card className="max-w-2xl mx-auto">
+                     <CardHeader>
+                         <CardTitle>Verification Map</CardTitle>
+                     </CardHeader>
+                     <CardContent className="h-80 w-full p-0">
+                         <Map position={mapCenter} radius={department.radius} draggable={false} />
+                     </CardContent>
+                 </Card>
+            )}
         </div>
     );
 }
