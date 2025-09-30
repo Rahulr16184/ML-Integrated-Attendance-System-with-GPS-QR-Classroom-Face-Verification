@@ -92,3 +92,12 @@ export const updateDepartmentGps = async (institutionId: string, departmentId: s
     await updateDoc(departmentDoc, { location, radius });
 };
     
+export const updateClassroomPhoto = async (
+    institutionId: string,
+    departmentId: string,
+    photoType: 'classroomPhotoUrl' | 'studentsInClassroomPhotoUrl',
+    imageUrl: string
+): Promise<void> => {
+    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    await updateDoc(departmentDoc, { [photoType]: imageUrl });
+};

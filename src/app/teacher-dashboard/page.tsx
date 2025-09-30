@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,7 +103,7 @@ export default function TeacherDashboardPage() {
                     </Link>
                 </Button>
                  <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
-                    <Link href="/">
+                    <Link href="/classroom-photo-config">
                         <Camera className="h-8 w-8" />
                         <span className="text-sm font-semibold">CLASSROOM PHOTO CONF</span>
                     </Link>

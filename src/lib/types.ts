@@ -21,6 +21,8 @@ export type Department = {
     lng: number;
   };
   radius?: number;
+  classroomPhotoUrl?: string;
+  studentsInClassroomPhotoUrl?: string;
 };
 
 export type Institution = {
