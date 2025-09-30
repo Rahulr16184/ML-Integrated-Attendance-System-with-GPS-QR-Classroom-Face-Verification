@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
 import { Upload, Camera as CameraIcon, ImageOff, Loader2, Save, Trash2, X } from "lucide-react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -56,18 +56,22 @@ const PhotoUploadSection = ({
           <Carousel className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
             <CarouselContent>
               {imageUrls.map((url, index) => (
-                <CarouselItem key={index} className="relative aspect-video">
-                  <Image src={url} alt={`${title} ${index + 1}`} fill className="object-contain" data-ai-hint="classroom" />
+                <CarouselItem key={index} className="relative group">
+                   <div className="aspect-video relative">
+                     <Image src={url} alt={`${title} ${index + 1}`} fill className="object-contain" data-ai-hint="classroom" />
+                   </div>
                    <AlertDialogTrigger asChild>
-                      <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7" onClick={() => onDeleteClick(url)}>
+                      <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onDeleteClick(url)}>
                           <Trash2 className="h-4 w-4" />
                       </Button>
                   </AlertDialogTrigger>
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="left-2" />
-            <CarouselNext className="right-2" />
+            {imageUrls.length > 1 && <>
+                <CarouselPrevious className="left-2" />
+                <CarouselNext className="right-2" />
+            </>}
           </Carousel>
         ) : (
           <div className="aspect-video w-full flex flex-col items-center gap-2 justify-center text-muted-foreground">
@@ -102,7 +106,7 @@ export default function ClassroomPhotoConfigPage() {
   const [isUploading, setIsUploading] = useState(false);
   
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ url: string; category: PhotoCategory } | null>(null);
   
   const selectedDepartment = useMemo(() => departments.find(d => d.id === selectedDepartmentId), [departments, selectedDepartmentId]);
 
@@ -110,7 +114,7 @@ export default function ClassroomPhotoConfigPage() {
     if (typeof window !== 'undefined') {
         const referrer = document.referrer;
         const validReferrers = ['/admin-dashboard', '/teacher-dashboard'];
-        const isFromDashboard = validReferrers.some(path => referrer.endsWith(path));
+        const isFromDashboard = validReferrers.some(path => new URL(referrer).pathname === path);
 
         if (!isFromDashboard) {
             router.push('/login');
@@ -160,7 +164,7 @@ export default function ClassroomPhotoConfigPage() {
     setPreviewImage(dataUri);
   }
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = (file: File) => {
     if (!activePhotoCategory) return;
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -196,16 +200,17 @@ export default function ClassroomPhotoConfigPage() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget || !activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
+    if (!deleteTarget || !userProfile?.institutionId || !selectedDepartmentId) return;
 
+    const { url, category } = deleteTarget;
     setIsUploading(true);
     try {
-      await deleteClassroomPhoto(userProfile.institutionId, selectedDepartmentId, activePhotoCategory, deleteTarget);
+      await deleteClassroomPhoto(userProfile.institutionId, selectedDepartmentId, category, url);
       
       setDepartments(prev => prev.map(d => {
         if (d.id === selectedDepartmentId) {
-            const updatedUrls = (d[activePhotoCategory] || []).filter((url: string) => url !== deleteTarget);
-            return {...d, [activePhotoCategory]: updatedUrls};
+            const updatedUrls = (d[category] || []).filter((imgUrl: string) => imgUrl !== url);
+            return {...d, [category]: updatedUrls};
         }
         return d;
       }));
@@ -217,7 +222,6 @@ export default function ClassroomPhotoConfigPage() {
     } finally {
         setIsUploading(false);
         setDeleteTarget(null);
-        setActivePhotoCategory(null);
     }
   };
 
@@ -232,8 +236,7 @@ export default function ClassroomPhotoConfigPage() {
   };
 
   const onDeleteClick = (category: PhotoCategory, url: string) => {
-    setActivePhotoCategory(category);
-    setDeleteTarget(url);
+    setDeleteTarget({ url, category });
   };
   
   if (userLoading || loadingDepartments) {
@@ -250,7 +253,7 @@ export default function ClassroomPhotoConfigPage() {
   }
 
   return (
-    <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+    <>
         <div className="p-4 sm:p-6 space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Classroom Photo Configuration</h1>
         <div className="max-w-md space-y-2">
@@ -340,22 +343,21 @@ export default function ClassroomPhotoConfigPage() {
         </Dialog>
 
         {/* Delete Confirmation */}
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the photo.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-
+        <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the photo.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
         </div>
-    </AlertDialog>
+    </>
   );
 }
-
-    
