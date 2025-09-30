@@ -86,15 +86,6 @@ export default function QrGeneratorPage() {
     setScanCount(0);
   }, []);
 
-  const generateQrCode = useCallback(() => {
-    if (!selectedDepartmentId) return;
-    const uniqueToken = `tracein-qr;dept:${selectedDepartmentId};ts:${Date.now()};rand:${Math.random()}`;
-    const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(uniqueToken)}&size=250x250`;
-    setQrCodeUrl(url);
-    setCountdown(QR_REFRESH_INTERVAL);
-    setWasScanned(false);
-  }, [selectedDepartmentId]);
-
   const handleInterval = useCallback(() => {
     if (wasScanned) {
       // If scanned, generate a new one and continue
@@ -108,7 +99,16 @@ export default function QrGeneratorPage() {
         variant: "destructive"
       });
     }
-  }, [wasScanned, generateQrCode, stopGenerator, toast]);
+  }, [wasScanned, stopGenerator, toast]);
+
+  const generateQrCode = useCallback(() => {
+    if (!selectedDepartmentId) return;
+    const uniqueToken = `tracein-qr;dept:${selectedDepartmentId};ts:${Date.now()};rand:${Math.random()}`;
+    const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(uniqueToken)}&size=250x250`;
+    setQrCodeUrl(url);
+    setCountdown(QR_REFRESH_INTERVAL);
+    setWasScanned(false);
+  }, [selectedDepartmentId]);
 
   const startGenerator = () => {
     if (!selectedDepartmentId) {
@@ -125,14 +125,13 @@ export default function QrGeneratorPage() {
     if (!isGenerating) return;
     
     setScanCount(prev => prev + 1);
-    setWasScanned(true); // Mark as scanned
     toast({ title: "Scan Simulated", description: "Generating new QR code." });
     
     // Immediately generate a new QR and reset the interval
     if (intervalRef.current) {
         clearInterval(intervalRef.current);
     }
-    generateQrCode();
+    generateQrCode(); // This will also reset wasScanned to false
     intervalRef.current = setInterval(handleInterval, QR_REFRESH_INTERVAL * 1000);
   };
 
@@ -240,5 +239,3 @@ export default function QrGeneratorPage() {
     </div>
   );
 }
-
-    
