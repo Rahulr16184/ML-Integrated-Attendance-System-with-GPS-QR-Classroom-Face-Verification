@@ -185,7 +185,7 @@ export default function VerifyAttendanceMode1Page() {
             (err) => {
                 setStatusMessage(`Could not get location: ${err.message}. Please enable location services.`);
                 setStepStatus('failed');
-            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
         );
     }, [department, deviceHeading, handleOrientation]);
 
