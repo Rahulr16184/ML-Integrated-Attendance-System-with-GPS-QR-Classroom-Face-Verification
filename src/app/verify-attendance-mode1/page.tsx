@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -15,7 +16,7 @@ import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, Ar
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { LatLngExpression } from 'leaflet';
 import { Progress } from '@/components/ui/progress';
-import { getFaceApi, loadModels } from '@/lib/face-api';
+import { getFaceApi } from '@/lib/face-api';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 import { updateClassroomDescriptorsCache, getClassroomCacheStatus } from '@/services/system-cache-service';
 import { Input } from '@/components/ui/input';
@@ -683,5 +684,3 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
-
-    
