@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, Play, StopCircle, Loader2 } from "lucide-react";
+import { QrCode, Play, StopCircle, Loader2, ScanLine } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 const QR_REFRESH_INTERVAL = 30; // in seconds
@@ -32,6 +32,7 @@ export default function QrGeneratorPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [countdown, setCountdown] = useState(QR_REFRESH_INTERVAL);
+  const [scanCount, setScanCount] = useState(0);
   
   const [isAuthorized, setIsAuthorized] = useState(false);
 
@@ -83,17 +84,6 @@ export default function QrGeneratorPage() {
     setCountdown(QR_REFRESH_INTERVAL);
   }, [selectedDepartmentId]);
 
-
-  const startGenerator = () => {
-    if (!selectedDepartmentId) {
-      toast({ title: "No Department Selected", description: "Please select a department first.", variant: "destructive" });
-      return;
-    }
-    setIsGenerating(true);
-    generateQrCode();
-    intervalRef.current = setInterval(generateQrCode, QR_REFRESH_INTERVAL * 1000);
-  };
-
   const stopGenerator = () => {
     setIsGenerating(false);
     if (intervalRef.current) {
@@ -101,7 +91,33 @@ export default function QrGeneratorPage() {
       intervalRef.current = null;
     }
     setQrCodeUrl("");
+    setScanCount(0); // Reset scan count when stopped
   };
+
+  const startGenerator = () => {
+    if (!selectedDepartmentId) {
+      toast({ title: "No Department Selected", description: "Please select a department first.", variant: "destructive" });
+      return;
+    }
+    setIsGenerating(true);
+    setScanCount(0);
+    generateQrCode();
+    intervalRef.current = setInterval(generateQrCode, QR_REFRESH_INTERVAL * 1000);
+  };
+
+  const simulateScan = () => {
+    if (!isGenerating) return;
+    setScanCount(prev => prev + 1);
+    toast({ title: "Scan Simulated", description: "Generating new QR code." });
+    
+    // Immediately generate a new QR and reset the interval
+    if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+    }
+    generateQrCode();
+    intervalRef.current = setInterval(generateQrCode, QR_REFRESH_INTERVAL * 1000);
+  };
+
 
   useEffect(() => {
     let countdownInterval: NodeJS.Timeout | null = null;
@@ -109,6 +125,8 @@ export default function QrGeneratorPage() {
         countdownInterval = setInterval(() => {
             setCountdown(prev => (prev > 0 ? prev - 1 : QR_REFRESH_INTERVAL));
         }, 1000);
+    } else {
+        if(countdownInterval) clearInterval(countdownInterval);
     }
     return () => {
       if (countdownInterval) {
@@ -142,7 +160,7 @@ export default function QrGeneratorPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><QrCode/> QR Code Generator</CardTitle>
           <CardDescription>
-            Generate a unique QR code for attendance. The code will automatically refresh.
+            Generate a unique, single-use QR code for attendance. The code will automatically refresh.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -175,6 +193,13 @@ export default function QrGeneratorPage() {
                         <p className="text-sm text-muted-foreground">Refreshing in {countdown}s...</p>
                         <Progress value={(countdown / QR_REFRESH_INTERVAL) * 100} className="mt-2" />
                     </div>
+                    <div className="text-center">
+                        <p className="font-bold text-lg">Scans: {scanCount}</p>
+                        <Button onClick={simulateScan} variant="outline" size="sm" className="mt-2">
+                            <ScanLine className="mr-2 h-4 w-4" />
+                            Simulate Student Scan
+                        </Button>
+                    </div>
                 </div>
             ) : (
                  <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground p-4 border-dashed border-2 rounded-lg min-h-[300px]">
@@ -198,4 +223,3 @@ export default function QrGeneratorPage() {
     </div>
   );
 }
-
