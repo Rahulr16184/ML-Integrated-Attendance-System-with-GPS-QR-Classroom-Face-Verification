@@ -121,12 +121,17 @@ export default function VerifyAttendanceMode1Page() {
                 } finally {
                     setLoading(false);
                 }
+            } else if(userProfile === null && !loading) {
+                 setError('Could not load user profile.');
+                 setLoading(false);
             }
         }
         if (userProfile && !department) {
             fetchDepartmentDetails();
+        } else if (userProfile === null && !loading){
+             fetchDepartmentDetails();
         }
-    }, [departmentId, userProfile, department]);
+    }, [departmentId, userProfile, department, loading]);
 
     // Load Face-API Models
     useEffect(() => {
@@ -148,7 +153,7 @@ export default function VerifyAttendanceMode1Page() {
     const startGpsVerification = useCallback(() => {
         if (!department) return;
 
-        if (!department?.location) {
+        if (!department?.location?.lat || !department?.location?.lng) {
             setStatusMessage("GPS location for this department is not set. Skipping.");
             setStepStatus('success');
             setTimeout(() => {
@@ -209,6 +214,7 @@ export default function VerifyAttendanceMode1Page() {
     
     // Classroom Verification Logic
     const fetchImageAndComputeDescriptor = async (imageUrl: string) => {
+        if (!imageUrl) return [];
         try {
             const img = await faceapi.fetchImage(imageUrl);
             const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
@@ -226,7 +232,7 @@ export default function VerifyAttendanceMode1Page() {
                 const allPhotos = [
                     ...(department.classroomPhotoUrls || []),
                     ...(department.studentsInClassroomPhotoUrls || [])
-                ].filter(p => p.embedded);
+                ].filter(p => p.embedded && p.url);
 
                 const descriptorsPromises = allPhotos.map(photo => fetchImageAndComputeDescriptor(photo.url));
                 const descriptorsArrays = await Promise.all(descriptorsPromises);
@@ -290,9 +296,9 @@ export default function VerifyAttendanceMode1Page() {
         let userFaceFound = false;
         if (userProfile?.profileImage && detections.length > 0) {
             const userImg = await faceapi.fetchImage(userProfile.profileImage);
-            const userDescriptor = await faceapi.computeFaceDescriptor(userImg);
-            if (userDescriptor) {
-                 const faceMatcher = new faceapi.FaceMatcher([userDescriptor]);
+            const userDetection = await faceapi.detectSingleFace(userImg).withFaceLandmarks().withFaceDescriptor();
+            if (userDetection) {
+                 const faceMatcher = new faceapi.FaceMatcher([userDetection.descriptor]);
                  detections.forEach(d => {
                      const match = faceMatcher.findBestMatch(d.descriptor);
                      if (match.label !== 'unknown') userFaceFound = true;
@@ -383,7 +389,7 @@ export default function VerifyAttendanceMode1Page() {
         );
 
         const renderClassroomContent = () => {
-            if (stepStatus === 'instructions') {
+            if (stepStatus === 'instructions' && !isScanning) {
                 return (
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage || `Point your camera at the ${CLASSROOM_VERIFICATION_PROMPTS[classroomVerificationSubstep]} of the classroom.`}</p>
@@ -445,18 +451,17 @@ export default function VerifyAttendanceMode1Page() {
                         <CurrentIcon className="h-5 w-5" />
                         Step {currentStep + 1}: {STEPS[currentStep].title} Verification
                     </CardTitle>
-                     {department && <CardDescription>Department: {department.name}</CardDescription>}
                 </CardHeader>
                 <CardContent className="min-h-[200px] flex flex-col items-center justify-center gap-4 text-center">
                     {showMainIcon && stepStatus === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
                     {showMainIcon && stepStatus === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
                     {showMainIcon && stepStatus === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
 
-                    {currentStep === 1 && stepStatus === 'instructions' ? (
+                    {currentStep === 1 && stepStatus === 'instructions' && !isScanning ? (
                         <div className="flex flex-col items-center gap-4">
                             <p className="text-muted-foreground">{statusMessage || `Get ready to scan the classroom.`}</p>
                             <Button onClick={startClassroomVerification} disabled={!modelsLoaded || referenceDescriptors.length === 0}>
-                                {modelsLoaded ? "Start Classroom Verification" : "Loading Models..."}
+                                {modelsLoaded && referenceDescriptors.length > 0 ? "Start Classroom Verification" : "Loading Models..."}
                             </Button>
                         </div>
                     ) : content}
@@ -551,3 +556,4 @@ export default function VerifyAttendanceMode1Page() {
     );
 }
 
+    
