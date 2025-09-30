@@ -163,7 +163,7 @@ export default function ClassroomPhotoConfigPage() {
       }
     }
     fetchInitialData();
-  }, [userProfile, userLoading, router, toast, selectedDepartmentId]);
+  }, [userProfile, userLoading, router, toast]);
 
   const handleImageSelected = (dataUri: string, category: PhotoCategory) => {
     setActivePhotoCategory(category);
@@ -408,3 +408,6 @@ export default function ClassroomPhotoConfigPage() {
 }
 
 
+
+
+    
