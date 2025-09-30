@@ -140,19 +140,22 @@ export default function VerifyAttendanceMode1Page() {
             (position) => {
                 const currentUserLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
                 setUserLocation(currentUserLocation);
-                const distance = getDistance(currentUserLocation, department.location!);
                 
-                if (distance <= (department.radius || 100)) {
-                    setStatusMessage(`Location verified! You are inside the zone.`);
-                    setStepStatus('success');
-                    setDirectionalSuggestion(null);
-                    stopGpsWatch();
-                    setTimeout(() => setCurrentStep(1), 1500);
-                } else {
-                    const direction = getDirection(currentUserLocation, department.location!);
-                    setDirectionalSuggestion({ name: direction.name, icon: direction.icon, distance });
-                    setStatusMessage(`You are outside the designated zone. Please move towards the center.`);
-                    setStepStatus('failed'); // Keep it as failed to show guidance
+                if (department?.location) {
+                    const distance = getDistance(currentUserLocation, department.location);
+                    
+                    if (distance <= (department.radius || 100)) {
+                        setStatusMessage(`Location verified! You are inside the zone.`);
+                        setStepStatus('success');
+                        setDirectionalSuggestion(null);
+                        stopGpsWatch();
+                        setTimeout(() => setCurrentStep(1), 1500);
+                    } else {
+                        const direction = getDirection(currentUserLocation, department.location);
+                        setDirectionalSuggestion({ name: direction.name, icon: direction.icon, distance });
+                        setStatusMessage(`You are outside the designated zone. Please move towards the center.`);
+                        setStepStatus('failed'); // Keep it as failed to show guidance
+                    }
                 }
             },
             (err) => {
@@ -172,6 +175,7 @@ export default function VerifyAttendanceMode1Page() {
             startGpsVerification();
         }
         
+        // Cleanup function
         return () => {
              stopGpsWatch();
         };
@@ -239,7 +243,7 @@ export default function VerifyAttendanceMode1Page() {
     }
     
     const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
-    const markerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : mapCenter;
+    const markerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
@@ -272,13 +276,13 @@ export default function VerifyAttendanceMode1Page() {
                 {renderStepContent()}
             </div>
             
-            {currentStep === 0 && mapCenter && markerPosition && (
+            {currentStep === 0 && mapCenter && (
                  <Card className="max-w-2xl mx-auto">
                      <CardHeader>
                          <CardTitle>Verification Map</CardTitle>
                      </CardHeader>
                      <CardContent className="h-80 w-full p-0">
-                         <Map position={markerPosition} radius={department.radius} draggable={false} />
+                         <Map position={mapCenter} userPosition={markerPosition} radius={department?.radius} draggable={false} />
                      </CardContent>
                  </Card>
             )}

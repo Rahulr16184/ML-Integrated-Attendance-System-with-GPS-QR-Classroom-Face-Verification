@@ -8,21 +8,23 @@ declare var L: any; // Use 'any' to avoid TypeScript errors for the global Leafl
 
 type MapProps = {
     position: LatLngExpression;
+    userPosition?: LatLngExpression | null;
     radius?: number;
     onPositionChange?: (position: LatLngExpression) => void;
     draggable?: boolean;
 }
 
-const Map = ({ position, radius = 100, onPositionChange, draggable = false }: MapProps) => {
+const Map = ({ position, userPosition = null, radius = 100, onPositionChange, draggable = false }: MapProps) => {
     const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstance = useRef<any>(null); // To hold the Leaflet map instance
-    const markerInstance = useRef<any>(null); // To hold the marker instance
-    const circleInstance = useRef<any>(null); // To hold the circle instance
+    const mapInstance = useRef<any>(null);
+    const centerMarkerInstance = useRef<any>(null); // For the draggable center
+    const userMarkerInstance = useRef<any>(null); // For the user's live location
+    const circleInstance = useRef<any>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !mapRef.current || !position) return;
 
-        const customIcon = L.icon({
+        const centerIcon = L.icon({
             iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41],
@@ -30,6 +32,16 @@ const Map = ({ position, radius = 100, onPositionChange, draggable = false }: Ma
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
             shadowSize: [41, 41]
         });
+
+        const userIcon = L.icon({
+            iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
 
         // Initialize map only once
         if (!mapInstance.current) {
@@ -41,17 +53,18 @@ const Map = ({ position, radius = 100, onPositionChange, draggable = false }: Ma
             mapInstance.current.setView(position, 15);
         }
         
-        // Handle marker
-        if (markerInstance.current) {
-            markerInstance.current.setLatLng(position);
+        // Handle center marker
+        if (centerMarkerInstance.current) {
+            centerMarkerInstance.current.setLatLng(position);
         } else {
-            markerInstance.current = L.marker(position, { 
-                icon: customIcon, 
-                draggable: draggable 
+            centerMarkerInstance.current = L.marker(position, { 
+                icon: centerIcon, 
+                draggable: draggable,
+                opacity: draggable ? 1.0 : 0.6, // Make center less prominent if not draggable
             }).addTo(mapInstance.current);
             
             if (draggable && onPositionChange) {
-                markerInstance.current.on('dragend', function(event: any) {
+                centerMarkerInstance.current.on('dragend', function(event: any) {
                     const newPos = event.target.getLatLng();
                     onPositionChange([newPos.lat, newPos.lng]);
                 });
@@ -68,13 +81,22 @@ const Map = ({ position, radius = 100, onPositionChange, draggable = false }: Ma
             }).addTo(mapInstance.current);
         }
 
-        // Cleanup on component unmount
-        return () => {
-            if (mapInstance.current) {
-                // Do not destroy the map instance, just remove layers if needed
+        // Handle separate user position marker
+        if (userPosition) {
+             if (userMarkerInstance.current) {
+                userMarkerInstance.current.setLatLng(userPosition);
+            } else {
+                userMarkerInstance.current = L.marker(userPosition, { icon: userIcon }).addTo(mapInstance.current);
             }
-        };
-    }, [position, radius, draggable, onPositionChange]);
+        } else {
+            if (userMarkerInstance.current) {
+                userMarkerInstance.current.remove();
+                userMarkerInstance.current = null;
+            }
+        }
+
+
+    }, [position, userPosition, radius, draggable, onPositionChange]);
 
     if (!position) {
         return <div className="flex items-center justify-center h-full bg-muted">Loading map...</div>
