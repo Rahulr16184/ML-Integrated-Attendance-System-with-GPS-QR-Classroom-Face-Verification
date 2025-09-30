@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Info, CreditCard, DatabaseZap, CalendarDays, Settings, School, MapPin, ClipboardCheck } from "lucide-react";
+import { Info, CreditCard, DatabaseZap, CalendarDays, Settings, School, MapPin, ClipboardCheck, Camera } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -101,6 +101,12 @@ export default function TeacherDashboardPage() {
                     <Link href="/ma-records">
                         <ClipboardCheck className="h-8 w-8" />
                         <span className="text-sm font-semibold">MA RECORDS</span>
+                    </Link>
+                </Button>
+                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
+                    <Link href="/">
+                        <Camera className="h-8 w-8" />
+                        <span className="text-sm font-semibold">CLASSROOM PHOTO CONF</span>
                     </Link>
                 </Button>
             </CardContent>
