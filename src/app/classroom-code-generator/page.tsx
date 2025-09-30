@@ -73,16 +73,25 @@ export default function ClassroomCodeGeneratorPage() {
   }, [userProfile, isAuthorized, toast, selectedDepartmentId]);
 
   const stopGenerator = useCallback(async () => {
-    setIsGenerating(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    setGeneratedCode("");
     
+    // Only try to clear the code if a department was selected
     if (userProfile?.institutionId && selectedDepartmentId) {
-       await clearClassroomCode(userProfile.institutionId, selectedDepartmentId);
+       try {
+         await clearClassroomCode(userProfile.institutionId, selectedDepartmentId);
+       } catch (error) {
+         console.error("Failed to clear classroom code on stop:", error);
+         // Don't show a toast here as it might be annoying if it's just a cleanup
+       }
     }
+
+    setIsGenerating(false);
+    setGeneratedCode("");
+    setCountdown(CODE_EXPIRY_DURATION);
+
   }, [userProfile?.institutionId, selectedDepartmentId]);
 
   const startGenerator = async () => {
@@ -118,15 +127,14 @@ export default function ClassroomCodeGeneratorPage() {
     toast({ title: "Copied!", description: "The classroom code has been copied to your clipboard." });
   };
 
-  // Cleanup on component unmount
+  // Cleanup on component unmount to ensure the code is cleared
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (isGenerating) {
         stopGenerator();
       }
     };
-  }, [stopGenerator]);
+  }, [isGenerating, stopGenerator]);
   
   if(userLoading || !isAuthorized) {
     return (
