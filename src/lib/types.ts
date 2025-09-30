@@ -21,8 +21,8 @@ export type Department = {
     lng: number;
   };
   radius?: number;
-  classroomPhotoUrl?: string;
-  studentsInClassroomPhotoUrl?: string;
+  classroomPhotoUrls?: string[];
+  studentsInClassroomPhotoUrls?: string[];
 };
 
 export type Institution = {
@@ -39,5 +39,7 @@ export type Semester = {
   holidays: string[];
   workingDays: number;
 };
+
+    
 
     

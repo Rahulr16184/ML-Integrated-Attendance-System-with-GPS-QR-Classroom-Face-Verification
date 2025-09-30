@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/conf';
-import { collection, getDocs, addDoc, doc, updateDoc, getDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, getDoc, writeBatch, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { Department, Institution } from '@/lib/types';
 
 // Helper to generate a set of codes for a new department
@@ -92,12 +92,24 @@ export const updateDepartmentGps = async (institutionId: string, departmentId: s
     await updateDoc(departmentDoc, { location, radius });
 };
     
-export const updateClassroomPhoto = async (
+export const addClassroomPhoto = async (
     institutionId: string,
     departmentId: string,
-    photoType: 'classroomPhotoUrl' | 'studentsInClassroomPhotoUrl',
+    photoType: 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls',
     imageUrl: string
 ): Promise<void> => {
     const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
-    await updateDoc(departmentDoc, { [photoType]: imageUrl });
+    await updateDoc(departmentDoc, { [photoType]: arrayUnion(imageUrl) });
 };
+
+export const deleteClassroomPhoto = async (
+    institutionId: string,
+    departmentId: string,
+    photoType: 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls',
+    imageUrl: string
+): Promise<void> => {
+    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    await updateDoc(departmentDoc, { [photoType]: arrayRemove(imageUrl) });
+};
+
+    

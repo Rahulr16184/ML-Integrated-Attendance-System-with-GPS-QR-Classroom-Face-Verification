@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { getInstitutions, updateClassroomPhoto } from "@/services/institution-service";
+import { getInstitutions, addClassroomPhoto, deleteClassroomPhoto } from "@/services/institution-service";
 import { uploadImage } from "@/services/user-service";
 import type { Department } from "@/lib/types";
 
@@ -15,25 +15,29 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
-import { Upload, Camera as CameraIcon, ImageOff, Loader2 } from "lucide-react";
+import { Upload, Camera as CameraIcon, ImageOff, Loader2, Save, Trash2, X } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-type PhotoCategory = 'classroomPhotoUrl' | 'studentsInClassroomPhotoUrl';
+type PhotoCategory = 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls';
 
 const PhotoUploadSection = ({
   title,
   description,
-  imageUrl,
+  imageUrls,
   onUploadClick,
   onCaptureClick,
+  onDeleteClick,
   isUploading,
 }: {
   title: string;
   description: string;
-  imageUrl?: string | null;
+  imageUrls?: string[];
   onUploadClick: () => void;
   onCaptureClick: () => void;
+  onDeleteClick: (url: string) => void;
   isUploading: boolean;
 }) => (
   <Card>
@@ -42,18 +46,33 @@ const PhotoUploadSection = ({
       <CardDescription>{description}</CardDescription>
     </CardHeader>
     <CardContent className="space-y-4">
-      <div className="aspect-video w-full rounded-md border-dashed border-2 flex items-center justify-center bg-muted overflow-hidden">
+      <div className="relative w-full rounded-md border-dashed border-2 flex items-center justify-center bg-muted overflow-hidden">
         {isUploading ? (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <div className="aspect-video w-full flex flex-col items-center gap-2 justify-center text-muted-foreground">
             <Loader2 className="animate-spin h-8 w-8" />
-            <span>Uploading...</span>
+            <span>Processing...</span>
           </div>
-        ) : imageUrl ? (
-          <Image src={imageUrl} alt={title} width={640} height={360} className="object-contain w-full h-full" data-ai-hint="classroom" />
+        ) : imageUrls && imageUrls.length > 0 ? (
+          <Carousel className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
+            <CarouselContent>
+              {imageUrls.map((url, index) => (
+                <CarouselItem key={index} className="relative aspect-video">
+                  <Image src={url} alt={`${title} ${index + 1}`} fill className="object-contain" data-ai-hint="classroom" />
+                   <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7" onClick={() => onDeleteClick(url)}>
+                          <Trash2 className="h-4 w-4" />
+                      </Button>
+                  </AlertDialogTrigger>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-2" />
+            <CarouselNext className="right-2" />
+          </Carousel>
         ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <div className="aspect-video w-full flex flex-col items-center gap-2 justify-center text-muted-foreground">
             <ImageOff className="h-10 w-10" />
-            <span>No image uploaded</span>
+            <span>No images uploaded</span>
           </div>
         )}
       </div>
@@ -80,10 +99,12 @@ export default function ClassroomPhotoConfigPage() {
   const [loadingDepartments, setLoadingDepartments] = useState(true);
 
   const [activePhotoCategory, setActivePhotoCategory] = useState<PhotoCategory | null>(null);
-  const [isUploading, setIsUploading] = useState<Record<PhotoCategory, boolean>>({ classroomPhotoUrl: false, studentsInClassroomPhotoUrl: false });
-  const [isCaptureModalOpen, setCaptureModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
-  const selectedDepartment = departments.find(d => d.id === selectedDepartmentId);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  
+  const selectedDepartment = useMemo(() => departments.find(d => d.id === selectedDepartmentId), [departments, selectedDepartmentId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -97,88 +118,106 @@ export default function ClassroomPhotoConfigPage() {
         }
     }
 
-    if (userLoading) {
-      return; 
-    }
-    if (!userProfile) {
-      router.push('/login');
-      return;
-    }
-    if (userProfile.role !== 'admin' && userProfile.role !== 'teacher') {
-      router.push('/login');
-      return;
-    }
-    
-    async function fetchDepartments() {
-      if (userProfile?.institutionId && userProfile.departmentIds) {
-        setLoadingDepartments(true);
-        try {
-            const institutions = await getInstitutions();
-            const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
-            if (currentInstitution) {
-            const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
-            setDepartments(userDepartments);
-            if (userDepartments.length > 0 && !selectedDepartmentId) {
-                setSelectedDepartmentId(userDepartments[0].id);
+    async function fetchInitialData() {
+        if (userLoading) return;
+        if (!userProfile) {
+          router.push('/login');
+          return;
+        }
+        if (userProfile.role !== 'admin' && userProfile.role !== 'teacher') {
+          router.push('/login');
+          return;
+        }
+        
+        if (userProfile?.institutionId && userProfile.departmentIds) {
+            setLoadingDepartments(true);
+            try {
+                const institutions = await getInstitutions();
+                const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
+                if (currentInstitution) {
+                    const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
+                    setDepartments(userDepartments);
+                    if (userDepartments.length > 0 && !selectedDepartmentId) {
+                        setSelectedDepartmentId(userDepartments[0].id);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch departments", error);
+                toast({ title: "Error", description: "Could not fetch departments.", variant: "destructive" });
+            } finally {
+                setLoadingDepartments(false);
             }
-            }
-        } catch (error) {
-            console.error("Failed to fetch departments", error);
-            toast({ title: "Error", description: "Could not fetch departments.", variant: "destructive" });
-        } finally {
+        } else {
             setLoadingDepartments(false);
         }
-      } else {
-        setLoadingDepartments(false);
-      }
     }
-    fetchDepartments();
+    fetchInitialData();
+  }, [userProfile, userLoading, router, toast]);
 
-  }, [userProfile, userLoading, router, toast, selectedDepartmentId]);
+
+  const handleImageSelected = (dataUri: string, category: PhotoCategory) => {
+    setActivePhotoCategory(category);
+    setPreviewImage(dataUri);
+  }
 
   const handleFileUpload = async (file: File) => {
-    if (!activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
+    if (!activePhotoCategory) return;
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = () => {
+        handleImageSelected(reader.result as string, activePhotoCategory);
+    }
+  };
 
-    setIsUploading(prev => ({...prev, [activePhotoCategory!]: true}));
+  const handleConfirmSave = async () => {
+    if (!previewImage || !activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
+
+    setIsUploading(true);
+    setPreviewImage(null);
+
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async () => {
-          const dataUri = reader.result as string;
-          const imageUrl = await uploadImage(dataUri);
-          await updateClassroomPhoto(userProfile.institutionId, selectedDepartmentId, activePhotoCategory, imageUrl);
-          
-          setDepartments(prev => prev.map(d => d.id === selectedDepartmentId ? {...d, [activePhotoCategory]: imageUrl} : d));
+      const imageUrl = await uploadImage(previewImage);
+      await addClassroomPhoto(userProfile.institutionId, selectedDepartmentId, activePhotoCategory, imageUrl);
+      
+      setDepartments(prev => prev.map(d => 
+        d.id === selectedDepartmentId 
+        ? {...d, [activePhotoCategory]: [...(d[activePhotoCategory] || []), imageUrl]} 
+        : d
+      ));
 
-          toast({ title: "Success", description: "Photo uploaded successfully." });
-      }
+      toast({ title: "Success", description: "Photo uploaded successfully." });
     } catch (error) {
       console.error(error);
-      toast({ title: "Upload Failed", description: "Could not upload the image.", variant: "destructive" });
+      toast({ title: "Save Failed", description: "Could not save the image.", variant: "destructive" });
     } finally {
-      setIsUploading(prev => ({...prev, [activePhotoCategory!]: false}));
+      setIsUploading(false);
       setActivePhotoCategory(null);
     }
   };
 
-  const handleCapture = async (dataUri: string) => {
-    setCaptureModalOpen(false);
-    if (!activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
+  const handleDelete = async () => {
+    if (!deleteTarget || !activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
 
-    setIsUploading(prev => ({...prev, [activePhotoCategory!]: true}));
+    setIsUploading(true);
     try {
-      const imageUrl = await uploadImage(dataUri);
-      await updateClassroomPhoto(userProfile.institutionId, selectedDepartmentId, activePhotoCategory, imageUrl);
+      await deleteClassroomPhoto(userProfile.institutionId, selectedDepartmentId, activePhotoCategory, deleteTarget);
       
-      setDepartments(prev => prev.map(d => d.id === selectedDepartmentId ? {...d, [activePhotoCategory]: imageUrl} : d));
+      setDepartments(prev => prev.map(d => {
+        if (d.id === selectedDepartmentId) {
+            const updatedUrls = (d[activePhotoCategory] || []).filter((url: string) => url !== deleteTarget);
+            return {...d, [activePhotoCategory]: updatedUrls};
+        }
+        return d;
+      }));
 
-      toast({ title: "Success", description: "Photo saved successfully." });
+      toast({ title: "Success", description: "Photo deleted successfully." });
     } catch (error) {
-      console.error(error);
-      toast({ title: "Save Failed", description: "Could not save the captured image.", variant: "destructive" });
+        console.error(error);
+        toast({ title: "Delete Failed", description: "Could not delete the image.", variant: "destructive" });
     } finally {
-      setIsUploading(prev => ({...prev, [activePhotoCategory!]: false}));
-      setActivePhotoCategory(null);
+        setIsUploading(false);
+        setDeleteTarget(null);
+        setActivePhotoCategory(null);
     }
   };
 
@@ -189,7 +228,12 @@ export default function ClassroomPhotoConfigPage() {
   
   const onCaptureClick = (category: PhotoCategory) => {
     setActivePhotoCategory(category);
-    setCaptureModalOpen(true);
+    setPreviewImage('capture'); // Special value to trigger camera modal
+  };
+
+  const onDeleteClick = (category: PhotoCategory, url: string) => {
+    setActivePhotoCategory(category);
+    setDeleteTarget(url);
   };
   
   if (userLoading || loadingDepartments) {
@@ -206,74 +250,112 @@ export default function ClassroomPhotoConfigPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Classroom Photo Configuration</h1>
-      <div className="max-w-md space-y-2">
-        <Label htmlFor="department">Department</Label>
-        <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={departments.length === 0}>
-          <SelectTrigger id="department">
-            <SelectValue placeholder="Select a department" />
-          </SelectTrigger>
-          <SelectContent>
-            {departments.map((dept) => (
-              <SelectItem key={dept.id} value={dept.id}>
-                {dept.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {selectedDepartmentId ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <PhotoUploadSection
-            title="Classroom View"
-            description="An image of the empty classroom."
-            imageUrl={selectedDepartment?.classroomPhotoUrl}
-            onUploadClick={() => onUploadClick('classroomPhotoUrl')}
-            onCaptureClick={() => onCaptureClick('classroomPhotoUrl')}
-            isUploading={isUploading.classroomPhotoUrl}
-          />
-          <PhotoUploadSection
-            title="Classroom with Students"
-            description="An image of the classroom with students present."
-            imageUrl={selectedDepartment?.studentsInClassroomPhotoUrl}
-            onUploadClick={() => onUploadClick('studentsInClassroomPhotoUrl')}
-            onCaptureClick={() => onCaptureClick('studentsInClassroomPhotoUrl')}
-            isUploading={isUploading.studentsInClassroomPhotoUrl}
-          />
+    <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <div className="p-4 sm:p-6 space-y-6">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Classroom Photo Configuration</h1>
+        <div className="max-w-md space-y-2">
+            <Label htmlFor="department">Department</Label>
+            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={departments.length === 0}>
+            <SelectTrigger id="department">
+                <SelectValue placeholder="Select a department" />
+            </SelectTrigger>
+            <SelectContent>
+                {departments.map((dept) => (
+                <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                </SelectItem>
+                ))}
+            </SelectContent>
+            </Select>
         </div>
-      ) : (
-        <Card className="mt-6">
-            <CardContent className="pt-6 text-center text-muted-foreground">
-                <p>Please select a department to configure classroom photos.</p>
-            </CardContent>
-        </Card>
-      )}
 
-      {/* Hidden file input */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        accept="image/png, image/jpeg"
-        onChange={(e) => {
-          if (e.target.files?.[0]) {
-            handleFileUpload(e.target.files[0]);
-          }
-          e.target.value = ''; // Reset the input
-        }}
-      />
-      
-      {/* Capture Photo Modal */}
-      <Dialog open={isCaptureModalOpen} onOpenChange={setCaptureModalOpen}>
-        <DialogContent className="sm:max-w-[625px]">
-          <DialogHeader>
-            <DialogTitle>Capture Classroom Photo</DialogTitle>
-          </DialogHeader>
-          <CameraCapture onCapture={handleCapture} captureLabel="Use this photo" />
-        </DialogContent>
-      </Dialog>
-    </div>
+        {selectedDepartmentId ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PhotoUploadSection
+                title="Classroom View"
+                description="Images of the empty classroom."
+                imageUrls={selectedDepartment?.classroomPhotoUrls}
+                onUploadClick={() => onUploadClick('classroomPhotoUrls')}
+                onCaptureClick={() => onCaptureClick('classroomPhotoUrls')}
+                onDeleteClick={(url) => onDeleteClick('classroomPhotoUrls', url)}
+                isUploading={isUploading && activePhotoCategory === 'classroomPhotoUrls'}
+            />
+            <PhotoUploadSection
+                title="Classroom with Students"
+                description="Images of the classroom with students present."
+                imageUrls={selectedDepartment?.studentsInClassroomPhotoUrls}
+                onUploadClick={() => onUploadClick('studentsInClassroomPhotoUrls')}
+                onCaptureClick={() => onCaptureClick('studentsInClassroomPhotoUrls')}
+                onDeleteClick={(url) => onDeleteClick('studentsInClassroomPhotoUrls', url)}
+                isUploading={isUploading && activePhotoCategory === 'studentsInClassroomPhotoUrls'}
+            />
+            </div>
+        ) : (
+            <Card className="mt-6">
+                <CardContent className="pt-6 text-center text-muted-foreground">
+                    <p>Please select a department to configure classroom photos.</p>
+                </CardContent>
+            </Card>
+        )}
+
+        <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/png, image/jpeg"
+            onChange={(e) => {
+            if (e.target.files?.[0]) {
+                handleFileUpload(e.target.files[0]);
+            }
+            e.target.value = ''; // Reset the input
+            }}
+        />
+        
+        {/* Capture or Preview Modal */}
+        <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+            <DialogContent className="sm:max-w-[625px]">
+                {previewImage === 'capture' ? (
+                     <>
+                        <DialogHeader>
+                            <DialogTitle>Capture Classroom Photo</DialogTitle>
+                        </DialogHeader>
+                        <CameraCapture onCapture={(dataUri) => handleImageSelected(dataUri, activePhotoCategory!)} captureLabel="Use this photo" />
+                    </>
+                ) : (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Confirm Photo</DialogTitle>
+                            <DialogDescription>Do you want to save this photo?</DialogDescription>
+                        </DialogHeader>
+                        <div className="relative aspect-video w-full rounded-md bg-muted overflow-hidden my-4">
+                            {previewImage && <Image src={previewImage} alt="Preview" fill className="object-contain"/>}
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                            <Button onClick={handleConfirmSave}><Save className="mr-2 h-4 w-4" />Save Photo</Button>
+                        </DialogFooter>
+                    </>
+                )}
+            </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the photo.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+
+        </div>
+    </AlertDialog>
   );
 }
+
+    
