@@ -11,7 +11,7 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions } from '@/services/institution-service';
 import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { loadModels, getFaceApi } from '@/lib/face-api';
 import * as faceapi from 'face-api.js';
@@ -38,16 +38,23 @@ const getDistance = (from: { lat: number; lng: number }, to: { lat: number; lng:
     return R * c; // in metres
 };
 
-const getDirection = (from: { lat: number, lng: number }, to: { lat: number, lng: number }) => {
-    const latDiff = to.lat - from.lat;
-    const lngDiff = to.lng - from.lng;
+// Returns the bearing from point A to B in degrees
+const getBearing = (start: {lat: number, lng: number}, end: {lat: number, lng: number}) => {
+    const toRadians = (deg: number) => deg * Math.PI / 180;
+    const toDegrees = (rad: number) => rad * 180 / Math.PI;
 
-    if (Math.abs(latDiff) > Math.abs(lngDiff)) {
-        return latDiff > 0 ? { name: 'North', icon: ArrowUp } : { name: 'South', icon: ArrowDown };
-    } else {
-        return lngDiff > 0 ? { name: 'East', icon: ArrowRight } : { name: 'West', icon: ArrowLeft };
-    }
+    const startLat = toRadians(start.lat);
+    const startLng = toRadians(start.lng);
+    const endLat = toRadians(end.lat);
+    const endLng = toRadians(end.lng);
+
+    const y = Math.sin(endLng - startLng) * Math.cos(endLat);
+    const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);
+    let brng = Math.atan2(y, x);
+    brng = toDegrees(brng);
+    return (brng + 360) % 360;
 };
+
 
 export default function VerifyAttendanceMode1Page() {
     const searchParams = useSearchParams();
@@ -62,8 +69,9 @@ export default function VerifyAttendanceMode1Page() {
     const [stepStatus, setStepStatus] = useState<'pending' | 'verifying' | 'success' | 'failed'>('pending');
     const [statusMessage, setStatusMessage] = useState('');
     const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
-    const [directionalSuggestion, setDirectionalSuggestion] = useState<{ name: string; icon: React.ComponentType<any>; distance: number } | null>(null);
 
+    const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
+    const [arrowRotation, setArrowRotation] = useState(0);
 
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -82,8 +90,7 @@ export default function VerifyAttendanceMode1Page() {
                 return;
             }
             if (userProfile?.institutionId) {
-                // Ensure we don't re-set loading if department is already fetched
-                if (!department) setLoading(true);
+                setLoading(true);
                 try {
                     const institutions = await getInstitutions();
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
@@ -103,7 +110,7 @@ export default function VerifyAttendanceMode1Page() {
                 }
             }
         }
-        if (userProfile) {
+        if (userProfile && !department) {
             fetchDepartmentDetails();
         }
     }, [departmentId, userProfile, department]);
@@ -116,7 +123,15 @@ export default function VerifyAttendanceMode1Page() {
         };
         loadMLModels();
     }, []);
-    
+
+    // Device Orientation Handler
+    const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
+        const alpha = event.alpha;
+        if (alpha !== null) {
+            setDeviceHeading(alpha);
+        }
+    }, []);
+
     const startGpsVerification = useCallback(() => {
         if (!department?.location) {
             setStatusMessage("GPS location for this department is not set. Skipping.");
@@ -127,7 +142,20 @@ export default function VerifyAttendanceMode1Page() {
 
         setStepStatus('verifying');
         setStatusMessage('Getting your location...');
-        setDirectionalSuggestion(null);
+        
+        // Request permission for device orientation
+        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+            (DeviceOrientationEvent as any).requestPermission()
+                .then((permissionState: string) => {
+                    if (permissionState === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation, true);
+                    }
+                })
+                .catch(console.error);
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+        }
+
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -140,23 +168,32 @@ export default function VerifyAttendanceMode1Page() {
                     if (distance <= (department.radius || 100)) {
                         setStatusMessage(`Location verified! You are inside the zone.`);
                         setStepStatus('success');
-                        setDirectionalSuggestion(null);
+                        window.removeEventListener('deviceorientation', handleOrientation, true);
                         setTimeout(() => setCurrentStep(1), 1500);
                     } else {
-                        const direction = getDirection(currentUserLocation, department.location);
-                        setDirectionalSuggestion({ name: direction.name, icon: direction.icon, distance });
-                        setStatusMessage(`You are outside the designated zone. Please move towards the center.`);
-                        setStepStatus('failed'); // Keep it as failed to show guidance
+                        const bearing = getBearing(currentUserLocation, department.location);
+                        if(deviceHeading !== null) {
+                            setArrowRotation(bearing - deviceHeading);
+                        }
+                        setStatusMessage(`You are ${distance.toFixed(0)}m away. Follow the arrow to get in range.`);
+                        setStepStatus('failed');
                     }
                 }
             },
             (err) => {
                 setStatusMessage(`Could not get location: ${err.message}. Please enable location services.`);
                 setStepStatus('failed');
-                setDirectionalSuggestion(null);
             }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [department]);
+    }, [department, deviceHeading, handleOrientation]);
+
+    // Update arrow rotation in real-time
+    useEffect(() => {
+        if (stepStatus === 'failed' && deviceHeading !== null && userLocation && department?.location) {
+            const bearing = getBearing(userLocation, department.location);
+            setArrowRotation(bearing - deviceHeading);
+        }
+    }, [deviceHeading, userLocation, department, stepStatus]);
     
     // Effect to trigger verification for the current step
     useEffect(() => {
@@ -165,7 +202,12 @@ export default function VerifyAttendanceMode1Page() {
         if (currentStep === 0 && stepStatus === 'pending') {
             startGpsVerification();
         }
-    }, [currentStep, stepStatus, loading, department, startGpsVerification]);
+
+        // Cleanup listener when component unmounts or step changes
+        return () => {
+             window.removeEventListener('deviceorientation', handleOrientation, true);
+        }
+    }, [currentStep, stepStatus, loading, department, startGpsVerification, handleOrientation]);
 
 
     const renderStepContent = () => {
@@ -185,22 +227,23 @@ export default function VerifyAttendanceMode1Page() {
                 <CardContent className="min-h-[200px] flex flex-col items-center justify-center gap-4 text-center">
                     {stepStatus === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
                     {stepStatus === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
-                    {stepStatus === 'failed' && !directionalSuggestion && <XCircle className="h-12 w-12 text-destructive" />}
+                    {stepStatus === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
 
                     <p className="text-muted-foreground font-medium">{statusMessage}</p>
 
-                     {stepStatus === 'failed' && directionalSuggestion && (
+                     {stepStatus === 'failed' && (
                         <div className="flex flex-col items-center gap-2 text-sm text-center">
-                            <p>You are {directionalSuggestion.distance.toFixed(0)}m away. Move {directionalSuggestion.name} to get in range.</p>
-                            <directionalSuggestion.icon className="h-8 w-8 animate-pulse" />
+                           <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed">
+                               <ArrowUp 
+                                   className="h-10 w-10 text-primary transition-transform duration-500"
+                                   style={{ transform: `rotate(${arrowRotation}deg)`}}
+                                />
+                           </div>
+                           <Button onClick={startGpsVerification}>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Retry
+                            </Button>
                         </div>
-                    )}
-                    
-                    {stepStatus === 'failed' && (
-                        <Button onClick={startGpsVerification}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Retry
-                        </Button>
                     )}
                 </CardContent>
             </Card>
@@ -275,5 +318,3 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
-
-    
