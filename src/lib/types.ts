@@ -1,4 +1,5 @@
 
+
 export type AttendanceRecord = {
   id: string;
   employeeId: string;
@@ -8,8 +9,13 @@ export type AttendanceRecord = {
   status: 'Present' | 'Absent' | 'Late';
 };
 
+export type ClassroomPhoto = {
+  url: string;
+  embedded: boolean;
+};
+
 export type Department = {
-  id: string;
+  id:string;
   name: string;
   secretCodes: {
     student: string;
@@ -21,8 +27,8 @@ export type Department = {
     lng: number;
   };
   radius?: number;
-  classroomPhotoUrls?: string[];
-  studentsInClassroomPhotoUrls?: string[];
+  classroomPhotoUrls?: ClassroomPhoto[];
+  studentsInClassroomPhotoUrls?: ClassroomPhoto[];
 };
 
 export type Institution = {

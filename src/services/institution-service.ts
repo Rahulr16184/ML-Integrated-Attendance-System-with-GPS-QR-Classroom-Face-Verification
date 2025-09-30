@@ -1,7 +1,8 @@
 
+
 import { db } from '@/lib/conf';
 import { collection, getDocs, addDoc, doc, updateDoc, getDoc, writeBatch, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import type { Department, Institution } from '@/lib/types';
+import type { Department, Institution, ClassroomPhoto } from '@/lib/types';
 
 // Helper to generate a set of codes for a new department
 const generateSecretCodes = (institutionAcronym: string, departmentAcronym: string) => {
@@ -98,18 +99,46 @@ export const addClassroomPhoto = async (
     photoType: 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls',
     imageUrl: string
 ): Promise<void> => {
-    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
-    await updateDoc(departmentDoc, { [photoType]: arrayUnion(imageUrl) });
+    const departmentDocRef = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    const newPhoto: ClassroomPhoto = { url: imageUrl, embedded: false };
+    await updateDoc(departmentDocRef, { [photoType]: arrayUnion(newPhoto) });
 };
+
 
 export const deleteClassroomPhoto = async (
     institutionId: string,
     departmentId: string,
     photoType: 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls',
-    imageUrl: string
+    photoToDelete: ClassroomPhoto
 ): Promise<void> => {
-    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
-    await updateDoc(departmentDoc, { [photoType]: arrayRemove(imageUrl) });
+    const departmentDocRef = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    await updateDoc(departmentDocRef, { [photoType]: arrayRemove(photoToDelete) });
 };
 
+export const embedPhotos = async (
+    institutionId: string,
+    departmentId: string,
+    photoType: 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls'
+): Promise<ClassroomPhoto[]> => {
+    const departmentDocRef = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    const departmentDoc = await getDoc(departmentDocRef);
+    if (!departmentDoc.exists()) {
+        throw new Error("Department not found");
+    }
+
+    const departmentData = departmentDoc.data() as Department;
+    const existingPhotos: ClassroomPhoto[] = departmentData[photoType] || [];
+
+    const updatedPhotos = existingPhotos.map(photo => 
+        !photo.embedded ? { ...photo, embedded: true } : photo
+    );
+
+    // Here you would add the actual ML embedding generation logic
+    // For now, we just update the flags.
+    console.log(`Generating embedding for ${photoType} in department ${departmentId}`);
+
+    await updateDoc(departmentDocRef, { [photoType]: updatedPhotos });
+
+    return updatedPhotos;
+};
     
