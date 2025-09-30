@@ -62,6 +62,18 @@ export default function MarkAttendancePage() {
     const mode1Active = useMemo(() => selectedDepartment?.modes?.mode1?.enabled ?? false, [selectedDepartment]);
     const mode2Active = useMemo(() => selectedDepartment?.modes?.mode2?.enabled ?? false, [selectedDepartment]);
 
+    const handleStartVerification = (mode: number) => {
+        if (!selectedDepartmentId) {
+            toast({ title: "Error", description: "Please select a department first.", variant: "destructive" });
+            return;
+        }
+        if (mode === 1) {
+            router.push(`/verify-attendance-mode1?deptId=${selectedDepartmentId}`);
+        } else {
+             toast({title: "Coming Soon!", description: "This feature is under development."})
+        }
+    }
+
     if (userLoading || loadingDepartments) {
         return (
             <div className="p-4 sm:p-6 space-y-6">
@@ -124,7 +136,7 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                          <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                            <Button size="lg" disabled={!mode1Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
+                            <Button size="lg" disabled={!mode1Active} onClick={() => handleStartVerification(1)}>
                                 Start Verification <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                             {!mode1Active && (
@@ -151,7 +163,7 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                            <Button size="lg" disabled={!mode2Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
+                            <Button size="lg" disabled={!mode2Active} onClick={() => handleStartVerification(2)}>
                                Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                             {!mode2Active && (
