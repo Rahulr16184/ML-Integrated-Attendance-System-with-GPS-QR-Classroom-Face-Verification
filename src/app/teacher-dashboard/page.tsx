@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Info, CreditCard, DatabaseZap, CalendarDays, Settings, School, MapPin, ClipboardCheck, Camera, QrCode, ToggleRight } from "lucide-react";
+import { Info, CreditCard, DatabaseZap, CalendarDays, Settings, School, MapPin, ClipboardCheck, Camera, QrCode, ToggleRight, Hash } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -119,6 +119,12 @@ export default function TeacherDashboardPage() {
                     <Link href="/ma-modes">
                         <ToggleRight className="h-8 w-8" />
                         <span className="text-sm font-semibold">MA MODES ENABLE/DISABLE</span>
+                    </Link>
+                </Button>
+                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
+                    <Link href="/classroom-code-generator">
+                        <Hash className="h-8 w-8" />
+                        <span className="text-sm font-semibold">CLASSROOM CODE</span>
                     </Link>
                 </Button>
             </CardContent>

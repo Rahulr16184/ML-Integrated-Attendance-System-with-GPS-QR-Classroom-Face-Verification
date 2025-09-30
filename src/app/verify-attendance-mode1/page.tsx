@@ -8,16 +8,18 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { getInstitutions } from '@/services/institution-service';
+import { getInstitutions, verifyClassroomCode } from '@/services/institution-service';
 import type { Department, ClassroomPhoto } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp, KeyRound } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { LatLngExpression } from 'leaflet';
 import { Progress } from '@/components/ui/progress';
 import { getFaceApi, loadModels } from '@/lib/face-api';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 import { updateClassroomDescriptorsCache, getClassroomCacheStatus } from '@/services/system-cache-service';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 
 const STEPS = [
@@ -65,6 +67,7 @@ export default function VerifyAttendanceMode1Page() {
     const searchParams = useSearchParams();
     const departmentId = searchParams.get('deptId');
     const { userProfile, loading: userProfileLoading } = useUserProfile();
+    const { toast } = useToast();
 
     const [department, setDepartment] = useState<Department | null>(null);
     const [loading, setLoading] = useState(true);
@@ -88,6 +91,9 @@ export default function VerifyAttendanceMode1Page() {
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const [referenceDescriptors, setReferenceDescriptors] = useState<Float32Array[]>([]);
+    const [showCodeInput, setShowCodeInput] = useState(false);
+    const [verificationCode, setVerificationCode] = useState("");
+    const [isVerifyingCode, setIsVerifyingCode] = useState(false);
 
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
@@ -327,11 +333,41 @@ export default function VerifyAttendanceMode1Page() {
     }, [handleClassroomVerification]);
 
     const startClassroomVerification = async () => {
+        setShowCodeInput(false);
         setStepStatus('verifying');
         setStatusMessage('Starting camera...');
         await startCamera();
         setStepStatus('instructions');
     }
+
+    const handleVerifyCode = async () => {
+        if (!verificationCode || !userProfile?.institutionId || !departmentId) return;
+        setIsVerifyingCode(true);
+        setStatusMessage("Verifying code...");
+        setStepStatus('verifying');
+
+        try {
+            const result = await verifyClassroomCode(userProfile.institutionId, departmentId, verificationCode);
+            if(result.success) {
+                setStatusMessage(result.message);
+                setStepStatus('success');
+                setTimeout(() => {
+                    setCurrentStep(2); // Move to next step
+                    setStepStatus('instructions');
+                }, 1500);
+            } else {
+                setStatusMessage(result.message);
+                setStepStatus('failed');
+                toast({ title: "Verification Failed", description: result.message, variant: "destructive" });
+            }
+        } catch (error) {
+            setStatusMessage("An error occurred during code verification.");
+            setStepStatus('failed');
+        } finally {
+            setIsVerifyingCode(false);
+        }
+    }
+
 
     // Effect to trigger verification for the current step
     useEffect(() => {
@@ -370,11 +406,36 @@ export default function VerifyAttendanceMode1Page() {
         );
 
         const renderClassroomContent = () => {
+             if (showCodeInput) {
+                return (
+                    <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+                        <p className="text-muted-foreground font-medium">Enter the 6-digit code provided by your teacher.</p>
+                        <Input 
+                            type="text"
+                            maxLength={6}
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                            className="text-center text-2xl tracking-widest font-mono"
+                            placeholder="_ _ _ _ _ _"
+                        />
+                         <div className="flex flex-col sm:flex-row gap-2 w-full">
+                            <Button onClick={handleVerifyCode} disabled={isVerifyingCode || verificationCode.length !== 6} className="w-full">
+                                {isVerifyingCode ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4"/>}
+                                Verify Code
+                            </Button>
+                            <Button variant="link" onClick={() => setShowCodeInput(false)} disabled={isVerifyingCode}>
+                                Use Camera Instead
+                            </Button>
+                        </div>
+                    </div>
+                )
+            }
             if (stepStatus === 'instructions' && !isScanning) {
                 return (
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage || `Point your camera at the ${CLASSROOM_VERIFICATION_PROMPTS[classroomVerificationSubstep]} of the classroom.`}</p>
                         <Button onClick={startScan}>Start {CLASSROOM_VERIFICATION_PROMPTS[classroomVerificationSubstep]} Scan</Button>
+                        <Button variant="link" onClick={() => { stopCamera(); setShowCodeInput(true); }}>Enter Code Instead</Button>
                     </div>
                 )
             }
@@ -394,7 +455,8 @@ export default function VerifyAttendanceMode1Page() {
                  return (
                      <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage}</p>
-                        <Button onClick={startClassroomVerification}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
+                        <Button onClick={startClassroomVerification}><RefreshCw className="mr-2 h-4 w-4" /> Try Camera Again</Button>
+                        <Button variant="link" onClick={() => setShowCodeInput(true)}>Enter Code Instead</Button>
                      </div>
                  )
              }
@@ -413,8 +475,8 @@ export default function VerifyAttendanceMode1Page() {
                 content = renderGpsContent();
                 break;
             case 1:
-                if (stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning)) {
-                    showMainIcon = false; // Hide main status icon during instructions/scanning
+                if (showCodeInput || stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning)) {
+                    showMainIcon = false; // Hide main status icon during instructions/scanning/code input
                 }
                 content = renderClassroomContent();
                 break;
@@ -444,6 +506,7 @@ export default function VerifyAttendanceMode1Page() {
                             <Button onClick={startClassroomVerification} disabled={referenceDescriptors.length === 0}>
                                 {referenceDescriptors.length > 0 ? "Start Classroom Verification" : "Loading/No Classroom Photos"}
                             </Button>
+                            <Button variant="link" onClick={() => setShowCodeInput(true)}>Enter Code Instead</Button>
                         </div>
                     ) : content}
                 </CardContent>
@@ -503,7 +566,7 @@ export default function VerifyAttendanceMode1Page() {
             </div>
             
             <div className="max-w-2xl mx-auto">
-                {currentStep === 1 && (stepStatus === 'verifying' || stepStatus === 'instructions' || stepStatus === 'pending') ? (
+                {currentStep === 1 && (stepStatus === 'verifying' || stepStatus === 'instructions' || stepStatus === 'pending') && !showCodeInput ? (
                      <Card>
                         <CardContent className="p-4">
                            <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden relative">

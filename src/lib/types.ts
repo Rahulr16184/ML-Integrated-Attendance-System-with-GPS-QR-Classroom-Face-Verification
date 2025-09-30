@@ -37,6 +37,10 @@ export type Department = {
     mode1: ModeConfig;
     mode2: ModeConfig;
   };
+  classroomCode?: {
+    code: string;
+    expiresAt: number; // Store as Firestore Timestamp or number
+  }
 };
 
 export type Institution = {
@@ -53,8 +57,3 @@ export type Semester = {
   holidays: string[];
   workingDays: number;
 };
-
-    
-
-    
-
