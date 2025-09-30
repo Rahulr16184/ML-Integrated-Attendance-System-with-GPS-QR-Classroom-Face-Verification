@@ -18,8 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
 import { Upload, Camera as CameraIcon, ImageOff, Loader2, Save, Trash2, X } from "lucide-react";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type PhotoCategory = 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls';
 
@@ -48,33 +48,27 @@ const PhotoUploadSection = ({
       <CardDescription>{description}</CardDescription>
     </CardHeader>
     <CardContent className="space-y-4">
-      <div className="relative w-full rounded-md border-dashed border-2 flex items-center justify-center bg-muted overflow-hidden">
+      <div className="relative w-full rounded-md border-dashed border-2 flex items-center justify-center bg-muted overflow-hidden min-h-[200px]">
         {isUploading ? (
           <div className="aspect-video w-full flex flex-col items-center gap-2 justify-center text-muted-foreground">
             <Loader2 className="animate-spin h-8 w-8" />
             <span>Processing...</span>
           </div>
         ) : imageUrls && imageUrls.length > 0 ? (
-          <Carousel className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
-            <CarouselContent>
+          <ScrollArea className="h-64 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-2">
               {imageUrls.map((url, index) => (
-                <CarouselItem key={index} className="relative group">
-                   <div className="aspect-video relative">
-                     <Image src={url} alt={`${title} ${index + 1}`} fill className="object-contain" data-ai-hint="classroom" />
-                   </div>
+                <div key={index} className="relative group aspect-square">
+                   <Image src={url} alt={`${title} ${index + 1}`} fill className="object-cover rounded-md" data-ai-hint="classroom" />
                    <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onDeleteClick(category, url)}>
-                        <Trash2 className="h-4 w-4" />
+                    <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => onDeleteClick(category, url)}>
+                        <Trash2 className="h-3 w-3" />
                     </Button>
                    </AlertDialogTrigger>
-                </CarouselItem>
+                </div>
               ))}
-            </CarouselContent>
-            {imageUrls.length > 1 && <>
-                <CarouselPrevious className="left-2" />
-                <CarouselNext className="right-2" />
-            </>}
-          </Carousel>
+            </div>
+          </ScrollArea>
         ) : (
           <div className="aspect-video w-full flex flex-col items-center gap-2 justify-center text-muted-foreground">
             <ImageOff className="h-10 w-10" />
