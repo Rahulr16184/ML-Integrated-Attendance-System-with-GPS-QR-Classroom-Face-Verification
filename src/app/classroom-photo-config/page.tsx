@@ -86,6 +86,17 @@ export default function ClassroomPhotoConfigPage() {
   const selectedDepartment = departments.find(d => d.id === selectedDepartmentId);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const referrer = document.referrer;
+        const validReferrers = ['/admin-dashboard', '/teacher-dashboard'];
+        const isFromDashboard = validReferrers.some(path => referrer.endsWith(path));
+
+        if (!isFromDashboard) {
+            router.push('/login');
+            return;
+        }
+    }
+
     if (userLoading) {
       return; 
     }
@@ -123,7 +134,7 @@ export default function ClassroomPhotoConfigPage() {
     }
     fetchDepartments();
 
-  }, [userProfile, userLoading, router, toast]);
+  }, [userProfile, userLoading, router, toast, selectedDepartmentId]);
 
   const handleFileUpload = async (file: File) => {
     if (!activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
@@ -266,5 +277,3 @@ export default function ClassroomPhotoConfigPage() {
     </div>
   );
 }
-
-    
