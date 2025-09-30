@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
-import type { Department } from "@/lib/types";
+import type { Department, ModeConfig } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -81,7 +81,7 @@ export default function MarkAttendancePage() {
 
 
     const isModeActive = (mode: 'mode1' | 'mode2'): boolean => {
-        if (!selectedDepartment || !selectedDepartment.modes?.[mode]) {
+        if (!selectedDepartment || !selectedDepartment.modes || !selectedDepartment.modes[mode]) {
             return false;
         }
         const modeConfig = selectedDepartment.modes[mode];
@@ -159,10 +159,11 @@ export default function MarkAttendancePage() {
                             <Button size="lg" disabled={!mode1Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
                                 Start Verification <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                            {!mode1Active && (
+                            {!mode1Active && selectedDepartment?.modes?.mode1 && (
                                 <p className="text-muted-foreground mt-4 text-sm">
                                     This mode is not currently active.
-                                    {selectedDepartment?.modes?.mode1.enabled && ` It will be active between ${selectedDepartment.modes.mode1.startTime} and ${selectedDepartment.modes.mode1.endTime}.`}
+                                    {selectedDepartment.modes.mode1.enabled && ` It will be active between ${selectedDepartment.modes.mode1.startTime} and ${selectedDepartment.modes.mode1.endTime}.`}
+                                    {!selectedDepartment.modes.mode1.enabled && ` This mode is currently disabled by your teacher.`}
                                 </p>
                             )}
                         </CardContent>
@@ -187,10 +188,11 @@ export default function MarkAttendancePage() {
                             <Button size="lg" disabled={!mode2Active} onClick={() => toast({title: "Coming Soon!", description: "This feature is under development."})}>
                                Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                            {!mode2Active && (
+                            {!mode2Active && selectedDepartment?.modes?.mode2 && (
                                <p className="text-muted-foreground mt-4 text-sm">
                                    This mode is not currently active.
-                                   {selectedDepartment?.modes?.mode2.enabled && ` It will be active between ${selectedDepartment.modes.mode2.startTime} and ${selectedDepartment.modes.mode2.endTime}.`}
+                                   {selectedDepartment.modes.mode2.enabled && ` It will be active between ${selectedDepartment.modes.mode2.startTime} and ${selectedDepartment.modes.mode2.endTime}.`}
+                                   {!selectedDepartment.modes.mode2.enabled && ` This mode is currently disabled by your teacher.`}
                                </p>
                             )}
                         </CardContent>
