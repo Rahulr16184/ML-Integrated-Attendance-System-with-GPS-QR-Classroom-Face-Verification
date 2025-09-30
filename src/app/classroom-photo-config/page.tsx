@@ -75,7 +75,6 @@ export default function ClassroomPhotoConfigPage() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const [loadingDepartments, setLoadingDepartments] = useState(true);
@@ -87,34 +86,44 @@ export default function ClassroomPhotoConfigPage() {
   const selectedDepartment = departments.find(d => d.id === selectedDepartmentId);
 
   useEffect(() => {
-    const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
-    if (role !== 'admin' && role !== 'teacher') {
-      router.push('/login');
-    } else {
-      setIsAuthorized(true);
+    if (userLoading) {
+      return; 
     }
-  }, [router]);
-
-  useEffect(() => {
+    if (!userProfile) {
+      router.push('/login');
+      return;
+    }
+    if (userProfile.role !== 'admin' && userProfile.role !== 'teacher') {
+      router.push('/login');
+      return;
+    }
+    
     async function fetchDepartments() {
       if (userProfile?.institutionId && userProfile.departmentIds) {
         setLoadingDepartments(true);
-        const institutions = await getInstitutions();
-        const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
-        if (currentInstitution) {
-          const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
-          setDepartments(userDepartments);
-          if (userDepartments.length > 0 && !selectedDepartmentId) {
-            setSelectedDepartmentId(userDepartments[0].id);
-          }
+        try {
+            const institutions = await getInstitutions();
+            const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
+            if (currentInstitution) {
+            const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
+            setDepartments(userDepartments);
+            if (userDepartments.length > 0 && !selectedDepartmentId) {
+                setSelectedDepartmentId(userDepartments[0].id);
+            }
+            }
+        } catch (error) {
+            console.error("Failed to fetch departments", error);
+            toast({ title: "Error", description: "Could not fetch departments.", variant: "destructive" });
+        } finally {
+            setLoadingDepartments(false);
         }
+      } else {
         setLoadingDepartments(false);
       }
     }
-    if (isAuthorized && !userLoading) {
-      fetchDepartments();
-    }
-  }, [userProfile, userLoading, isAuthorized]);
+    fetchDepartments();
+
+  }, [userProfile, userLoading, router, toast]);
 
   const handleFileUpload = async (file: File) => {
     if (!activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
@@ -237,7 +246,12 @@ export default function ClassroomPhotoConfigPage() {
         ref={fileInputRef}
         className="hidden"
         accept="image/png, image/jpeg"
-        onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+        onChange={(e) => {
+          if (e.target.files?.[0]) {
+            handleFileUpload(e.target.files[0]);
+          }
+          e.target.value = ''; // Reset the input
+        }}
       />
       
       {/* Capture Photo Modal */}
@@ -252,3 +266,5 @@ export default function ClassroomPhotoConfigPage() {
     </div>
   );
 }
+
+    
