@@ -15,8 +15,9 @@ import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, Ar
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { LatLngExpression } from 'leaflet';
 import { Progress } from '@/components/ui/progress';
-import { getFaceApi } from '@/lib/face-api';
-import { getCachedDescriptor, cacheDescriptor, getCachedClassroomDescriptors, cacheClassroomDescriptors } from '@/services/descriptor-cache-service';
+import { getFaceApi, loadModels } from '@/lib/face-api';
+import { getCachedDescriptor } from '@/services/system-cache-service';
+import { updateClassroomDescriptorsCache, getClassroomCacheStatus } from '@/services/system-cache-service';
 
 
 const STEPS = [
@@ -107,12 +108,21 @@ export default function VerifyAttendanceMode1Page() {
             if (userProfile?.institutionId) {
                 setLoading(true);
                 try {
+                    await loadModels(); // Ensure models are loaded before anything else
                     const institutions = await getInstitutions();
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
                     const currentDept = currentInstitution?.departments.find(dept => dept.id === departmentId);
 
                     if (currentDept) {
                         setDepartment(currentDept);
+                        const status = await getClassroomCacheStatus(currentDept);
+                        if(status.needsUpdate) {
+                           await updateClassroomDescriptorsCache(currentDept);
+                        }
+                        const cachedDescriptors = getCachedDescriptor(`classroom_${currentDept.id}`);
+                        if (cachedDescriptors) {
+                            setReferenceDescriptors([cachedDescriptors]);
+                        }
                         setError(null);
                     } else {
                         setError(`Department not found.`);
@@ -207,62 +217,14 @@ export default function VerifyAttendanceMode1Page() {
     }, [deviceHeading, userLocation, department, stepStatus]);
     
     // Classroom Verification Logic
-    const fetchImageAndComputeDescriptor = async (imageUrl: string): Promise<Float32Array[]> => {
-        if (!imageUrl) return [];
-        const faceapi = await getFaceApi();
-        try {
-            // Check cache first
-            const cached = getCachedDescriptor(imageUrl);
-            if (cached) return [cached];
-
-            const img = await faceapi.fetchImage(imageUrl);
-            const detections = await faceapi.detectAllFaces(img).withFaceLandmarks().withFaceDescriptors();
-            
-            // Cache the descriptors
-            detections.forEach(d => cacheDescriptor(imageUrl, d.descriptor));
-
-            return detections.map(d => d.descriptor);
-        } catch (e) {
-            console.error('Failed to process reference image', e);
-            return [];
-        }
-    };
-    
     useEffect(() => {
-        const prepareClassroomDescriptors = async () => {
-            if (department?.id) {
-                setStatusMessage("Preparing verification models...");
-                
-                const cached = getCachedClassroomDescriptors(department.id);
-                if (cached) {
-                    setReferenceDescriptors(cached);
-                    setStatusMessage("Models ready.");
-                    return;
-                }
-                
-                await getFaceApi(); // Make sure models are loaded
-
-                const allPhotos = [
-                    ...(department.classroomPhotoUrls || []),
-                    ...(department.studentsInClassroomPhotoUrls || [])
-                ].filter(p => p.embedded && p.url);
-
-                if (allPhotos.length === 0) {
-                     setReferenceDescriptors([]);
-                     setStatusMessage("No reference classroom photos found.");
-                     return;
-                }
-
-                const descriptorsPromises = allPhotos.map(photo => fetchImageAndComputeDescriptor(photo.url));
-                const descriptorsArrays = await Promise.all(descriptorsPromises);
-                const flatDescriptors = descriptorsArrays.flat();
-
-                cacheClassroomDescriptors(department.id, flatDescriptors);
-                setReferenceDescriptors(flatDescriptors);
-                setStatusMessage("Models ready.");
+        if (department?.id) {
+            const descriptors = getCachedDescriptor(`classroom_${department.id}`);
+            if (descriptors) {
+                 const flatDescriptors = JSON.parse(new TextDecoder().decode(descriptors));
+                 setReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
             }
-        };
-        prepareClassroomDescriptors();
+        }
     }, [department]);
 
 
@@ -317,7 +279,8 @@ export default function VerifyAttendanceMode1Page() {
         let userFaceFound = false;
         const userDescriptor = getCachedDescriptor('userProfileImage');
         if (userDescriptor && detections.length > 0) {
-             const faceMatcher = new faceapi.FaceMatcher([userDescriptor]);
+             const userFloatDescriptor = new Float32Array(JSON.parse(new TextDecoder().decode(userDescriptor)));
+             const faceMatcher = new faceapi.FaceMatcher([userFloatDescriptor]);
              detections.forEach(d => {
                  const match = faceMatcher.findBestMatch(d.descriptor);
                  if (match.label !== 'unknown') userFaceFound = true;
@@ -475,7 +438,7 @@ export default function VerifyAttendanceMode1Page() {
                     {showMainIcon && stepStatus === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
                     {showMainIcon && stepStatus === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
 
-                    {currentStep === 1 && stepStatus === 'instructions' && !isScanning ? (
+                    {currentStep === 1 && stepStatus === 'pending' ? (
                         <div className="flex flex-col items-center gap-4">
                             <p className="text-muted-foreground">{statusMessage || `Get ready to scan the classroom.`}</p>
                             <Button onClick={startClassroomVerification} disabled={referenceDescriptors.length === 0}>
@@ -540,7 +503,7 @@ export default function VerifyAttendanceMode1Page() {
             </div>
             
             <div className="max-w-2xl mx-auto">
-                {currentStep === 1 && (stepStatus === 'verifying' || stepStatus === 'instructions') ? (
+                {currentStep === 1 && (stepStatus === 'verifying' || stepStatus === 'instructions' || stepStatus === 'pending') ? (
                      <Card>
                         <CardContent className="p-4">
                            <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden relative">

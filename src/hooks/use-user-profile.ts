@@ -4,8 +4,7 @@
 import { useState, useEffect } from 'react';
 import { getUserData } from '@/services/user-service';
 import type { UserProfile } from '@/services/user-service';
-import { cacheDescriptor, getCachedDescriptor } from '@/services/descriptor-cache-service';
-import { getFaceApi } from '@/lib/face-api';
+import { updateProfileDescriptorCache } from '@/services/system-cache-service';
 
 export function useUserProfile() {
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -21,20 +20,7 @@ export function useUserProfile() {
 
                 // Pre-process and cache the user's profile image descriptor
                 if (data?.profileImage) {
-                    const cachedDescriptor = getCachedDescriptor('userProfileImage');
-                    if (!cachedDescriptor) {
-                        try {
-                            const faceapi = await getFaceApi();
-                            const img = await faceapi.fetchImage(data.profileImage);
-                            const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-                            if (detection) {
-                                cacheDescriptor('userProfileImage', detection.descriptor);
-                                console.log('User profile descriptor cached.');
-                            }
-                        } catch (error) {
-                            console.error("Failed to process user profile image for caching:", error);
-                        }
-                    }
+                    await updateProfileDescriptorCache(data);
                 }
             }
             setLoading(false);

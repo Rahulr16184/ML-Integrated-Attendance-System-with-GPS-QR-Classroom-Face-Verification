@@ -1,6 +1,8 @@
 
 "use client";
 
+// This file is DEPRECATED. Please use system-cache-service.ts instead.
+
 const CACHE_PREFIX = 'face-descriptor-cache-';
 
 /**

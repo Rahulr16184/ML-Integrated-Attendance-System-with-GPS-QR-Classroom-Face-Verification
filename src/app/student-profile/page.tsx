@@ -2,13 +2,14 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import Cropper from 'react-easy-crop'
+import Cropper from 'react-easy-crop';
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/camera-capture";
-import { Upload, Camera as CameraIcon, Save, ShieldAlert, Trash2, CalendarIcon, Crop } from "lucide-react";
+import { Upload, Camera as CameraIcon, Save, ShieldAlert, Trash2, CalendarIcon, Crop, AppWindow } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -25,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { uploadImage, updateUser } from "@/services/user-service";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@/services/user-service";
+import { clearCachedDescriptor } from "@/services/system-cache-service";
 
 export default function StudentProfilePage() {
   const { userProfile, loading, setUserProfile } = useUserProfile();
@@ -68,10 +70,15 @@ export default function StudentProfilePage() {
     }
   };
 
-  const handleCapture = (dataUri: string) => {
+  const handleImageSelected = (dataUri: string) => {
     setNewProfileImage(dataUri);
     setProfileImage(dataUri);
     setCaptureModalOpen(false);
+    setUploadModalOpen(false);
+  };
+
+  const handleCapture = (dataUri: string) => {
+    handleImageSelected(dataUri);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,9 +102,7 @@ export default function StudentProfilePage() {
     if (uploadedImage && croppedAreaPixels) {
       try {
         const croppedImage = await getCroppedImg(uploadedImage, croppedAreaPixels);
-        setNewProfileImage(croppedImage!);
-        setProfileImage(croppedImage!);
-        setUploadModalOpen(false);
+        handleImageSelected(croppedImage!);
         setUploadedImage(null);
       } catch (e) {
         console.error(e);
@@ -115,6 +120,7 @@ export default function StudentProfilePage() {
       let imageUrl = userProfile.profileImage;
       if (newProfileImage) {
         imageUrl = await uploadImage(newProfileImage);
+        clearCachedDescriptor('userProfileImage');
       }
       
       const updatedData = { ...profileData, profileImage: imageUrl };
@@ -168,6 +174,7 @@ export default function StudentProfilePage() {
                 <Skeleton className="h-10 w-24" />
             </div>
              <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4 pt-4 border-t w-full max-w-sm">
+                <Skeleton className="h-10 w-36" />
                 <Skeleton className="h-10 w-36" />
                 <Skeleton className="h-10 w-36" />
             </div>
@@ -304,6 +311,11 @@ export default function StudentProfilePage() {
                 </Button>
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4 pt-4 border-t w-full max-w-sm">
+                 <Button asChild variant="secondary" className="w-full sm:w-auto">
+                    <Link href="/system-update">
+                        <AppWindow className="mr-2 h-4 w-4"/> SYSTEM UPDATE
+                    </Link>
+                </Button>
                 <Button variant="secondary" className="w-full sm:w-auto">Change Password</Button>
                 <Dialog>
                     <DialogTrigger asChild>
