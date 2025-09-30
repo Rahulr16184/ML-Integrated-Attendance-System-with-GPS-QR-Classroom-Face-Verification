@@ -22,6 +22,7 @@ import { AlertCircle } from 'lucide-react'
 import { auth, db } from "@/lib/conf"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
+import { loadModels } from "@/lib/face-api"
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -51,6 +52,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     setIsMounted(true);
+    // Pre-load ML models
+    loadModels().then(() => {
+        console.log("ML models pre-loaded and cached.");
+    });
   }, []);
 
 
