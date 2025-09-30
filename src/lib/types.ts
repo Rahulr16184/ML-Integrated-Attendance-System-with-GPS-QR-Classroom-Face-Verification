@@ -14,6 +14,12 @@ export type ClassroomPhoto = {
   embedded: boolean;
 };
 
+export type ModeConfig = {
+    enabled: boolean;
+    startTime: string;
+    endTime: string;
+};
+
 export type Department = {
   id:string;
   name: string;
@@ -29,6 +35,10 @@ export type Department = {
   radius?: number;
   classroomPhotoUrls?: ClassroomPhoto[];
   studentsInClassroomPhotoUrls?: ClassroomPhoto[];
+  modes?: {
+    mode1: ModeConfig;
+    mode2: ModeConfig;
+  };
 };
 
 export type Institution = {

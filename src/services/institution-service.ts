@@ -142,3 +142,7 @@ export const embedPhotos = async (
     return updatedPhotos;
 };
     
+export const updateDepartmentModes = async (institutionId: string, departmentId: string, modes: Department['modes']): Promise<void> => {
+    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    await updateDoc(departmentDoc, { modes });
+};

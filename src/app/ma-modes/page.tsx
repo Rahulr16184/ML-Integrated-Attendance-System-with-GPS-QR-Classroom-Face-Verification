@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { getInstitutions } from "@/services/institution-service";
-import type { Department } from "@/lib/types";
+import { getInstitutions, updateDepartmentModes } from "@/services/institution-service";
+import type { Department, ModeConfig } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -18,23 +18,20 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Camera, QrCode, UserCheck, Save, Settings } from "lucide-react";
 
 
-interface ModeConfig {
-    enabled: boolean;
-    startTime: string;
-    endTime: string;
-}
-
 interface DepartmentModes {
-    [key: string]: {
-        mode1: ModeConfig;
-        mode2: ModeConfig;
-    };
+    mode1: ModeConfig;
+    mode2: ModeConfig;
 }
 
 const initialModeConfig: ModeConfig = {
     enabled: false,
     startTime: "09:00",
     endTime: "17:00",
+};
+
+const initialDepartmentModes: DepartmentModes = {
+    mode1: initialModeConfig,
+    mode2: initialModeConfig,
 };
 
 export default function MaModesPage() {
@@ -47,7 +44,7 @@ export default function MaModesPage() {
     const [loadingDepartments, setLoadingDepartments] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    const [modesConfig, setModesConfig] = useState<DepartmentModes>({});
+    const [modesConfig, setModesConfig] = useState<DepartmentModes>(initialDepartmentModes);
 
     const [isAuthorized, setIsAuthorized] = useState(false);
 
@@ -71,17 +68,10 @@ export default function MaModesPage() {
                         const userDepartments = currentInstitution.departments.filter(d => userProfile.departmentIds?.includes(d.id));
                         setDepartments(userDepartments);
                         if (userDepartments.length > 0 && !selectedDepartmentId) {
-                            setSelectedDepartmentId(userDepartments[0].id);
+                            const firstDeptId = userDepartments[0].id;
+                            setSelectedDepartmentId(firstDeptId);
+                            setModesConfig(userDepartments[0].modes || initialDepartmentModes);
                         }
-                        // Initialize config for all fetched departments
-                        const initialConfigs: DepartmentModes = {};
-                        userDepartments.forEach(dept => {
-                            initialConfigs[dept.id] = {
-                                mode1: { ...initialModeConfig },
-                                mode2: { ...initialModeConfig },
-                            };
-                        });
-                        setModesConfig(initialConfigs);
                     }
                 } catch (error) {
                     toast({ title: "Error", description: "Could not fetch departments.", variant: "destructive" });
@@ -94,32 +84,39 @@ export default function MaModesPage() {
             fetchDepartments();
         }
     }, [userProfile, isAuthorized, toast]);
+    
+    useEffect(() => {
+        const selectedDept = departments.find(d => d.id === selectedDepartmentId);
+        if (selectedDept) {
+            setModesConfig(selectedDept.modes || initialDepartmentModes);
+        }
+    }, [selectedDepartmentId, departments]);
+
 
     const handleModeChange = (mode: 'mode1' | 'mode2', field: keyof ModeConfig, value: boolean | string) => {
         if (!selectedDepartmentId) return;
         setModesConfig(prev => ({
             ...prev,
-            [selectedDepartmentId]: {
-                ...prev[selectedDepartmentId],
-                [mode]: {
-                    ...prev[selectedDepartmentId][mode],
-                    [field]: value,
-                }
+            [mode]: {
+                ...prev[mode],
+                [field]: value,
             }
         }));
     };
 
     const handleSaveChanges = async () => {
-        if (!selectedDepartmentId) {
+        if (!selectedDepartmentId || !userProfile?.institutionId) {
             toast({ title: "No Department Selected", description: "Please select a department to save settings.", variant: "destructive" });
             return;
         }
         setIsSaving(true);
         try {
-            // Here you would typically call a service to save `modesConfig[selectedDepartmentId]`
-            // to your backend/database for the specific department.
-            console.log("Saving config for", selectedDepartmentId, modesConfig[selectedDepartmentId]);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+            await updateDepartmentModes(userProfile.institutionId, selectedDepartmentId, modesConfig);
+
+            // Update local state to reflect changes without re-fetching
+            setDepartments(prevDepts => prevDepts.map(dept => 
+                dept.id === selectedDepartmentId ? { ...dept, modes: modesConfig } : dept
+            ));
 
             toast({
                 title: "Settings Saved",
@@ -131,10 +128,6 @@ export default function MaModesPage() {
             setIsSaving(false);
         }
     };
-
-    const currentDeptConfig = useMemo(() => {
-        return modesConfig[selectedDepartmentId] || { mode1: initialModeConfig, mode2: initialModeConfig };
-    }, [modesConfig, selectedDepartmentId]);
 
     if (userLoading || loadingDepartments) {
         return (
@@ -187,7 +180,7 @@ export default function MaModesPage() {
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 1</span>
                                 <Switch
-                                    checked={currentDeptConfig.mode1.enabled}
+                                    checked={modesConfig.mode1.enabled}
                                     onCheckedChange={(checked) => handleModeChange('mode1', 'enabled', checked)}
                                 />
                             </CardTitle>
@@ -204,9 +197,9 @@ export default function MaModesPage() {
                                 <Input 
                                     id="mode1-start" 
                                     type="time" 
-                                    value={currentDeptConfig.mode1.startTime}
+                                    value={modesConfig.mode1.startTime}
                                     onChange={(e) => handleModeChange('mode1', 'startTime', e.target.value)}
-                                    disabled={!currentDeptConfig.mode1.enabled}
+                                    disabled={!modesConfig.mode1.enabled}
                                 />
                             </div>
                              <div className="space-y-2">
@@ -214,9 +207,9 @@ export default function MaModesPage() {
                                 <Input 
                                     id="mode1-end" 
                                     type="time" 
-                                    value={currentDeptConfig.mode1.endTime}
+                                    value={modesConfig.mode1.endTime}
                                     onChange={(e) => handleModeChange('mode1', 'endTime', e.target.value)}
-                                    disabled={!currentDeptConfig.mode1.enabled}
+                                    disabled={!modesConfig.mode1.enabled}
                                 />
                             </div>
                         </CardContent>
@@ -228,7 +221,7 @@ export default function MaModesPage() {
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 2</span>
                                 <Switch
-                                    checked={currentDeptConfig.mode2.enabled}
+                                    checked={modesConfig.mode2.enabled}
                                     onCheckedChange={(checked) => handleModeChange('mode2', 'enabled', checked)}
                                 />
                             </CardTitle>
@@ -244,9 +237,9 @@ export default function MaModesPage() {
                                 <Input 
                                     id="mode2-start" 
                                     type="time"
-                                    value={currentDeptConfig.mode2.startTime}
+                                    value={modesConfig.mode2.startTime}
                                     onChange={(e) => handleModeChange('mode2', 'startTime', e.target.value)}
-                                    disabled={!currentDeptConfig.mode2.enabled}
+                                    disabled={!modesConfig.mode2.enabled}
                                 />
                             </div>
                              <div className="space-y-2">
@@ -254,9 +247,9 @@ export default function MaModesPage() {
                                 <Input 
                                     id="mode2-end" 
                                     type="time"
-                                    value={currentDeptConfig.mode2.endTime}
+                                    value={modesConfig.mode2.endTime}
                                     onChange={(e) => handleModeChange('mode2', 'endTime', e.target.value)}
-                                    disabled={!currentDeptConfig.mode2.enabled}
+                                    disabled={!modesConfig.mode2.enabled}
                                 />
                             </div>
                         </CardContent>
