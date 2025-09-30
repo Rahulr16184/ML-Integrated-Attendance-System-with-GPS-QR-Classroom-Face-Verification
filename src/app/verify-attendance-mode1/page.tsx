@@ -63,7 +63,7 @@ const SIMILARITY_THRESHOLD = 0.5; // Adjust as needed (0 to 1)
 export default function VerifyAttendanceMode1Page() {
     const searchParams = useSearchParams();
     const departmentId = searchParams.get('deptId');
-    const { userProfile } = useUserProfile();
+    const { userProfile, loading: userProfileLoading } = useUserProfile();
 
     const [department, setDepartment] = useState<Department | null>(null);
     const [loading, setLoading] = useState(true);
@@ -77,7 +77,6 @@ export default function VerifyAttendanceMode1Page() {
     const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
     const [arrowRotation, setArrowRotation] = useState(0);
 
-    const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     // Classroom verification state
@@ -88,6 +87,7 @@ export default function VerifyAttendanceMode1Page() {
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const [referenceDescriptors, setReferenceDescriptors] = useState<Float32Array[]>([]);
+    const [modelsReady, setModelsReady] = useState(false);
 
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
@@ -98,6 +98,8 @@ export default function VerifyAttendanceMode1Page() {
     // Load Department Details
     useEffect(() => {
         async function fetchDepartmentDetails() {
+            if (userProfileLoading) return;
+            
             if (!departmentId) {
                 setError('No department selected.');
                 setLoading(false);
@@ -121,26 +123,14 @@ export default function VerifyAttendanceMode1Page() {
                 } finally {
                     setLoading(false);
                 }
-            } else if(userProfile === null && !loading) {
+            } else {
                  setError('Could not load user profile.');
                  setLoading(false);
             }
         }
-        if (userProfile && !department) {
-            fetchDepartmentDetails();
-        } else if (userProfile === null && !loading){
-             fetchDepartmentDetails();
-        }
-    }, [departmentId, userProfile, department, loading]);
+        fetchDepartmentDetails();
+    }, [departmentId, userProfile, userProfileLoading]);
 
-    // Load Face-API Models
-    useEffect(() => {
-        const loadMLModels = async () => {
-            await loadModels();
-            setModelsLoaded(true);
-        };
-        loadMLModels();
-    }, []);
 
     // Device Orientation Handler
     const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
@@ -199,7 +189,11 @@ export default function VerifyAttendanceMode1Page() {
                 }
             },
             (err) => {
-                setStatusMessage(`Could not get location: ${err.message}. Please enable location services.`);
+                 let message = `Could not get location: ${err.message}. Please enable location services.`;
+                 if(err.code === err.TIMEOUT) {
+                    message = "Could not get location: Timeout expired. Please enable location services."
+                 }
+                setStatusMessage(message);
                 setStepStatus('failed');
             }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
         );
@@ -227,8 +221,12 @@ export default function VerifyAttendanceMode1Page() {
     
     useEffect(() => {
         const prepareClassroomDescriptors = async () => {
-            if (modelsLoaded && department) {
+            if (department) {
                 setStatusMessage("Preparing verification models...");
+                // The models are pre-loaded on login page, we can directly use them.
+                await loadModels(); // This ensures models are loaded if not already
+                setModelsReady(true);
+
                 const allPhotos = [
                     ...(department.classroomPhotoUrls || []),
                     ...(department.studentsInClassroomPhotoUrls || [])
@@ -243,7 +241,7 @@ export default function VerifyAttendanceMode1Page() {
             }
         };
         prepareClassroomDescriptors();
-    }, [modelsLoaded, department]);
+    }, [department]);
 
 
     const startCamera = useCallback(async () => {
@@ -274,7 +272,7 @@ export default function VerifyAttendanceMode1Page() {
         }
     }, []);
 
-    const handleClassroomVerification = async () => {
+    const handleClassroomVerification = useCallback(async () => {
         if (!videoRef.current || !isCameraLive) return;
         setStepStatus('verifying');
         setStatusMessage(`Scanning... Keep the camera steady.`);
@@ -327,7 +325,7 @@ export default function VerifyAttendanceMode1Page() {
                  stopCamera();
             }
         }
-    };
+    }, [isCameraLive, referenceDescriptors, userProfile, classroomVerificationSubstep, stopCamera]);
     
     const startScan = useCallback(() => {
         setIsScanning(true);
@@ -460,8 +458,8 @@ export default function VerifyAttendanceMode1Page() {
                     {currentStep === 1 && stepStatus === 'instructions' && !isScanning ? (
                         <div className="flex flex-col items-center gap-4">
                             <p className="text-muted-foreground">{statusMessage || `Get ready to scan the classroom.`}</p>
-                            <Button onClick={startClassroomVerification} disabled={!modelsLoaded || referenceDescriptors.length === 0}>
-                                {modelsLoaded && referenceDescriptors.length > 0 ? "Start Classroom Verification" : "Loading Models..."}
+                            <Button onClick={startClassroomVerification} disabled={!modelsReady || referenceDescriptors.length === 0}>
+                                {modelsReady ? (referenceDescriptors.length > 0 ? "Start Classroom Verification" : "No classroom photos available") : "Loading Models..."}
                             </Button>
                         </div>
                     ) : content}
@@ -555,5 +553,7 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
+
+    
 
     
