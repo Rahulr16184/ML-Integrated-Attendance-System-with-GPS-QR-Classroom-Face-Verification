@@ -13,7 +13,6 @@ import type { Department, ClassroomPhoto } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import * as faceapi from 'face-api.js';
 import type { LatLngExpression } from 'leaflet';
 import { Progress } from '@/components/ui/progress';
 import { getFaceApi } from '@/lib/face-api';
@@ -210,7 +209,7 @@ export default function VerifyAttendanceMode1Page() {
     // Classroom Verification Logic
     const fetchImageAndComputeDescriptor = async (imageUrl: string): Promise<Float32Array[]> => {
         if (!imageUrl) return [];
-        const faceapi = getFaceApi();
+        const faceapi = await getFaceApi();
         try {
             // Check cache first
             const cached = getCachedDescriptor(imageUrl);
@@ -240,6 +239,8 @@ export default function VerifyAttendanceMode1Page() {
                     setStatusMessage("Models ready.");
                     return;
                 }
+                
+                await getFaceApi(); // Make sure models are loaded
 
                 const allPhotos = [
                     ...(department.classroomPhotoUrls || []),
@@ -297,7 +298,7 @@ export default function VerifyAttendanceMode1Page() {
         if (!videoRef.current || !isCameraLive) return;
         setStepStatus('verifying');
         setStatusMessage(`Scanning... Keep the camera steady.`);
-        const faceapi = getFaceApi();
+        const faceapi = await getFaceApi();
 
         const detections = await faceapi.detectAllFaces(videoRef.current).withFaceLandmarks().withFaceDescriptors();
         

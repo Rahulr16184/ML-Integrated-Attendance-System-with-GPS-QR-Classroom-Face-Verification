@@ -24,7 +24,7 @@ export function useUserProfile() {
                     const cachedDescriptor = getCachedDescriptor('userProfileImage');
                     if (!cachedDescriptor) {
                         try {
-                            const faceapi = getFaceApi();
+                            const faceapi = await getFaceApi();
                             const img = await faceapi.fetchImage(data.profileImage);
                             const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
                             if (detection) {
