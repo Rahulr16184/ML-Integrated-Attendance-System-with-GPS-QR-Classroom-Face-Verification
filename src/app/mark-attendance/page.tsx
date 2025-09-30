@@ -131,8 +131,8 @@ export default function MarkAttendancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 1</span>
-                                 <Badge variant={isModeActive('mode1') ? 'default' : 'secondary'}>
-                                    {isModeActive('mode1') ? 'Enabled' : 'Disabled'}
+                                 <Badge variant={isModeActive('mode1') ? 'default' : 'destructive'}>
+                                    {isModeActive('mode1') ? 'Active' : 'Inactive'}
                                 </Badge>
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -157,8 +157,8 @@ export default function MarkAttendancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Mode 2</span>
-                               <Badge variant={isModeActive('mode2') ? 'default' : 'secondary'}>
-                                    {isModeActive('mode2') ? 'Enabled' : 'Disabled'}
+                               <Badge variant={isModeActive('mode2') ? 'default' : 'destructive'}>
+                                    {isModeActive('mode2') ? 'Active' : 'Inactive'}
                                 </Badge>
                             </CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-2">
@@ -187,3 +187,5 @@ export default function MarkAttendancePage() {
         </div>
     );
 }
+
+    
