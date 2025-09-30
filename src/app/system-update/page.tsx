@@ -49,7 +49,7 @@ export default function SystemUpdatePage() {
         let items: CacheItem[] = [];
 
         // 1. ML Models
-        const modelsLoaded = await areModelsLoaded();
+        const modelsLoaded = areModelsLoaded();
         items.push({ id: 'ml_models', name: 'Core ML Models', type: 'model', status: modelsLoaded ? 'updated' : 'requires_update', progress: modelsLoaded ? 100 : 0, isProcessing: false });
 
         // 2. Profile Photo
@@ -106,7 +106,7 @@ export default function SystemUpdatePage() {
                 const dept = departments.find(d => d.id === deptId);
                 if (dept) {
                     await updateClassroomDescriptorsCache(dept);
-                    setCacheItems(prev- => prev.map(item => item.id === itemId ? { ...item, status: 'updated', progress: 100 } : item));
+                    setCacheItems(prev => prev.map(item => item.id === itemId ? { ...item, status: 'updated', progress: 100 } : item));
                     toast({ title: "Success", description: `${dept.name} classroom analysis updated.` });
                 }
             }

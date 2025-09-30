@@ -36,6 +36,10 @@ export async function loadModels() {
   await modelsLoaded;
 }
 
+export function areModelsLoaded(): boolean {
+    return modelsLoaded === true;
+}
+
 export async function getFaceApi() {
     await loadModels();
     return faceapi;
