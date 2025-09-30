@@ -129,7 +129,7 @@ const getClassroomSourceId = (department: Department) => {
     const allEmbeddedUrls = [
         ...(department.classroomPhotoUrls?.filter(p => p.embedded).map(p => p.url) || []),
         ...(department.studentsInClassroomPhotoUrls?.filter(p => p.embedded).map(p => p.url) || []),
-    ].sort();
+    ].filter(url => !!url).sort(); // Filter out undefined/null URLs
 
     // Simple hash function
     return allEmbeddedUrls.reduce((hash, url) => {
