@@ -63,12 +63,14 @@ export default function MarkAttendancePage() {
                 } finally {
                     setLoadingDepartments(false);
                 }
+            } else if (!userLoading) {
+                setLoadingDepartments(false);
             }
         }
         if (userProfile) {
             fetchDepartments();
         }
-    }, [userProfile, toast, selectedDepartmentId]);
+    }, [userProfile, userLoading, toast, selectedDepartmentId]);
 
     const isModeActive = (mode: 'mode1' | 'mode2'): boolean => {
         if (!selectedDepartment || !selectedDepartment.modes?.[mode]) {
