@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions } from '@/services/institution-service';
-import type { Department, ClassroomPhoto } from '@/lib/types';
+import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, MoveUp, MoveDown, MoveLeft, MoveRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { loadModels, getFaceApi } from '@/lib/face-api';
 import * as faceapi from 'face-api.js';
@@ -47,7 +47,7 @@ const getDirection = (from: { lat: number, lng: number }, to: { lat: number, lng
     } else {
         return lngDiff > 0 ? { name: 'East', icon: ArrowRight } : { name: 'West', icon: ArrowLeft };
     }
-}
+};
 
 export default function VerifyAttendanceMode1Page() {
     const searchParams = useSearchParams();
@@ -62,9 +62,12 @@ export default function VerifyAttendanceMode1Page() {
     const [stepStatus, setStepStatus] = useState<'pending' | 'verifying' | 'success' | 'failed'>('pending');
     const [statusMessage, setStatusMessage] = useState('');
     const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+    const [directionalSuggestion, setDirectionalSuggestion] = useState<{ name: string; icon: React.ComponentType<any>; distance: number } | null>(null);
+
 
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const watchIdRef = useRef<number | null>(null);
 
     const Map = useMemo(() => dynamic(() => import('@/components/map'), { 
         loading: () => <Skeleton className="h-full w-full" />,
@@ -114,7 +117,14 @@ export default function VerifyAttendanceMode1Page() {
         loadMLModels();
     }, []);
 
-    const verifyGps = useCallback(() => {
+    const stopGpsWatch = useCallback(() => {
+        if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+        }
+    }, []);
+
+    const startGpsVerification = useCallback(() => {
         if (!department?.location) {
             setStatusMessage("GPS location for this department is not set. Skipping.");
             setStepStatus('success');
@@ -124,59 +134,53 @@ export default function VerifyAttendanceMode1Page() {
 
         setStepStatus('verifying');
         setStatusMessage('Getting your location...');
-        navigator.geolocation.getCurrentPosition(
+        setDirectionalSuggestion(null);
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 const currentUserLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
                 setUserLocation(currentUserLocation);
                 const distance = getDistance(currentUserLocation, department.location!);
                 
                 if (distance <= (department.radius || 100)) {
-                    setStatusMessage(`Location verified! You are at the center.`);
+                    setStatusMessage(`Location verified! You are inside the zone.`);
                     setStepStatus('success');
+                    setDirectionalSuggestion(null);
+                    stopGpsWatch();
                     setTimeout(() => setCurrentStep(1), 1500);
                 } else {
                     const direction = getDirection(currentUserLocation, department.location!);
-                    setStatusMessage(`You are ${distance.toFixed(0)}m ${direction.name} of the zone. Please move towards the center.`);
-                    setStepStatus('failed');
+                    setDirectionalSuggestion({ name: direction.name, icon: direction.icon, distance });
+                    setStatusMessage(`You are outside the designated zone. Please move towards the center.`);
+                    setStepStatus('failed'); // Keep it as failed to show guidance
                 }
             },
             (err) => {
                 setStatusMessage(`Could not get location: ${err.message}. Please enable location services.`);
                 setStepStatus('failed');
-            }, { enableHighAccuracy: true }
+                setDirectionalSuggestion(null);
+                stopGpsWatch();
+            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [department]);
+    }, [department, stopGpsWatch]);
     
     // Effect to trigger verification for the current step
     useEffect(() => {
         if (loading || !department) return;
 
         if (currentStep === 0 && stepStatus === 'pending') {
-            verifyGps();
+            startGpsVerification();
         }
-        // Future steps will be added here
-    }, [currentStep, stepStatus, loading, department, verifyGps]);
+        
+        return () => {
+             stopGpsWatch();
+        };
+    }, [currentStep, stepStatus, loading, department, startGpsVerification, stopGpsWatch]);
 
 
     const renderStepContent = () => {
         const CurrentIcon = STEPS[currentStep].icon;
         
-        let directionalSuggestion = null;
-        if (stepStatus === 'failed' && userLocation && department?.location) {
-            const distance = getDistance(userLocation, department.location);
-            if (distance > (department.radius || 100)) {
-                const directionToCenter = getDirection(userLocation, department.location);
-                const DirectionIcon = directionToCenter.icon;
-                directionalSuggestion = (
-                    <div className="flex flex-col items-center gap-2 text-sm text-center">
-                        <p>Move {distance.toFixed(0)} meters towards the zone.</p>
-                        <DirectionIcon className="h-8 w-8 animate-pulse" />
-                    </div>
-                );
-            }
-        }
-
-
         return (
             <Card>
                 <CardHeader>
@@ -185,31 +189,35 @@ export default function VerifyAttendanceMode1Page() {
                         Step {currentStep + 1}: {STEPS[currentStep].title} Verification
                     </CardTitle>
                     <CardDescription>
-                        {loading ? <Skeleton className="h-4 w-1/2 mt-1" /> : `Verifying for department: ${department?.name}`}
+                        {`Verifying for department: ${department?.name}`}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="min-h-[200px] flex flex-col items-center justify-center gap-4 text-center">
                     {stepStatus === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
                     {stepStatus === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
-                    {stepStatus === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
+                    {stepStatus === 'failed' && !directionalSuggestion && <XCircle className="h-12 w-12 text-destructive" />}
 
                     <p className="text-muted-foreground font-medium">{statusMessage}</p>
 
-                    {stepStatus === 'failed' && (
-                        <>
-                            <Button onClick={verifyGps}>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Retry
-                            </Button>
-                            {directionalSuggestion}
-                        </>
+                     {stepStatus === 'failed' && directionalSuggestion && (
+                        <div className="flex flex-col items-center gap-2 text-sm text-center">
+                            <p>You are {directionalSuggestion.distance.toFixed(0)}m away. Move {directionalSuggestion.name} to get in range.</p>
+                            <directionalSuggestion.icon className="h-8 w-8 animate-pulse" />
+                        </div>
+                    )}
+                    
+                    {stepStatus === 'failed' && !directionalSuggestion && (
+                        <Button onClick={startGpsVerification}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Retry
+                        </Button>
                     )}
                 </CardContent>
             </Card>
         );
     };
 
-    if (loading || !department) {
+    if (loading) {
         return (
             <div className="p-4 sm:p-6 space-y-6">
                 <Skeleton className="h-10 w-2/3 mx-auto" />
@@ -231,6 +239,7 @@ export default function VerifyAttendanceMode1Page() {
     }
     
     const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
+    const markerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : mapCenter;
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
@@ -263,16 +272,17 @@ export default function VerifyAttendanceMode1Page() {
                 {renderStepContent()}
             </div>
             
-            {currentStep === 0 && mapCenter && (
+            {currentStep === 0 && mapCenter && markerPosition && (
                  <Card className="max-w-2xl mx-auto">
                      <CardHeader>
                          <CardTitle>Verification Map</CardTitle>
                      </CardHeader>
                      <CardContent className="h-80 w-full p-0">
-                         <Map position={mapCenter} radius={department.radius} draggable={false} />
+                         <Map position={markerPosition} radius={department.radius} draggable={false} />
                      </CardContent>
                  </Card>
             )}
         </div>
     );
 }
+
