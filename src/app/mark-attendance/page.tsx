@@ -68,7 +68,7 @@ export default function MarkAttendancePage() {
         if (userProfile) {
             fetchDepartments();
         }
-    }, [userProfile, toast]);
+    }, [userProfile, toast, selectedDepartmentId]);
 
     const isModeActive = (mode: 'mode1' | 'mode2'): boolean => {
         if (!selectedDepartment || !selectedDepartment.modes?.[mode]) {
