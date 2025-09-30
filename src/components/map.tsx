@@ -86,13 +86,17 @@ const Map = ({ position, userPosition = null, radius = 100, onPositionChange, dr
              if (userMarkerInstance.current) {
                 userMarkerInstance.current.setLatLng(userPosition);
             } else {
-                userMarkerInstance.current = L.marker(userPosition, { icon: userIcon }).addTo(mapInstance.current);
+                userMarkerInstance.current = L.marker(userPosition, { icon: userIcon }).addTo(mapInstance.current).bindPopup("Your Location");
             }
+            // Fit map to both markers
+            const bounds = L.latLngBounds([position, userPosition]);
+            mapInstance.current.fitBounds(bounds.pad(0.2)); // pad adds some margin
         } else {
             if (userMarkerInstance.current) {
                 userMarkerInstance.current.remove();
                 userMarkerInstance.current = null;
             }
+            mapInstance.current.setView(position, 15);
         }
 
 

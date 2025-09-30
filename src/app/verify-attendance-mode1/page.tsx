@@ -90,7 +90,6 @@ export default function VerifyAttendanceMode1Page() {
                 return;
             }
             if (userProfile?.institutionId) {
-                setLoading(true);
                 try {
                     const institutions = await getInstitutions();
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
@@ -133,6 +132,8 @@ export default function VerifyAttendanceMode1Page() {
     }, []);
 
     const startGpsVerification = useCallback(() => {
+        if (!department) return; // Guard against running before department is loaded
+
         if (!department?.location) {
             setStatusMessage("GPS location for this department is not set. Skipping.");
             setStepStatus('success');
@@ -175,6 +176,7 @@ export default function VerifyAttendanceMode1Page() {
                         if(deviceHeading !== null) {
                             setArrowRotation(bearing - deviceHeading);
                         }
+                        const direction = getBearing(currentUserLocation, department.location);
                         setStatusMessage(`You are ${distance.toFixed(0)}m away. Follow the arrow to get in range.`);
                         setStepStatus('failed');
                     }
@@ -278,6 +280,7 @@ export default function VerifyAttendanceMode1Page() {
         <div className="p-4 sm:p-6 space-y-6">
             <div className="space-y-2 text-center">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">GPS+CLASSROOM VERIFICATION+FACE VERIFICATION</h1>
+                {department && <p className="text-muted-foreground">Department: {department.name}</p>}
             </div>
 
             {/* Stepper UI */}
