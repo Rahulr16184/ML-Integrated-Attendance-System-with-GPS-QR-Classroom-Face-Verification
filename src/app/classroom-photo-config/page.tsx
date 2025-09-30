@@ -22,6 +22,7 @@ import { Upload, Camera as CameraIcon, ImageOff, Loader2, Save, Trash2, CheckCir
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { updateClassroomDescriptorsCache } from "@/services/system-cache-service";
 
 type PhotoCategory = 'classroomPhotoUrls' | 'studentsInClassroomPhotoUrls';
 
@@ -163,7 +164,7 @@ export default function ClassroomPhotoConfigPage() {
       }
     }
     fetchInitialData();
-  }, [userProfile, userLoading, router, toast]);
+  }, [userProfile, userLoading, router, toast, selectedDepartmentId]);
 
   const handleImageSelected = (dataUri: string, category: PhotoCategory) => {
     setActivePhotoCategory(category);
@@ -249,15 +250,24 @@ export default function ClassroomPhotoConfigPage() {
 
   const handleEmbed = async (category: PhotoCategory) => {
     if (!userProfile?.institutionId || !selectedDepartmentId) return;
+    const deptToUpdate = departments.find(d => d.id === selectedDepartmentId);
+    if (!deptToUpdate) return;
+
     setIsEmbedding(category);
     try {
+      // Step 1: Update the 'embedded' flag in Firestore
       const updatedPhotos = await embedPhotos(userProfile.institutionId, selectedDepartmentId, category);
       
+      // Step 2: Update local state to reflect the change immediately
+      const updatedDept = { ...deptToUpdate, [category]: updatedPhotos };
       setDepartments(prev => prev.map(d => 
-        d.id === selectedDepartmentId ? { ...d, [category]: updatedPhotos } : d
+        d.id === selectedDepartmentId ? updatedDept : d
       ));
 
-      toast({ title: "Success", description: "New photos have been processed for embedding." });
+      // Step 3: Trigger the client-side ML processing and caching
+      await updateClassroomDescriptorsCache(updatedDept);
+
+      toast({ title: "Success", description: "New photos have been processed and cached for verification." });
 
     } catch (error) {
       console.error(error);

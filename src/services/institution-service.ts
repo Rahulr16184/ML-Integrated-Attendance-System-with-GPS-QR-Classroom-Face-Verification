@@ -133,10 +133,8 @@ export const embedPhotos = async (
         !photo.embedded ? { ...photo, embedded: true } : photo
     );
 
-    // Here you would add the actual ML embedding generation logic
-    // For now, we just update the flags.
-    console.log(`Generating embedding for ${photoType} in department ${departmentId}`);
-
+    // The actual ML processing is now triggered on the client-side.
+    // This server function just updates the flags in the database.
     await updateDoc(departmentDocRef, { [photoType]: updatedPhotos });
 
     return updatedPhotos;
