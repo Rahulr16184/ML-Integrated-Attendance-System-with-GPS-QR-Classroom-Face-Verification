@@ -61,10 +61,10 @@ const PhotoUploadSection = ({
                      <Image src={url} alt={`${title} ${index + 1}`} fill className="object-contain" data-ai-hint="classroom" />
                    </div>
                    <AlertDialogTrigger asChild>
-                      <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onDeleteClick(url)}>
-                          <Trash2 className="h-4 w-4" />
-                      </Button>
-                  </AlertDialogTrigger>
+                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onDeleteClick(url)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                   </AlertDialogTrigger>
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -113,8 +113,17 @@ export default function ClassroomPhotoConfigPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
         const referrer = document.referrer;
+        const currentHost = window.location.host;
+        const referrerHost = referrer ? new URL(referrer).host : '';
+
+        if (referrerHost !== currentHost) {
+             router.push('/login');
+             return;
+        }
+
         const validReferrers = ['/admin-dashboard', '/teacher-dashboard'];
-        const isFromDashboard = validReferrers.some(path => new URL(referrer).pathname === path);
+        const referrerPath = referrer ? new URL(referrer).pathname : '';
+        const isFromDashboard = validReferrers.some(path => referrerPath === path);
 
         if (!isFromDashboard) {
             router.push('/login');
@@ -156,7 +165,7 @@ export default function ClassroomPhotoConfigPage() {
         }
     }
     fetchInitialData();
-  }, [userProfile, userLoading, router, toast]);
+  }, [userProfile, userLoading, router, toast, selectedDepartmentId]);
 
 
   const handleImageSelected = (dataUri: string, category: PhotoCategory) => {
@@ -254,6 +263,7 @@ export default function ClassroomPhotoConfigPage() {
 
   return (
     <>
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <div className="p-4 sm:p-6 space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Classroom Photo Configuration</h1>
         <div className="max-w-md space-y-2">
@@ -343,7 +353,7 @@ export default function ClassroomPhotoConfigPage() {
         </Dialog>
 
         {/* Delete Confirmation */}
-        <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+       
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -356,8 +366,9 @@ export default function ClassroomPhotoConfigPage() {
                     <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
-        </AlertDialog>
+        
         </div>
+      </AlertDialog>
     </>
   );
 }
