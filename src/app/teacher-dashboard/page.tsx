@@ -116,7 +116,7 @@ export default function TeacherDashboardPage() {
                     </Link>
                 </Button>
                  <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
-                    <Link href="#">
+                    <Link href="/ma-modes">
                         <ToggleRight className="h-8 w-8" />
                         <span className="text-sm font-semibold">MA MODES ENABLE/DISABLE</span>
                     </Link>
