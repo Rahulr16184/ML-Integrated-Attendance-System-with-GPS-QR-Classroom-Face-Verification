@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -113,7 +114,7 @@ export default function ClassroomPhotoConfigPage() {
     if (isAuthorized && !userLoading) {
       fetchDepartments();
     }
-  }, [userProfile, userLoading, isAuthorized, selectedDepartmentId]);
+  }, [userProfile, userLoading, isAuthorized]);
 
   const handleFileUpload = async (file: File) => {
     if (!activePhotoCategory || !userProfile?.institutionId || !selectedDepartmentId) return;
