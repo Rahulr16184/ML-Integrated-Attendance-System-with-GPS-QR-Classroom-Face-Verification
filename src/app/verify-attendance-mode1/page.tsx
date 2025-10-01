@@ -387,8 +387,13 @@ export default function VerifyAttendanceMode1Page() {
     }
 
     const handleFaceVerification = useCallback(async () => {
-        if (!videoRef.current || !isCameraLive || !userProfileDescriptor) {
+        if (!userProfileDescriptor) {
             setStatusMessage('User profile data not found for verification.');
+            setStepStatus('failed');
+            return;
+        }
+        if (!videoRef.current || !isCameraLive) {
+            setStatusMessage('Camera not ready. Please try again.');
             setStepStatus('failed');
             return;
         }
@@ -520,7 +525,7 @@ export default function VerifyAttendanceMode1Page() {
                 return (
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage || 'Center your face in the camera.'}</p>
-                        <Button onClick={handleFaceVerification}>Start Face Scan</Button>
+                        <Button onClick={startScan}>Start Face Scan</Button>
                     </div>
                 )
             }
@@ -684,3 +689,5 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
+
+    
