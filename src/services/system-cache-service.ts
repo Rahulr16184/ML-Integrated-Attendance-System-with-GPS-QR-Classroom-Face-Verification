@@ -11,7 +11,6 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 const CACHE_PREFIX = 'system-cache-v1-';
-const PROFILE_KEY = 'userProfileImage';
 
 type CacheMetadata = {
     source: string; // e.g., URL of the image or a unique ID for a set of images
@@ -43,7 +42,7 @@ function setCachedDescriptor(key: string, descriptor: Float32Array | Float32Arra
  * @param key - The unique key for the data.
  * @returns An object with the descriptor and metadata, or null if not found.
  */
-function getCachedDescriptorWithMetadata(key: string): { descriptor: Float32Array | Float32Array[], metadata: CacheMetadata } | null {
+function getCachedDescriptorWithMetadata(key: string): { descriptor: any, metadata: CacheMetadata } | null {
     try {
         const stored = sessionStorage.getItem(CACHE_PREFIX + key);
         if (!stored) return null;
@@ -51,11 +50,7 @@ function getCachedDescriptorWithMetadata(key: string): { descriptor: Float32Arra
         const parsed = JSON.parse(stored);
         if (!parsed.descriptor || !parsed.metadata) return null;
         
-        const descriptor = Array.isArray(parsed.descriptor[0])
-            ? parsed.descriptor.map((d: number[]) => new Float32Array(d))
-            : new Float32Array(parsed.descriptor);
-
-        return { descriptor, metadata: parsed.metadata };
+        return parsed;
     } catch (error) {
         console.error(`Failed to retrieve cached descriptor for key "${key}":`, error);
         return null;
@@ -85,7 +80,7 @@ export async function getProfileCacheStatus(userProfile: UserProfile): Promise<{
     if (!userProfile.profileImage) {
         return { needsUpdate: false }; // No image to cache.
     }
-    const cached = getCachedDescriptorWithMetadata(PROFILE_KEY);
+    const cached = getCachedDescriptorWithMetadata(userProfile.uid);
     if (!cached || cached.metadata.source !== userProfile.profileImage) {
         return { needsUpdate: true };
     }
@@ -106,13 +101,13 @@ export async function updateProfileDescriptorCache(userProfile: UserProfile): Pr
         const img = await faceapi.fetchImage(userProfile.profileImage);
         const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
         if (detection) {
-            setCachedDescriptor(PROFILE_KEY, detection.descriptor, {
+            setCachedDescriptor(userProfile.uid, detection.descriptor, {
                 source: userProfile.profileImage,
                 createdAt: Date.now(),
             });
             console.log('User profile descriptor cache updated.');
         } else {
-             clearCachedDescriptor(PROFILE_KEY);
+             clearCachedDescriptor(userProfile.uid);
         }
     } catch (error) {
         console.error("Failed to update profile descriptor cache:", error);
@@ -206,8 +201,10 @@ export function getCachedDescriptor(key: string): Uint8Array | null {
   try {
     const item = getCachedDescriptorWithMetadata(key);
     if (!item) return null;
-    return encoder.encode(JSON.stringify(item.descriptor));
+    return encoder.encode(JSON.stringify(item));
   } catch (e) {
     return null;
   }
 }
+
+    

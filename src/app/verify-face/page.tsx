@@ -19,7 +19,7 @@ import { getFaceApi } from '@/lib/face-api';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 import { Progress } from '@/components/ui/progress';
 
-const SIMILARITY_THRESHOLD = 0.55; // Threshold for face match (face-api.js L2 distance)
+const SIMILARITY_THRESHOLD = 0.55; // Threshold for face match (face-api.js L2 distance, lower is better)
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -61,13 +61,13 @@ export default function VerifyFacePage() {
                 await getFaceApi();
                 
                 // Get cached user descriptor
-                const cachedDescriptor = getCachedDescriptor('userProfileImage');
-                if (cachedDescriptor) {
-                    const parsedDescriptor = JSON.parse(new TextDecoder().decode(cachedDescriptor));
-                    setUserDescriptor(new Float32Array(parsedDescriptor));
+                const cachedDescriptorData = getCachedDescriptor(userProfile.uid);
+                if (cachedDescriptorData) {
+                    const parsedDescriptor = JSON.parse(new TextDecoder().decode(cachedDescriptorData));
+                    setUserDescriptor(new Float32Array(parsedDescriptor.descriptor));
                     setFeedbackMessage('Models loaded. Ready to scan.');
                 } else {
-                    setError("Your profile photo hasn't been analyzed. Please go to your profile and set a picture.");
+                    setError("Your profile photo hasn't been analyzed. Please go to your profile, set a picture, and run the System Update.");
                 }
 
             } catch (err) {
@@ -96,6 +96,30 @@ export default function VerifyFacePage() {
         }
         setIsCameraLive(false);
     }, [stopDetection]);
+    
+    const detectFace = async () => {
+        if (!videoRef.current || !userDescriptor || videoRef.current.paused || videoRef.current.ended) return;
+        const faceapi = await getFaceApi();
+        const detections = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
+
+        if (detections) {
+            const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
+            const currentSimilarity = 1 - distance; 
+            setSimilarity(currentSimilarity);
+
+            if (distance < SIMILARITY_THRESHOLD) {
+                setStatus('verified');
+                setFeedbackMessage('Face Verified!');
+                stopCamera();
+                // TODO: Here you would log the attendance record to your database
+            } else {
+                 setFeedbackMessage("Keep your face centered.");
+            }
+        } else {
+            setFeedbackMessage("Center your face in the frame.");
+            setSimilarity(null);
+        }
+    };
 
     const startCamera = useCallback(async () => {
         if (isCameraLive || !userDescriptor) return;
@@ -118,31 +142,6 @@ export default function VerifyFacePage() {
         }
     }, [isCameraLive, userDescriptor]);
     
-    const detectFace = async () => {
-        if (!videoRef.current || !userDescriptor) return;
-        const faceapi = await getFaceApi();
-        const detections = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
-
-        if (detections) {
-            setFeedbackMessage("Face detected, verifying...");
-            const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
-            const currentSimilarity = 1 - distance; // Higher is better
-            setSimilarity(currentSimilarity);
-
-            if (distance < SIMILARITY_THRESHOLD) {
-                setStatus('verified');
-                setFeedbackMessage('Similarity Verified!');
-                stopCamera();
-                // TODO: Here you would log the attendance record to your database
-            } else {
-                 setFeedbackMessage("Face does not match. Try again.");
-            }
-        } else {
-            setFeedbackMessage("Center your face in the frame.");
-            setSimilarity(null);
-        }
-    };
-    
     useEffect(() => {
         // Cleanup function
         return () => stopCamera();
@@ -153,7 +152,7 @@ export default function VerifyFacePage() {
             return (
                 <div className="flex items-center gap-2 text-green-600">
                     <CheckCircle className="h-5 w-5" />
-                    <span className="font-semibold">Similarity Verified</span>
+                    <span className="font-semibold">Face Verified!</span>
                 </div>
             )
         }
@@ -251,3 +250,5 @@ export default function VerifyFacePage() {
         </div>
     );
 }
+
+    
