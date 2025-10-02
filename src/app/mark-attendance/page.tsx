@@ -68,7 +68,7 @@ export default function MarkAttendancePage() {
             return;
         }
         if (mode === 1) {
-            router.push(`/verify-attendance-mode1?deptId=${selectedDepartmentId}`);
+            router.push(`/verify-gps?deptId=${selectedDepartmentId}`);
         } else {
              toast({title: "Coming Soon!", description: "This feature is under development."})
         }

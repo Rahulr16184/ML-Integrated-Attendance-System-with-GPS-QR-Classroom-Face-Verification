@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Header } from "@/components/header";
 
 export const metadata: Metadata = {
-  title: "TRACEIN - Attendance Verification",
+  title: "TRACEIN - Face Verification",
   description: "ML integrated attendance system",
 };
 
