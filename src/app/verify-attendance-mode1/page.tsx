@@ -249,14 +249,15 @@ export default function VerifyAttendanceMode1Page() {
     }, [department]);
 
 
-    const startCamera = useCallback(async () => {
+    const startCamera = useCallback(async (step: number) => {
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
         }
         setIsCameraLive(false);
         try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            const facingMode = step === 1 ? 'environment' : 'user';
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
                 await videoRef.current.play();
@@ -349,7 +350,7 @@ export default function VerifyAttendanceMode1Page() {
         setShowCodeInput(false);
         setStepStatus('verifying');
         setStatusMessage('Starting camera...');
-        await startCamera();
+        await startCamera(1); // 1 for classroom step
         setStepStatus('instructions');
     }
 
@@ -384,7 +385,7 @@ export default function VerifyAttendanceMode1Page() {
     const startFaceVerification = async () => {
         setStepStatus('verifying');
         setStatusMessage('Starting camera for face verification...');
-        await startCamera();
+        await startCamera(2); // 2 for face step
         setStepStatus('instructions');
     }
 
@@ -523,13 +524,21 @@ export default function VerifyAttendanceMode1Page() {
         };
 
         const renderFaceContent = () => {
-             if (stepStatus === 'instructions') {
+             if (stepStatus === 'instructions' && !isScanning) {
                 return (
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage || 'Center your face in the camera.'}</p>
                         <Button onClick={startScan} disabled={!userProfileDescriptor}>
                            {userProfileDescriptor ? "Start Face Scan" : "Loading Profile..."}
                         </Button>
+                    </div>
+                )
+            }
+             if (stepStatus === 'verifying' && isScanning) {
+                return (
+                     <div className="flex flex-col items-center gap-4">
+                        <p className="text-muted-foreground font-medium">Scanning... Keep your face still for {scanCountdown}s.</p>
+                        <Progress value={((SCAN_DURATION - scanCountdown) / SCAN_DURATION) * 100} className="w-full" />
                     </div>
                 )
             }
@@ -684,7 +693,8 @@ export default function VerifyAttendanceMode1Page() {
                         <CardContent className="p-4">
                            <div className={cameraFrameColor}>
                                 <video ref={videoRef} autoPlay playsInline muted className={cn(
-                                    "w-full h-full object-cover transform -scale-x-100",
+                                    "w-full h-full object-cover",
+                                    currentStep === 2 ? "transform -scale-x-100" : "", // Mirror for face verification only
                                     isCameraLive ? "block" : "hidden"
                                 )}/>
                                 {!isCameraLive && <p className="text-muted-foreground">Camera is starting...</p>}
