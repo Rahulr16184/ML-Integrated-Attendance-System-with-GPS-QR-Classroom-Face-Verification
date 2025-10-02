@@ -110,7 +110,7 @@ export default function VerifyFacePage() {
                 setFeedbackMessage('Face Verified!');
                 stopCamera();
             } else {
-                setFeedbackMessage("Keep your face centered.");
+                setFeedbackMessage(`Similarity: ${(currentSimilarity * 100).toFixed(0)}%`);
             }
         } else {
             setSimilarity(0);
@@ -125,13 +125,13 @@ export default function VerifyFacePage() {
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
             if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
                 videoRef.current.onloadedmetadata = () => {
                     videoRef.current?.play();
                     setIsCameraLive(true);
                     setFeedbackMessage('Center your face in the frame.');
                     detectionIntervalRef.current = setInterval(detectFace, 500);
                 }
+                videoRef.current.srcObject = mediaStream;
             }
         } catch (err) {
             setError(`Camera error: ${(err as Error).message}. Please grant permissions.`);
@@ -144,33 +144,29 @@ export default function VerifyFacePage() {
         return () => stopCamera();
     }, [stopCamera]);
 
-    const renderVerificationStatus = () => {
-        const percentage = similarity === null ? 0 : Math.max(0, Math.min(100, Math.round(similarity * 100)));
-
-        if (status === 'scanning') {
-            return (
-                 <div className="w-full max-w-xs text-center space-y-2">
-                    <p className="text-sm text-muted-foreground">{feedbackMessage}</p>
-                    {feedbackMessage !== "No face detected." && (
-                        <>
-                            <Progress value={percentage} />
-                            <p className="text-sm font-medium">{percentage}% Match</p>
-                        </>
-                    )}
-                </div>
-            )
-        }
+    const renderFeedback = () => {
         if (status === 'verified') {
             return (
                 <div className="text-center space-y-2">
                     <div className="flex items-center justify-center gap-2 text-green-600">
                         <CheckCircle className="h-5 w-5" />
-                        <span className="font-semibold">{feedbackMessage}</span>
+                        <span className="font-semibold">Face Verified!</span>
                     </div>
+                </div>
+            );
+        }
+        
+        if (status === 'scanning' && similarity !== null) {
+             const percentage = Math.max(0, Math.min(100, Math.round(similarity * 100)));
+            return (
+                 <div className="w-full max-w-xs text-center space-y-2">
+                    <p className="text-sm text-muted-foreground">{feedbackMessage}</p>
+                    <Progress value={percentage} />
+                    <p className="text-sm font-medium">{percentage}% Match</p>
                 </div>
             )
         }
-        
+
         return <p className="text-muted-foreground text-sm">{feedbackMessage}</p>;
     }
 
@@ -246,7 +242,7 @@ export default function VerifyFacePage() {
                         )}
 
                         <div className="h-16 mt-2 flex flex-col justify-center items-center">
-                            {renderVerificationStatus()}
+                            {renderFeedback()}
                         </div>
                          {status === 'verified' && (
                              <Button onClick={() => router.push('/student-dashboard')}>Done</Button>
