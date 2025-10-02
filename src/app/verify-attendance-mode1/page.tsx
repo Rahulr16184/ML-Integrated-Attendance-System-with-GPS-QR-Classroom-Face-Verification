@@ -258,16 +258,8 @@ export default function VerifyAttendanceMode1Page() {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
-                // Use onloadedmetadata to ensure the video dimensions are known before playing
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play().then(() => {
-                        setIsCameraLive(true);
-                    }).catch(playErr => {
-                         console.error("Video play failed:", playErr);
-                         setStatusMessage('Could not start video playback.');
-                         setStepStatus('failed');
-                    });
-                };
+                await videoRef.current.play();
+                setIsCameraLive(true);
             }
         } catch (err) {
             setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
@@ -499,8 +491,8 @@ export default function VerifyAttendanceMode1Page() {
             if (stepStatus === 'instructions' && !isScanning) {
                 return (
                     <div className="flex flex-col items-center gap-4">
-                        <p className="text-muted-foreground font-medium">{statusMessage || `Point your camera at the ${CLASSROOM_VERIFICATION_PROMPTS[classroomVerificationSubstep]} of the classroom.`}</p>
-                        <Button onClick={startScan}>Start {CLASSROOM_VERIFICATION_PROMPTS[classroomVerificationSubstep]} Scan</Button>
+                        <p className="text-muted-foreground font-medium">{statusMessage || `Point your camera at the classroom.`}</p>
+                        <Button onClick={startScan}>Start Scan</Button>
                         <Button variant="link" onClick={() => { stopCamera(); setShowCodeInput(true); }}>Enter Code Instead</Button>
                     </div>
                 )
