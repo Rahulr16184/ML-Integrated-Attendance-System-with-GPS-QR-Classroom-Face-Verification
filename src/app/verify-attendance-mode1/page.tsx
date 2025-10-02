@@ -17,8 +17,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { LatLngExpression } from 'leaflet';
 import { Progress } from '@/components/ui/progress';
 import { getFaceApi } from '@/lib/face-api';
-import { getCachedDescriptor } from '@/services/system-cache-service';
-import { updateClassroomDescriptorsCache, getClassroomCacheStatus } from '@/services/system-cache-service';
+import { getCachedDescriptor, updateClassroomDescriptorsCache, getClassroomCacheStatus } from '@/services/system-cache-service';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { VerificationInfoDialog } from '@/components/verification-info-dialog';
@@ -189,6 +188,31 @@ export default function VerifyAttendanceMode1Page() {
         }
     }, []);
 
+    const startCamera = useCallback(async (step: number) => {
+        if (videoRef.current?.srcObject) {
+            stopCamera();
+        }
+        setIsCameraLive(false);
+        setStepStatus('verifying');
+        setStatusMessage('Starting camera...');
+
+        try {
+            const facingMode = step === 1 ? 'environment' : 'user';
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+                await videoRef.current.play();
+                setIsCameraLive(true);
+                setStepStatus('instructions');
+                setStatusMessage('');
+            }
+        } catch (err) {
+            setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
+            setStepStatus('failed');
+            setIsCameraLive(false);
+        }
+    }, [stopCamera]);
+
     const startGpsVerification = useCallback(() => {
         if (!department) return;
 
@@ -254,27 +278,6 @@ export default function VerifyAttendanceMode1Page() {
             setArrowRotation(bearing - deviceHeading);
         }
     }, [deviceHeading, userLocation, department, stepStatus]);
-
-    const startCamera = useCallback(async (step: number) => {
-        if (videoRef.current?.srcObject) {
-            stopCamera();
-        }
-        setIsCameraLive(false);
-
-        try {
-            const facingMode = step === 1 ? 'environment' : 'user';
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-                await videoRef.current.play();
-                setIsCameraLive(true);
-            }
-        } catch (err) {
-            setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
-            setStepStatus('failed');
-            setIsCameraLive(false);
-        }
-    }, [stopCamera]);
 
     const handleFaceVerification = useCallback(async () => {
         if (!userProfileDescriptor) {
@@ -366,10 +369,10 @@ export default function VerifyAttendanceMode1Page() {
     }, [isCameraLive, envReferenceDescriptors, studentReferenceDescriptors, classroomVerificationSubstep, stopCamera]);
     
     const startScan = useCallback(() => {
+        setStepStatus('verifying'); // Move this inside
         setIsScanning(true);
         setScanCountdown(SCAN_DURATION);
-        setStepStatus('verifying');
-
+    
         countdownIntervalRef.current = setInterval(() => {
             setScanCountdown(prev => prev > 0 ? prev - 1 : 0);
         }, 1000);
@@ -382,14 +385,6 @@ export default function VerifyAttendanceMode1Page() {
         }, SCAN_DURATION * 1000);
 
     }, [currentStep, handleClassroomVerification, handleFaceVerification]);
-
-    const startClassroomVerification = async () => {
-        setShowCodeInput(false);
-        setStepStatus('verifying');
-        setStatusMessage('Starting camera...');
-        await startCamera(1); // 1 for classroom step
-        setStepStatus('instructions');
-    }
 
     const handleVerifyCode = async () => {
         if (!verificationCode || !userProfile?.institutionId || !departmentId) return;
@@ -419,13 +414,6 @@ export default function VerifyAttendanceMode1Page() {
         }
     }
 
-    const startFaceVerification = async () => {
-        setStepStatus('verifying');
-        setStatusMessage('Starting camera for face verification...');
-        await startCamera(2); // 2 for face step
-        setStepStatus('instructions');
-    }
-
     // Effect to trigger verification for the current step
     useEffect(() => {
         if (loading || !department) return;
@@ -434,12 +422,13 @@ export default function VerifyAttendanceMode1Page() {
             startGpsVerification();
         }
 
+        // Cleanup effect
         return () => {
             window.removeEventListener('deviceorientation', handleOrientation, true);
-            if(scanIntervalRef.current) clearTimeout(scanIntervalRef.current);
-            if(countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            if (scanIntervalRef.current) clearTimeout(scanIntervalRef.current);
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
             stopCamera();
-        }
+        };
     }, [currentStep, stepStatus, loading, department, startGpsVerification, handleOrientation, stopCamera]);
 
 
@@ -480,7 +469,7 @@ export default function VerifyAttendanceMode1Page() {
                                 {isVerifyingCode ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4"/>}
                                 Verify Code
                             </Button>
-                            <Button variant="link" onClick={() => setShowCodeInput(false)} disabled={isVerifyingCode}>
+                            <Button variant="link" onClick={() => { setShowCodeInput(false); setStepStatus('pending') }} disabled={isVerifyingCode}>
                                 Use Camera Instead
                             </Button>
                         </div>
@@ -496,9 +485,6 @@ export default function VerifyAttendanceMode1Page() {
                     </div>
                 )
             }
-             if (stepStatus === 'verifying' && isScanning) {
-                return null;
-            }
              if (stepStatus === 'verifying' && !isScanning) {
                 return <p className="text-muted-foreground font-medium">{statusMessage}</p>
              }
@@ -507,7 +493,7 @@ export default function VerifyAttendanceMode1Page() {
                  return (
                      <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage}</p>
-                        <Button onClick={startClassroomVerification}><RefreshCw className="mr-2 h-4 w-4" /> Try Camera Again</Button>
+                        <Button onClick={() => startCamera(1)}><RefreshCw className="mr-2 h-4 w-4" /> Try Camera Again</Button>
                         <Button variant="link" onClick={() => setShowCodeInput(true)}>Enter Code Instead</Button>
                      </div>
                  )
@@ -527,14 +513,11 @@ export default function VerifyAttendanceMode1Page() {
                     </div>
                 )
             }
-             if (stepStatus === 'verifying' && isScanning) {
-                return null;
-            }
              if (stepStatus === 'failed') {
                  return (
                      <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage}</p>
-                        <Button onClick={startFaceVerification}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
+                        <Button onClick={() => startCamera(2)}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
                      </div>
                  )
              }
@@ -559,14 +542,14 @@ export default function VerifyAttendanceMode1Page() {
                 break;
             case 1:
                 isCameraStep = true;
-                if (showCodeInput || stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning) || !isCameraLive) {
+                if (showCodeInput || stepStatus === 'instructions' || isScanning || !isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderClassroomContent();
                 break;
             case 2:
                 isCameraStep = true;
-                 if (stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning) || !isCameraLive) {
+                 if (stepStatus === 'instructions' || isScanning || !isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderFaceContent();
@@ -592,7 +575,7 @@ export default function VerifyAttendanceMode1Page() {
                     {isCameraStep && stepStatus === 'pending' ? (
                         <div className="flex flex-col items-center gap-4">
                              <p className="text-muted-foreground">{statusMessage || `Get ready for the next step.`}</p>
-                             <Button onClick={currentStep === 1 ? startClassroomVerification : startFaceVerification} disabled={currentStep === 2 && !userProfileDescriptor}>
+                             <Button onClick={() => startCamera(currentStep)} disabled={currentStep === 2 && !userProfileDescriptor}>
                                 {currentStep === 2 && !userProfileDescriptor ? "Loading Profile..." : `Start ${STEPS[currentStep].title} Verification`}
                             </Button>
                              {currentStep === 1 && <Button variant="link" onClick={() => setShowCodeInput(true)}>Enter Code Instead</Button>}
@@ -713,5 +696,3 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
-
-    
