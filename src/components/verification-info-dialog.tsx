@@ -33,7 +33,7 @@ export function VerificationInfoDialog({ department, userProfile, children }: Ve
         ...(department.classroomPhotoUrls || []),
         ...(department.studentsInClassroomPhotoUrls || [])
     ];
-    return photos.filter(p => p.embedded);
+    return photos.filter(p => p.embedded && p.url);
   }, [department]);
 
   const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : null;
