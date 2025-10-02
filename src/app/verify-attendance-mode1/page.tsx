@@ -22,6 +22,7 @@ import { updateClassroomDescriptorsCache, getClassroomCacheStatus } from '@/serv
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { VerificationInfoDialog } from '@/components/verification-info-dialog';
+import { cn } from '@/lib/utils';
 
 
 const STEPS = [
@@ -629,6 +630,16 @@ export default function VerifyAttendanceMode1Page() {
     const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
     const userMarkerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
     const isCameraStep = (currentStep === 1 || currentStep === 2) && !showCodeInput && stepStatus !== 'success';
+    
+    const cameraFrameColor = cn(
+        "aspect-square w-full max-w-sm mx-auto bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 transition-colors",
+        {
+            "border-muted": stepStatus === 'pending' || stepStatus === 'instructions',
+            "border-primary animate-pulse": stepStatus === 'verifying' && isScanning,
+            "border-green-500": stepStatus === 'success',
+            "border-destructive": stepStatus === 'failed',
+        }
+    );
 
 
     return (
@@ -671,8 +682,11 @@ export default function VerifyAttendanceMode1Page() {
                 {isCameraStep && (stepStatus === 'verifying' || stepStatus === 'instructions' || stepStatus === 'pending') ? (
                      <Card>
                         <CardContent className="p-4">
-                           <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden relative">
-                                <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover transform -scale-x-100 ${isCameraLive ? "block" : "hidden"}`}/>
+                           <div className={cameraFrameColor}>
+                                <video ref={videoRef} autoPlay playsInline muted className={cn(
+                                    "w-full h-full object-cover transform -scale-x-100",
+                                    isCameraLive ? "block" : "hidden"
+                                )}/>
                                 {!isCameraLive && <p className="text-muted-foreground">Camera is starting...</p>}
                                 {isScanning && (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white gap-2">
@@ -701,3 +715,4 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
+
