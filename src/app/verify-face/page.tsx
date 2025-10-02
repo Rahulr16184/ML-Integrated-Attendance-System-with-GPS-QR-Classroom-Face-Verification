@@ -95,7 +95,7 @@ export default function VerifyFacePage() {
     }, [stopDetection]);
     
     const detectFace = async () => {
-        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor) return;
+        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) return;
         const faceapi = await getFaceApi();
 
         const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
@@ -138,7 +138,7 @@ export default function VerifyFacePage() {
             setStatus('failed');
             setIsCameraLive(false);
         }
-    }, [isCameraLive, userDescriptor, detectFace]);
+    }, [isCameraLive, userDescriptor]);
     
     useEffect(() => {
         return () => stopCamera();
