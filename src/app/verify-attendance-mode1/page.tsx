@@ -180,6 +180,15 @@ export default function VerifyAttendanceMode1Page() {
         }
     }, []);
 
+    const stopCamera = useCallback(() => {
+         if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach((track) => track.stop());
+            videoRef.current.srcObject = null;
+            setIsCameraLive(false);
+        }
+    }, []);
+
     const startGpsVerification = useCallback(() => {
         if (!department) return;
 
@@ -246,10 +255,9 @@ export default function VerifyAttendanceMode1Page() {
         }
     }, [deviceHeading, userLocation, department, stepStatus]);
 
-     const startCamera = useCallback(async (step: number) => {
+    const startCamera = useCallback(async (step: number) => {
         if (videoRef.current?.srcObject) {
-            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
+            stopCamera();
         }
         setIsCameraLive(false);
 
@@ -266,16 +274,45 @@ export default function VerifyAttendanceMode1Page() {
             setStepStatus('failed');
             setIsCameraLive(false);
         }
-    }, []);
+    }, [stopCamera]);
 
-    const stopCamera = useCallback(() => {
-         if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach((track) => track.stop());
-            videoRef.current.srcObject = null;
-            setIsCameraLive(false);
+    const handleFaceVerification = useCallback(async () => {
+        if (!userProfileDescriptor) {
+            setStatusMessage('User profile data not found for verification.');
+            setStepStatus('failed');
+            return;
         }
-    }, []);
+        if (!videoRef.current || !isCameraLive) {
+            setStatusMessage('Camera not ready. Please try again.');
+            setStepStatus('failed');
+            return;
+        }
+        
+        setStepStatus('verifying');
+        setStatusMessage('Scanning face...');
+        const faceapi = await getFaceApi();
+
+        const detection = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
+
+        if (detection) {
+            const faceMatcher = new faceapi.FaceMatcher(userProfileDescriptor);
+            const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+            
+            if (bestMatch.label !== 'unknown' && 1 - bestMatch.distance > FACE_MATCH_THRESHOLD) {
+                setStatusMessage(`Face verified successfully! Attendance marked.`);
+                setStepStatus('success');
+                stopCamera();
+                // TODO: Here you would make an API call to record the attendance
+            } else {
+                setStatusMessage(`Face does not match profile. Please try again.`);
+                setStepStatus('failed');
+            }
+        } else {
+            setStatusMessage('No face detected. Please position your face in the center.');
+            setStepStatus('failed');
+        }
+
+    }, [isCameraLive, userProfileDescriptor, stopCamera]);
 
     const handleClassroomVerification = useCallback(async () => {
         if (!videoRef.current || !isCameraLive) return;
@@ -344,7 +381,7 @@ export default function VerifyAttendanceMode1Page() {
             setIsScanning(false);
         }, SCAN_DURATION * 1000);
 
-    }, [handleClassroomVerification, currentStep]);
+    }, [currentStep, handleClassroomVerification, handleFaceVerification]);
 
     const startClassroomVerification = async () => {
         setShowCodeInput(false);
@@ -388,45 +425,6 @@ export default function VerifyAttendanceMode1Page() {
         await startCamera(2); // 2 for face step
         setStepStatus('instructions');
     }
-
-    const handleFaceVerification = useCallback(async () => {
-        if (!userProfileDescriptor) {
-            setStatusMessage('User profile data not found for verification.');
-            setStepStatus('failed');
-            return;
-        }
-        if (!videoRef.current || !isCameraLive) {
-            setStatusMessage('Camera not ready. Please try again.');
-            setStepStatus('failed');
-            return;
-        }
-        
-        setStepStatus('verifying');
-        setStatusMessage('Scanning face...');
-        const faceapi = await getFaceApi();
-
-        const detection = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
-
-        if (detection) {
-            const faceMatcher = new faceapi.FaceMatcher(userProfileDescriptor);
-            const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-            
-            if (bestMatch.label !== 'unknown' && 1 - bestMatch.distance > FACE_MATCH_THRESHOLD) {
-                setStatusMessage(`Face verified successfully! Attendance marked.`);
-                setStepStatus('success');
-                stopCamera();
-                // TODO: Here you would make an API call to record the attendance
-            } else {
-                setStatusMessage(`Face does not match profile. Please try again.`);
-                setStepStatus('failed');
-            }
-        } else {
-            setStatusMessage('No face detected. Please position your face in the center.');
-            setStepStatus('failed');
-        }
-
-    }, [isCameraLive, userProfileDescriptor, stopCamera]);
-
 
     // Effect to trigger verification for the current step
     useEffect(() => {
@@ -715,3 +713,5 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
+
+    
