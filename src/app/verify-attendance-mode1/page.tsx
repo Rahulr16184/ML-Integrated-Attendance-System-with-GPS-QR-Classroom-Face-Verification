@@ -184,15 +184,14 @@ export default function VerifyAttendanceMode1Page() {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach((track) => track.stop());
             videoRef.current.srcObject = null;
-            setIsCameraLive(false);
         }
+        setIsCameraLive(false);
     }, []);
 
     const startCamera = useCallback(async (step: number) => {
         if (videoRef.current?.srcObject) {
             stopCamera();
         }
-        setIsCameraLive(false);
         setStepStatus('verifying');
         setStatusMessage('Starting camera...');
 
@@ -291,7 +290,6 @@ export default function VerifyAttendanceMode1Page() {
             return;
         }
         
-        setStepStatus('verifying');
         setStatusMessage('Scanning face...');
         const faceapi = await getFaceApi();
 
@@ -319,8 +317,7 @@ export default function VerifyAttendanceMode1Page() {
 
     const handleClassroomVerification = useCallback(async () => {
         if (!videoRef.current || !isCameraLive) return;
-        setStepStatus('verifying');
-        setStatusMessage('Scanning... Keep the camera steady.');
+        setStatusMessage('Analyzing...');
         const faceapi = await getFaceApi();
 
         const detections = await faceapi.detectAllFaces(videoRef.current).withFaceLandmarks().withFaceDescriptors();
@@ -369,18 +366,22 @@ export default function VerifyAttendanceMode1Page() {
     }, [isCameraLive, envReferenceDescriptors, studentReferenceDescriptors, classroomVerificationSubstep, stopCamera]);
     
     const startScan = useCallback(() => {
-        setStepStatus('verifying'); // Move this inside
+        setStepStatus('verifying');
         setIsScanning(true);
         setScanCountdown(SCAN_DURATION);
     
         countdownIntervalRef.current = setInterval(() => {
-            setScanCountdown(prev => prev > 0 ? prev - 1 : 0);
+            setScanCountdown(prev => (prev > 0 ? prev - 1 : 0));
         }, 1000);
 
         scanIntervalRef.current = setTimeout(() => {
             clearInterval(countdownIntervalRef.current!);
-            if (currentStep === 1) handleClassroomVerification();
-            if (currentStep === 2) handleFaceVerification();
+            countdownIntervalRef.current = null;
+            if (currentStep === 1) {
+                handleClassroomVerification();
+            } else if (currentStep === 2) {
+                handleFaceVerification();
+            }
             setIsScanning(false);
         }, SCAN_DURATION * 1000);
 
@@ -485,7 +486,7 @@ export default function VerifyAttendanceMode1Page() {
                     </div>
                 )
             }
-             if (stepStatus === 'verifying' && !isScanning) {
+             if (stepStatus === 'verifying' && !isScanning && !isCameraLive) {
                 return <p className="text-muted-foreground font-medium">{statusMessage}</p>
              }
 
@@ -493,13 +494,13 @@ export default function VerifyAttendanceMode1Page() {
                  return (
                      <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage}</p>
-                        <Button onClick={() => startCamera(1)}><RefreshCw className="mr-2 h-4 w-4" /> Try Camera Again</Button>
+                        <Button onClick={() => {setStepStatus('pending'); startCamera(1)}}><RefreshCw className="mr-2 h-4 w-4" /> Try Camera Again</Button>
                         <Button variant="link" onClick={() => setShowCodeInput(true)}>Enter Code Instead</Button>
                      </div>
                  )
              }
 
-            return <p className="text-muted-foreground font-medium">{statusMessage}</p>;
+            return null;
         };
 
         const renderFaceContent = () => {
@@ -517,7 +518,7 @@ export default function VerifyAttendanceMode1Page() {
                  return (
                      <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage}</p>
-                        <Button onClick={() => startCamera(2)}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
+                        <Button onClick={() => {setStepStatus('pending'); startCamera(2)}}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
                      </div>
                  )
              }
@@ -529,7 +530,7 @@ export default function VerifyAttendanceMode1Page() {
                      </div>
                  )
              }
-            return <p className="text-muted-foreground font-medium">{statusMessage}</p>
+            return null;
         };
 
         let content;
@@ -542,14 +543,14 @@ export default function VerifyAttendanceMode1Page() {
                 break;
             case 1:
                 isCameraStep = true;
-                if (showCodeInput || stepStatus === 'instructions' || isScanning || !isCameraLive) {
+                if (showCodeInput || stepStatus === 'instructions' || isScanning || isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderClassroomContent();
                 break;
             case 2:
                 isCameraStep = true;
-                 if (stepStatus === 'instructions' || isScanning || !isCameraLive) {
+                 if (stepStatus === 'instructions' || isScanning || isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderFaceContent();
