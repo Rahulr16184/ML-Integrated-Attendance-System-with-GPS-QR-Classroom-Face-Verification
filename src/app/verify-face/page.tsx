@@ -103,6 +103,8 @@ export default function VerifyFacePage() {
         const challenge = Math.random() > 0.5 ? 'blink' : 'smile';
         setLivenessChallenge(challenge);
         setLivenessPrompt(challenge === 'blink' ? 'Please Blink Now' : 'Please Smile Now');
+        // Restart detection for expressions
+        stopDetection();
         detectionIntervalRef.current = setInterval(detectFace, 500);
     }
     
@@ -127,7 +129,7 @@ export default function VerifyFacePage() {
                 }
             } else {
                 setSimilarity(0);
-                toast({
+                 toast({
                     title: "No Face Detected",
                     description: "Please ensure your face is clearly visible and centered in the frame.",
                     variant: "destructive"
@@ -142,6 +144,8 @@ export default function VerifyFacePage() {
                      setFeedbackMessage('Liveness Verified!');
                      stopCamera();
                  }
+                 // A neutral expression can often be misinterpereted as a blink, so this logic is not reliable.
+                 // This is a placeholder for a more robust blink detection algorithm.
                  if (livenessChallenge === 'blink') {
                      if(detections.expressions.neutral > 0.8) {
                         setStatus('liveness_verified');
@@ -161,10 +165,12 @@ export default function VerifyFacePage() {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
-                await videoRef.current.play();
-                setIsCameraLive(true);
-                setFeedbackMessage('Center your face in the frame.');
-                detectionIntervalRef.current = setInterval(detectFace, 500);
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current?.play();
+                    setIsCameraLive(true);
+                    setFeedbackMessage('Center your face in the frame.');
+                    detectionIntervalRef.current = setInterval(detectFace, 500);
+                }
             }
         } catch (err) {
             setError(`Camera error: ${(err as Error).message}. Please grant permissions.`);
