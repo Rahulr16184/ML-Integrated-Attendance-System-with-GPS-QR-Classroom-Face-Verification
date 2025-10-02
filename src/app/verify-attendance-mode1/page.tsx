@@ -246,7 +246,7 @@ export default function VerifyAttendanceMode1Page() {
         }
     }, [deviceHeading, userLocation, department, stepStatus]);
 
-    const startCamera = useCallback(async (step: number) => {
+     const startCamera = useCallback(async (step: number) => {
         if (videoRef.current?.srcObject) {
             (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
             videoRef.current.srcObject = null;
@@ -499,12 +499,7 @@ export default function VerifyAttendanceMode1Page() {
                 )
             }
              if (stepStatus === 'verifying' && isScanning) {
-                return (
-                     <div className="flex flex-col items-center gap-4">
-                        <p className="text-muted-foreground font-medium">Scanning... Keep camera still for {scanCountdown}s.</p>
-                        <Progress value={((SCAN_DURATION - scanCountdown) / SCAN_DURATION) * 100} className="w-full" />
-                    </div>
-                )
+                return null;
             }
              if (stepStatus === 'verifying' && !isScanning) {
                 return <p className="text-muted-foreground font-medium">{statusMessage}</p>
@@ -535,12 +530,7 @@ export default function VerifyAttendanceMode1Page() {
                 )
             }
              if (stepStatus === 'verifying' && isScanning) {
-                return (
-                     <div className="flex flex-col items-center gap-4">
-                        <p className="text-muted-foreground font-medium">Scanning... Keep your face still for {scanCountdown}s.</p>
-                        <Progress value={((SCAN_DURATION - scanCountdown) / SCAN_DURATION) * 100} className="w-full" />
-                    </div>
-                )
+                return null;
             }
              if (stepStatus === 'failed') {
                  return (
@@ -701,7 +691,7 @@ export default function VerifyAttendanceMode1Page() {
                                 {isScanning && (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white gap-2">
                                         <Loader2 className="h-8 w-8 animate-spin" />
-                                        <p>Scanning... {scanCountdown}s</p>
+                                        <p>Keep still... Verifying in {scanCountdown}</p>
                                     </div>
                                 )}
                            </div>
