@@ -253,15 +253,17 @@ export default function VerifyAttendanceMode1Page() {
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
         }
         setIsCameraLive(false);
+
         try {
             const facingMode = step === 1 ? 'environment' : 'user';
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
-                await videoRef.current.play();
                 setIsCameraLive(true);
+                await videoRef.current.play();
             }
         } catch (err) {
             setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
