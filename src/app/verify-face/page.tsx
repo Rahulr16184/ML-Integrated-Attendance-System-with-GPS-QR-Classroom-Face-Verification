@@ -16,11 +16,19 @@ import { VerificationSteps } from '@/components/verification-steps';
 import { cn } from '@/lib/utils';
 import { VerificationInfoDialog } from '@/components/verification-info-dialog';
 import { getFaceApi, areModelsLoaded } from '@/lib/face-api';
-import { getCachedDescriptor } from '@/services/system-cache-service';
 import { Progress } from '@/components/ui/progress';
 
 const SIMILARITY_THRESHOLD = 0.55; // Threshold for face match (face-api.js L2 distance, lower is better)
 const EXPRESSION_THRESHOLD = 0.7; // Threshold for smile/blink detection (confidence)
+
+// Correctly defines the structure of the cached data
+type CachedDescriptor = {
+  descriptor: number[];
+  metadata: {
+    source: string;
+    createdAt: number;
+  }
+}
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -59,18 +67,25 @@ export default function VerifyFacePage() {
                 else { setError(`Department not found.`); setLoading(false); return; }
 
                 setFeedbackMessage("Loading AI models...");
-                await getFaceApi(); // This loads all models including ssdMobilenetv1
+                await getFaceApi(); 
                 
-                const cachedDescriptorData = getCachedDescriptor(userProfile.uid);
-                if (cachedDescriptorData) {
-                    const parsedDescriptor = JSON.parse(new TextDecoder().decode(cachedDescriptorData));
-                    setUserDescriptor(new Float32Array(parsedDescriptor.descriptor));
-                    setFeedbackMessage('Models loaded. Ready to scan.');
+                // ** THE CRITICAL FIX IS HERE **
+                // Correctly retrieve and parse the cached descriptor from sessionStorage.
+                const cachedItemRaw = sessionStorage.getItem(`system-cache-v1-${userProfile.uid}`);
+                if (cachedItemRaw) {
+                    const cachedItem = JSON.parse(cachedItemRaw) as CachedDescriptor;
+                    if (cachedItem?.descriptor) {
+                        setUserDescriptor(new Float32Array(cachedItem.descriptor));
+                        setFeedbackMessage('Models loaded. Ready to scan.');
+                    } else {
+                        setError("Your profile photo hasn't been analyzed. Please go to your profile, set a picture, and run the System Update.");
+                    }
                 } else {
                     setError("Your profile photo hasn't been analyzed. Please go to your profile, set a picture, and run the System Update.");
                 }
 
             } catch (err) {
+                console.error("Error during initial data fetch:", err);
                 setError('Failed to load verification data. Please try again.');
             } finally {
                 setLoading(false);
@@ -136,9 +151,6 @@ export default function VerifyFacePage() {
                      setFeedbackMessage('Liveness Verified!');
                      stopCamera();
                  }
-                 // Simple blink detection is tricky and often unreliable with just expressions.
-                 // For now, we will rely on smile detection which is more robust.
-                 // A more advanced implementation would analyze eye landmarks over time.
                  if (livenessChallenge === 'blink') {
                      // For demo purposes, let's assume any neutral face can be a "blink"
                      if(detections.expressions.neutral > 0.8) {
