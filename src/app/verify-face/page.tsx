@@ -20,6 +20,7 @@ import { getCachedDescriptor } from '@/services/system-cache-service';
 import { Progress } from '@/components/ui/progress';
 
 const SIMILARITY_THRESHOLD = 0.55; // Threshold for face match (face-api.js L2 distance, lower is better)
+const EXPRESSION_THRESHOLD = 0.7; // Threshold for smile/blink detection (confidence)
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -36,10 +37,12 @@ export default function VerifyFacePage() {
     const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const [userDescriptor, setUserDescriptor] = useState<Float32Array | null>(null);
 
-    const [status, setStatus] = useState<'pending' | 'scanning' | 'verifying' | 'verified' | 'failed'>('pending');
+    const [status, setStatus] = useState<'pending' | 'scanning' | 'verified' | 'liveness_challenge' | 'liveness_verified' | 'failed'>('pending');
     const [feedbackMessage, setFeedbackMessage] = useState('Click "Start Scan" to begin.');
     const [similarity, setSimilarity] = useState<number | null>(null);
 
+    const [livenessChallenge, setLivenessChallenge] = useState<'blink' | 'smile' | null>(null);
+    const [livenessPrompt, setLivenessPrompt] = useState('');
 
     useEffect(() => {
         async function fetchInitialData() {
@@ -49,18 +52,17 @@ export default function VerifyFacePage() {
 
             setLoading(true);
             try {
-                // Fetch department details
                 const institutions = await getInstitutions();
                 const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
                 const currentDept = currentInstitution?.departments.find(dept => dept.id === departmentId);
                 if (currentDept) setDepartment(currentDept);
                 else { setError(`Department not found.`); setLoading(false); return; }
 
-                // Load Face-API models
                 setFeedbackMessage("Loading AI models...");
-                await getFaceApi();
+                const faceapi = await getFaceApi();
+                // We need expressions for liveness check
+                await faceapi.nets.faceExpressionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1/model');
                 
-                // Get cached user descriptor
                 const cachedDescriptorData = getCachedDescriptor(userProfile.uid);
                 if (cachedDescriptorData) {
                     const parsedDescriptor = JSON.parse(new TextDecoder().decode(cachedDescriptorData));
@@ -79,7 +81,6 @@ export default function VerifyFacePage() {
         fetchInitialData();
     }, [departmentId, userProfile, userProfileLoading]);
 
-
     const stopDetection = useCallback(() => {
         if (detectionIntervalRef.current) {
             clearInterval(detectionIntervalRef.current);
@@ -96,28 +97,71 @@ export default function VerifyFacePage() {
         }
         setIsCameraLive(false);
     }, [stopDetection]);
+
+    const startLivenessChallenge = () => {
+        setStatus('liveness_challenge');
+        const challenge = Math.random() > 0.5 ? 'blink' : 'smile';
+        setLivenessChallenge(challenge);
+        setLivenessPrompt(challenge === 'blink' ? 'Please Blink Now' : 'Please Smile Now');
+        // Restart detection for expressions
+        detectionIntervalRef.current = setInterval(detectFace, 500);
+    }
     
     const detectFace = async () => {
-        if (!videoRef.current || !userDescriptor || videoRef.current.paused || videoRef.current.ended) return;
+        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
         const faceapi = await getFaceApi();
-        const detections = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
 
-        if (detections) {
-            const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
-            const currentSimilarity = 1 - distance; 
-            setSimilarity(currentSimilarity);
+        if (status === 'scanning' && userDescriptor) {
+            const detections = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
+            if (detections) {
+                const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
+                const currentSimilarity = 1 - distance; 
+                setSimilarity(currentSimilarity);
 
-            if (distance < SIMILARITY_THRESHOLD) {
-                setStatus('verified');
-                setFeedbackMessage('Face Verified!');
-                stopCamera();
-                // TODO: Here you would log the attendance record to your database
+                if (distance < SIMILARITY_THRESHOLD) {
+                    setStatus('verified');
+                    setFeedbackMessage('Face Verified!');
+                    stopDetection(); // Stop similarity check
+                    setTimeout(startLivenessChallenge, 1000); // Start liveness check after a short delay
+                } else {
+                    setFeedbackMessage("Keep your face centered.");
+                }
             } else {
-                 setFeedbackMessage("Keep your face centered.");
+                setFeedbackMessage("Center your face in the frame.");
+                setSimilarity(null);
             }
-        } else {
-            setFeedbackMessage("Center your face in the frame.");
-            setSimilarity(null);
+        } 
+        else if (status === 'liveness_challenge' && livenessChallenge) {
+             const detections = await faceapi.detectSingleFace(videoRef.current).withFaceExpressions();
+             if (detections) {
+                 if (livenessChallenge === 'smile' && detections.expressions.happy > EXPRESSION_THRESHOLD) {
+                     setStatus('liveness_verified');
+                     setFeedbackMessage('Liveness Verified!');
+                     stopCamera();
+                 }
+                 if (livenessChallenge === 'blink') {
+                     const { landmarks } = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks();
+                     if (landmarks) {
+                         const leftEye = landmarks.getLeftEye();
+                         const rightEye = landmarks.getRightEye();
+                         const eyeAspectRatio = (p1: any, p2: any, p3: any, p4: any, p5: any, p6: any) => {
+                             const verticalDist1 = Math.hypot(p2.x - p6.x, p2.y - p6.y);
+                             const verticalDist2 = Math.hypot(p3.x - p5.x, p3.y - p5.y);
+                             const horizontalDist = Math.hypot(p1.x - p4.x, p1.y - p4.y);
+                             return (verticalDist1 + verticalDist2) / (2.0 * horizontalDist);
+                         };
+                         const leftEAR = eyeAspectRatio(leftEye[0], leftEye[1], leftEye[2], leftEye[3], leftEye[4], leftEye[5]);
+                         const rightEAR = eyeAspectRatio(rightEye[0], rightEye[1], rightEye[2], rightEye[3], rightEye[4], rightEye[5]);
+                         
+                         // A simple blink detection logic based on Eye Aspect Ratio (EAR)
+                         if (leftEAR < 0.2 && rightEAR < 0.2) {
+                             setStatus('liveness_verified');
+                             setFeedbackMessage('Liveness Verified!');
+                             stopCamera();
+                         }
+                     }
+                 }
+             }
         }
     };
 
@@ -132,7 +176,6 @@ export default function VerifyFacePage() {
                 await videoRef.current.play();
                 setIsCameraLive(true);
                 setFeedbackMessage('Center your face in the frame.');
-                // Start face detection loop
                 detectionIntervalRef.current = setInterval(detectFace, 500);
             }
         } catch (err) {
@@ -143,20 +186,34 @@ export default function VerifyFacePage() {
     }, [isCameraLive, userDescriptor]);
     
     useEffect(() => {
-        // Cleanup function
         return () => stopCamera();
     }, [stopCamera]);
 
     const renderVerificationStatus = () => {
-        if (status === 'verified') {
+        if (status === 'verified' || status === 'liveness_challenge' || status === 'liveness_verified') {
             return (
-                <div className="flex items-center gap-2 text-green-600">
-                    <CheckCircle className="h-5 w-5" />
-                    <span className="font-semibold">Face Verified!</span>
+                <div className="text-center space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-green-600">
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="font-semibold">Face Verified!</span>
+                    </div>
+                     {status === 'liveness_challenge' && (
+                        <div className="flex items-center justify-center gap-2 text-primary">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span className="font-semibold">{livenessPrompt}</span>
+                        </div>
+                    )}
+                    {status === 'liveness_verified' && (
+                        <div className="flex items-center justify-center gap-2 text-green-600">
+                            <CheckCircle className="h-5 w-5" />
+                            <span className="font-semibold">Liveness Verified!</span>
+                        </div>
+                    )}
                 </div>
             )
         }
-        if (similarity !== null) {
+
+        if (status === 'scanning' && similarity !== null) {
             const percentage = Math.max(0, Math.min(100, Math.round(similarity * 100)));
             return (
                 <div className="w-full max-w-xs text-center space-y-2">
@@ -167,7 +224,6 @@ export default function VerifyFacePage() {
         }
         return <p className="text-muted-foreground text-sm">{feedbackMessage}</p>;
     }
-
 
     if (loading) {
         return (
@@ -220,16 +276,16 @@ export default function VerifyFacePage() {
                         <div className={cn(
                             "aspect-square w-64 bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 transition-colors",
                             { "border-muted": status === 'pending',
-                              "border-primary": status === 'scanning',
-                              "border-green-500": status === 'verified',
+                              "border-primary": status === 'scanning' || status === 'liveness_challenge',
+                              "border-green-500": status === 'verified' || status === 'liveness_verified',
                               "border-destructive": status === 'failed' }
                         )}>
                            <video ref={videoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover transform -scale-x-100", !isCameraLive && "hidden")}/>
-                           {!isCameraLive && status !== 'verified' && (
-                                <UserCheck className="h-24 w-24 text-muted-foreground/50"/>
-                           )}
-                           {status === 'verified' && (
+                           {!isCameraLive && (status === 'liveness_verified' || status === 'verified') && (
                                <CheckCircle className="h-24 w-24 text-green-500" />
+                           )}
+                           {!isCameraLive && status === 'pending' && (
+                                <UserCheck className="h-24 w-24 text-muted-foreground/50"/>
                            )}
                         </div>
                         
@@ -243,12 +299,12 @@ export default function VerifyFacePage() {
                         <div className="h-10 mt-2">
                             {renderVerificationStatus()}
                         </div>
-
+                         {status === 'liveness_verified' && (
+                             <Button onClick={() => router.push('/student-dashboard')}>Done</Button>
+                         )}
                     </CardContent>
                 </Card>
             </div>
         </div>
     );
 }
-
-    
