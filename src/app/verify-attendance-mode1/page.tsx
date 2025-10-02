@@ -188,7 +188,7 @@ export default function VerifyAttendanceMode1Page() {
             setStepStatus('success');
             setTimeout(() => {
                 setCurrentStep(1);
-                setStepStatus('instructions');
+                setStepStatus('pending');
             }, 2000);
             return;
         }
@@ -218,7 +218,7 @@ export default function VerifyAttendanceMode1Page() {
                         window.removeEventListener('deviceorientation', handleOrientation, true);
                         setTimeout(() => {
                             setCurrentStep(1);
-                            setStepStatus('instructions');
+                            setStepStatus('pending');
                         }, 1500);
                     } else {
                         const bearing = getBearing(currentUserLocation, department.location);
@@ -312,7 +312,7 @@ export default function VerifyAttendanceMode1Page() {
             stopCamera();
             setTimeout(() => {
                 setCurrentStep(2);
-                setStepStatus('instructions');
+                setStepStatus('pending');
             }, 2000);
         } else {
              const reason = !isEnvMatch ? `Low environment match (${Math.round(envSimilarity * 100)}%)` : `Not enough students detected (${studentMatchCount})`;
@@ -331,6 +331,7 @@ export default function VerifyAttendanceMode1Page() {
     const startScan = useCallback(() => {
         setIsScanning(true);
         setScanCountdown(SCAN_DURATION);
+        setStepStatus('verifying');
 
         countdownIntervalRef.current = setInterval(() => {
             setScanCountdown(prev => prev > 0 ? prev - 1 : 0);
@@ -366,7 +367,7 @@ export default function VerifyAttendanceMode1Page() {
                 setStepStatus('success');
                 setTimeout(() => {
                     setCurrentStep(2); // Move to next step
-                    setStepStatus('instructions');
+                    setStepStatus('pending');
                 }, 1500);
             } else {
                 setStatusMessage(result.message);
@@ -528,7 +529,7 @@ export default function VerifyAttendanceMode1Page() {
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage || 'Center your face in the camera.'}</p>
                         <Button onClick={startScan} disabled={!userProfileDescriptor}>
-                           {userProfileDescriptor ? "Start Face Scan" : "Loading Profile..."}
+                           {userProfileDescriptor ? "Start Scan" : "Loading Profile..."}
                         </Button>
                     </div>
                 )
@@ -696,7 +697,7 @@ export default function VerifyAttendanceMode1Page() {
                                     currentStep === 2 ? "transform -scale-x-100" : "", // Mirror for face verification only
                                     isCameraLive ? "block" : "hidden"
                                 )}/>
-                                {!isCameraLive && <p className="text-muted-foreground">Camera is starting...</p>}
+                                {!isCameraLive && stepStatus !== 'pending' && <p className="text-muted-foreground">Camera is starting...</p>}
                                 {isScanning && (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white gap-2">
                                         <Loader2 className="h-8 w-8 animate-spin" />
