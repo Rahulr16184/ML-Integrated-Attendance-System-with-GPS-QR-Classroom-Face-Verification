@@ -82,10 +82,12 @@ export default function VerifyClassroomPage() {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
-                await videoRef.current.play();
-                setIsCameraLive(true);
-                setStatus('instructions');
-                setStatusMessage('Point your camera at the classroom.');
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current?.play();
+                    setIsCameraLive(true);
+                    setStatus('instructions');
+                    setStatusMessage('Point your camera at the classroom.');
+                };
             }
         } catch (err) {
             setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
@@ -211,19 +213,24 @@ export default function VerifyClassroomPage() {
                                 </div>
                             </div>
                         )}
-                        {isCameraLive && (
+                        {(status === 'verifying' || status === 'instructions' || isCameraLive) && !showCodeInput && (
                              <div className="w-full">
                                 <div className={cameraFrameColor}>
-                                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover"/>
+                                    {!isCameraLive && status !== 'failed' && (
+                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                            <Loader2 className="h-8 w-8 animate-spin" />
+                                            <p>{statusMessage || "Preparing camera..."}</p>
+                                        </div>
+                                    )}
+                                    <video ref={videoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover", !isCameraLive && "hidden")}/>
                                 </div>
-                                {status === 'instructions' && (
+                                {status === 'instructions' && isCameraLive && (
                                      <Button onClick={handleClassroomConfirmation} className="mt-4">Confirm I'm in the Classroom</Button>
                                 )}
                              </div>
                         )}
-                        {(status === 'verifying' || status === 'success' || status === 'failed') && !isCameraLive && !showCodeInput && (
+                        {(status === 'success' || status === 'failed') && !isCameraLive && (
                             <>
-                                {status === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
                                 {status === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
                                 {status === 'failed' && !showCodeInput && <XCircle className="h-12 w-12 text-destructive" />}
                                 <p className="text-muted-foreground font-medium">{statusMessage}</p>
@@ -240,3 +247,5 @@ export default function VerifyClassroomPage() {
         </div>
     );
 }
+
+    
