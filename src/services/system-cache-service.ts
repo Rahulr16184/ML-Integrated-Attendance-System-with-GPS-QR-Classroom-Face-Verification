@@ -3,18 +3,19 @@
 "use client";
 
 import { getFaceApi } from "@/lib/face-api";
-import type { Department, UserProfile } from "@/lib/types";
+import type { Department, UserProfile, ClassroomPhoto } from "@/lib/types";
 
-// Using a TextEncoder to store as Uint8Array for potential performance benefits,
-// although JSON stringify would also work.
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 
 const CACHE_PREFIX = 'system-cache-v1-';
 
 type CacheMetadata = {
-    source: string; // e.g., URL of the image or a unique ID for a set of images
-    createdAt: number; // ISO timestamp
+    source: string; 
+    createdAt: number; 
+}
+
+type CachedDescriptorData = {
+    descriptor: number[] | number[][];
+    metadata: CacheMetadata;
 }
 
 /**
@@ -25,7 +26,7 @@ type CacheMetadata = {
  */
 function setCachedDescriptor(key: string, descriptor: Float32Array | Float32Array[], metadata: CacheMetadata): void {
   try {
-    const dataToCache = {
+    const dataToCache: CachedDescriptorData = {
         descriptor: Array.isArray(descriptor) ? descriptor.map(d => Array.from(d)) : Array.from(descriptor),
         metadata,
     };
@@ -42,12 +43,12 @@ function setCachedDescriptor(key: string, descriptor: Float32Array | Float32Arra
  * @param key - The unique key for the data.
  * @returns An object with the descriptor and metadata, or null if not found.
  */
-function getCachedDescriptorWithMetadata(key: string): { descriptor: any, metadata: CacheMetadata } | null {
+function getCachedDescriptorWithMetadata(key: string): CachedDescriptorData | null {
     try {
         const stored = sessionStorage.getItem(CACHE_PREFIX + key);
         if (!stored) return null;
 
-        const parsed = JSON.parse(stored);
+        const parsed = JSON.parse(stored) as CachedDescriptorData;
         if (!parsed.descriptor || !parsed.metadata) return null;
         
         return parsed;
@@ -197,14 +198,20 @@ export async function updateClassroomDescriptorsCache(department: Department): P
 
 
 // Generic getter for use in verification page, simplified from the metadata version
-export function getCachedDescriptor(key: string): Uint8Array | null {
+export function getCachedDescriptor(key: string): Float32Array | null {
   try {
     const item = getCachedDescriptorWithMetadata(key);
-    if (!item) return null;
-    return encoder.encode(JSON.stringify(item));
+    if (!item || !Array.isArray(item.descriptor)) return null;
+
+    // Check if it's a single descriptor (array of numbers) or multiple (array of arrays of numbers)
+    if (item.descriptor.length > 0 && !Array.isArray(item.descriptor[0])) {
+         return new Float32Array(item.descriptor as number[]);
+    }
+   
+    // This function is intended for single descriptors, so returning null for multiple.
+    return null;
+
   } catch (e) {
     return null;
   }
 }
-
-    

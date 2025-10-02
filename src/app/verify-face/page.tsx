@@ -18,18 +18,10 @@ import { VerificationInfoDialog } from '@/components/verification-info-dialog';
 import { getFaceApi, areModelsLoaded } from '@/lib/face-api';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { getCachedDescriptor } from '@/services/system-cache-service';
 
-const SIMILARITY_THRESHOLD = 0.55; // Threshold for face match (face-api.js L2 distance, lower is better)
-const EXPRESSION_THRESHOLD = 0.7; // Threshold for smile/blink detection (confidence)
-
-// Correctly defines the structure of the cached data
-type CachedDescriptor = {
-  descriptor: number[];
-  metadata: {
-    source: string;
-    createdAt: number;
-  }
-}
+const SIMILARITY_THRESHOLD = 0.55; 
+const EXPRESSION_THRESHOLD = 0.7; 
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -71,15 +63,10 @@ export default function VerifyFacePage() {
                 setFeedbackMessage("Loading AI models...");
                 await getFaceApi(); 
                 
-                const cachedItemRaw = sessionStorage.getItem(`system-cache-v1-${userProfile.uid}`);
-                if (cachedItemRaw) {
-                    const cachedItem = JSON.parse(cachedItemRaw) as CachedDescriptor;
-                    if (cachedItem?.descriptor) {
-                        setUserDescriptor(new Float32Array(cachedItem.descriptor));
-                        setFeedbackMessage('Models loaded. Ready to scan.');
-                    } else {
-                        setError("Your profile photo hasn't been analyzed. Please go to your profile, set a picture, and run the System Update.");
-                    }
+                const cachedDescriptor = getCachedDescriptor(userProfile.uid);
+                if (cachedDescriptor) {
+                    setUserDescriptor(cachedDescriptor);
+                    setFeedbackMessage('Models loaded. Ready to scan.');
                 } else {
                     setError("Your profile photo hasn't been analyzed. Please go to your profile, set a picture, and run the System Update.");
                 }
@@ -116,7 +103,6 @@ export default function VerifyFacePage() {
         const challenge = Math.random() > 0.5 ? 'blink' : 'smile';
         setLivenessChallenge(challenge);
         setLivenessPrompt(challenge === 'blink' ? 'Please Blink Now' : 'Please Smile Now');
-        // Restart detection for expressions
         detectionIntervalRef.current = setInterval(detectFace, 500);
     }
     
@@ -127,7 +113,6 @@ export default function VerifyFacePage() {
         if (status === 'scanning' && userDescriptor) {
             const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
             if (detections) {
-                setFeedbackMessage("Verifying...");
                 const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
                 const currentSimilarity = 1 - distance; 
                 setSimilarity(currentSimilarity);
@@ -135,11 +120,12 @@ export default function VerifyFacePage() {
                 if (distance < SIMILARITY_THRESHOLD) {
                     setStatus('verified');
                     setFeedbackMessage('Face Verified!');
-                    stopDetection(); // Stop similarity check
-                    setTimeout(startLivenessChallenge, 1000); // Start liveness check after a short delay
+                    stopDetection();
+                    setTimeout(startLivenessChallenge, 1000);
+                } else {
+                    setFeedbackMessage("Keep your face centered.");
                 }
             } else {
-                setFeedbackMessage("No face detected.");
                 setSimilarity(0);
                 toast({
                     title: "No Face Detected",
@@ -157,7 +143,6 @@ export default function VerifyFacePage() {
                      stopCamera();
                  }
                  if (livenessChallenge === 'blink') {
-                     // For demo purposes, let's assume any neutral face can be a "blink"
                      if(detections.expressions.neutral > 0.8) {
                         setStatus('liveness_verified');
                         setFeedbackMessage('Liveness Verified!');
@@ -186,7 +171,7 @@ export default function VerifyFacePage() {
             setStatus('failed');
             setIsCameraLive(false);
         }
-    }, [isCameraLive, userDescriptor]);
+    }, [isCameraLive, userDescriptor, detectFace]);
     
     useEffect(() => {
         return () => stopCamera();
@@ -313,5 +298,3 @@ export default function VerifyFacePage() {
         </div>
     );
 }
-
-    
