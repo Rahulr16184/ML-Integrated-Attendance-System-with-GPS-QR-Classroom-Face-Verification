@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { getFaceApi } from "@/lib/face-api";
@@ -121,95 +122,84 @@ export async function updateProfileDescriptorCache(userProfile: UserProfile): Pr
 
 // --- Classroom Photos Caching ---
 
-/**
- * Gets a unique source identifier for a department's classroom photos.
- * This is a simple hash of all embedded photo URLs.
- */
-const getClassroomSourceId = (department: Department) => {
-    const allEmbeddedUrls = [
-        ...(department.classroomPhotoUrls?.filter(p => p.embedded).map(p => p.url) || []),
-        ...(department.studentsInClassroomPhotoUrls?.filter(p => p.embedded).map(p => p.url) || []),
-    ].filter(url => !!url).sort(); // Filter out undefined/null URLs
-
-    // Simple hash function
+const getClassroomSourceId = (photos: ClassroomPhoto[]) => {
+    const allEmbeddedUrls = photos.filter(p => p.embedded && p.url).map(p => p.url).sort();
+    if (allEmbeddedUrls.length === 0) return 'no-photos';
+    
     return allEmbeddedUrls.reduce((hash, url) => {
         for (let i = 0; i < url.length; i++) {
           const char = url.charCodeAt(i);
           hash = (hash << 5) - hash + char;
-          hash |= 0; // Convert to 32bit integer
+          hash |= 0;
         }
         return hash;
     }, 0).toString();
 };
 
-/**
- * Checks if the cached classroom descriptors for a department are up-to-date.
- * @param department - The department to check.
- * @returns An object indicating if an update is needed.
- */
 export async function getClassroomCacheStatus(department: Department): Promise<{ needsUpdate: boolean }> {
-    const allPhotos = [...(department.classroomPhotoUrls || []), ...(department.studentsInClassroomPhotoUrls || [])];
-    if (allPhotos.filter(p => p.embedded).length === 0) {
-        return { needsUpdate: false }; // No photos to cache.
+    const envPhotos = department.classroomPhotoUrls || [];
+    const studentPhotos = department.studentsInClassroomPhotoUrls || [];
+    
+    if (envPhotos.filter(p=>p.embedded).length === 0 && studentPhotos.filter(p=>p.embedded).length === 0) {
+        return { needsUpdate: false };
     }
-    const currentSourceId = getClassroomSourceId(department);
-    const cached = getCachedDescriptorWithMetadata(`classroom_${department.id}`);
-
-    if (!cached || cached.metadata.source !== currentSourceId) {
+    
+    const currentEnvSourceId = getClassroomSourceId(envPhotos);
+    const cachedEnv = getCachedDescriptorWithMetadata(`classroom-env_${department.id}`);
+    if (!cachedEnv || cachedEnv.metadata.source !== currentEnvSourceId) {
         return { needsUpdate: true };
     }
+
+    const currentStudentSourceId = getClassroomSourceId(studentPhotos);
+    const cachedStudent = getCachedDescriptorWithMetadata(`classroom-student_${department.id}`);
+    if (!cachedStudent || cachedStudent.metadata.source !== currentStudentSourceId) {
+        return { needsUpdate: true };
+    }
+
     return { needsUpdate: false };
 }
 
-/**
- * Updates the cached descriptors for a department's classroom photos if outdated.
- * @param department - The department whose cache needs updating.
- */
-export async function updateClassroomDescriptorsCache(department: Department): Promise<void> {
-    const status = await getClassroomCacheStatus(department);
-    if (!status.needsUpdate) return;
-    
-    const faceapi = await getFaceApi();
-    const allEmbeddedPhotos = [
-        ...(department.classroomPhotoUrls || []),
-        ...(department.studentsInClassroomPhotoUrls || [])
-    ].filter(p => p.embedded && p.url);
 
-    if (allEmbeddedPhotos.length === 0) {
-        clearCachedDescriptor(`classroom_${department.id}`);
+const processAndCachePhotos = async (photos: ClassroomPhoto[], cacheKey: string) => {
+    if (photos.length === 0) {
+        clearCachedDescriptor(cacheKey);
         return;
     }
-
-    console.log(`Processing ${allEmbeddedPhotos.length} photos for ${department.name}...`);
-
-    try {
-        const descriptorsPromises = allEmbeddedPhotos.map(async (photo) => {
-            try {
-                const img = await faceapi.fetchImage(photo.url);
-                const detections = await faceapi.detectAllFaces(img).withFaceLandmarks().withFaceDescriptors();
-                return detections.map(d => d.descriptor);
-            } catch (e) {
-                console.error(`Skipping photo due to error: ${photo.url}`, e);
-                return []; // Return empty array for failed photos
-            }
-        });
-        
-        const descriptorsArrays = await Promise.all(descriptorsPromises);
-        const flatDescriptors = descriptorsArrays.flat();
-        
-        if (flatDescriptors.length > 0) {
-            setCachedDescriptor(`classroom_${department.id}`, flatDescriptors, {
-                source: getClassroomSourceId(department),
-                createdAt: Date.now(),
-            });
-            console.log(`Classroom descriptor cache updated for ${department.name}.`);
-        } else {
-            clearCachedDescriptor(`classroom_${department.id}`);
+    
+    const faceapi = await getFaceApi();
+    const descriptorsPromises = photos.map(async (photo) => {
+        try {
+            const img = await faceapi.fetchImage(photo.url);
+            const detections = await faceapi.detectAllFaces(img).withFaceLandmarks().withFaceDescriptors();
+            return detections.map(d => d.descriptor);
+        } catch (e) {
+            console.error(`Skipping photo due to error: ${photo.url}`, e);
+            return [];
         }
-    } catch (error) {
-        console.error(`Failed to update classroom descriptor cache for ${department.name}:`, error);
+    });
+
+    const descriptorsArrays = await Promise.all(descriptorsPromises);
+    const flatDescriptors = descriptorsArrays.flat();
+    
+    if (flatDescriptors.length > 0) {
+        setCachedDescriptor(cacheKey, flatDescriptors, {
+            source: getClassroomSourceId(photos),
+            createdAt: Date.now(),
+        });
+        console.log(`Cache updated for ${cacheKey}.`);
+    } else {
+        clearCachedDescriptor(cacheKey);
     }
+};
+
+export async function updateClassroomDescriptorsCache(department: Department): Promise<void> {
+    const envPhotos = department.classroomPhotoUrls?.filter(p => p.embedded && p.url) || [];
+    const studentPhotos = department.studentsInClassroomPhotoUrls?.filter(p => p.embedded && p.url) || [];
+    
+    await processAndCachePhotos(envPhotos, `classroom-env_${department.id}`);
+    await processAndCachePhotos(studentPhotos, `classroom-student_${department.id}`);
 }
+
 
 // Generic getter for use in verification page, simplified from the metadata version
 export function getCachedDescriptor(key: string): Uint8Array | null {

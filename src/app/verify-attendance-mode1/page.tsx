@@ -64,7 +64,8 @@ const getBearing = (start: {lat: number, lng: number}, end: {lat: number, lng: n
 
 const CLASSROOM_VERIFICATION_PROMPTS = ['left', 'right', 'front'];
 const SCAN_DURATION = 5; // seconds
-const SIMILARITY_THRESHOLD = 0.5; // Adjust as needed (0 to 1)
+const MIN_STUDENTS_FOR_MATCH = 3;
+const SIMILARITY_THRESHOLD = 0.5; // Environment similarity
 const FACE_MATCH_THRESHOLD = 0.45; // Stricter for user's own face
 
 export default function VerifyAttendanceMode1Page() {
@@ -94,7 +95,10 @@ export default function VerifyAttendanceMode1Page() {
     const [isScanning, setIsScanning] = useState(false);
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const [referenceDescriptors, setReferenceDescriptors] = useState<Float32Array[]>([]);
+    
+    const [envReferenceDescriptors, setEnvReferenceDescriptors] = useState<Float32Array[]>([]);
+    const [studentReferenceDescriptors, setStudentReferenceDescriptors] = useState<Float32Array[]>([]);
+
     const [showCodeInput, setShowCodeInput] = useState(false);
     const [verificationCode, setVerificationCode] = useState("");
     const [isVerifyingCode, setIsVerifyingCode] = useState(false);
@@ -131,11 +135,16 @@ export default function VerifyAttendanceMode1Page() {
                         if(status.needsUpdate) {
                            await updateClassroomDescriptorsCache(currentDept);
                         }
-                        const cachedClassroomDescriptors = getCachedDescriptor(`classroom_${currentDept.id}`);
-                        if (cachedClassroomDescriptors) {
-                             const flatDescriptors = JSON.parse(new TextDecoder().decode(cachedClassroomDescriptors));
-                             setReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
-                        }
+                        const cachedEnvDescriptors = getCachedDescriptor(`classroom-env_${currentDept.id}`);
+                         if (cachedEnvDescriptors) {
+                             const flatDescriptors = JSON.parse(new TextDecoder().decode(cachedEnvDescriptors));
+                             setEnvReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
+                         }
+                        const cachedStudentDescriptors = getCachedDescriptor(`classroom-student_${currentDept.id}`);
+                         if (cachedStudentDescriptors) {
+                             const flatDescriptors = JSON.parse(new TextDecoder().decode(cachedStudentDescriptors));
+                             setStudentReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
+                         }
                         setError(null);
                     } else {
                         setError(`Department not found.`);
@@ -236,23 +245,10 @@ export default function VerifyAttendanceMode1Page() {
             setArrowRotation(bearing - deviceHeading);
         }
     }, [deviceHeading, userLocation, department, stepStatus]);
-    
-    // Camera & Verification Logic
-    useEffect(() => {
-        if (department?.id) {
-            const descriptors = getCachedDescriptor(`classroom_${department.id}`);
-            if (descriptors) {
-                 const flatDescriptors = JSON.parse(new TextDecoder().decode(descriptors));
-                 setReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
-            }
-        }
-    }, [department]);
-
 
     const startCamera = useCallback(async (step: number) => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
+        if (videoRef.current?.srcObject) {
+            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
             videoRef.current.srcObject = null;
         }
         setIsCameraLive(false);
@@ -262,12 +258,21 @@ export default function VerifyAttendanceMode1Page() {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
-                setIsCameraLive(true);
-                await videoRef.current.play();
+                // Use onloadedmetadata to ensure the video dimensions are known before playing
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current?.play().then(() => {
+                        setIsCameraLive(true);
+                    }).catch(playErr => {
+                         console.error("Video play failed:", playErr);
+                         setStatusMessage('Could not start video playback.');
+                         setStepStatus('failed');
+                    });
+                };
             }
         } catch (err) {
             setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
             setStepStatus('failed');
+            setIsCameraLive(false);
         }
     }, []);
 
@@ -283,53 +288,53 @@ export default function VerifyAttendanceMode1Page() {
     const handleClassroomVerification = useCallback(async () => {
         if (!videoRef.current || !isCameraLive) return;
         setStepStatus('verifying');
-        setStatusMessage(`Scanning... Keep the camera steady.`);
+        setStatusMessage('Scanning... Keep the camera steady.');
         const faceapi = await getFaceApi();
 
         const detections = await faceapi.detectAllFaces(videoRef.current).withFaceLandmarks().withFaceDescriptors();
-        
-        let bestMatch = 0;
-        if (detections.length > 0 && referenceDescriptors.length > 0) {
-            const faceMatcher = new faceapi.FaceMatcher(referenceDescriptors);
+
+        let envSimilarity = 0;
+        if (detections.length > 0 && envReferenceDescriptors.length > 0) {
+            const envMatcher = new faceapi.FaceMatcher(envReferenceDescriptors);
+            const bestMatch = envMatcher.findBestMatch(detections[0].descriptor);
+            envSimilarity = 1 - bestMatch.distance;
+        }
+
+        let studentMatchCount = 0;
+        if (detections.length > 0 && studentReferenceDescriptors.length > 0) {
+            const studentMatcher = new faceapi.FaceMatcher(studentReferenceDescriptors);
             detections.forEach(detection => {
-                const match = faceMatcher.findBestMatch(detection.descriptor);
-                if (match.distance < bestMatch || bestMatch === 0) {
-                    bestMatch = 1 - match.distance; // Higher is better
+                const match = studentMatcher.findBestMatch(detection.descriptor);
+                if (match.label !== 'unknown') {
+                    studentMatchCount++;
                 }
             });
         }
         
-        let userFaceFound = false;
-        if (userProfileDescriptor && detections.length > 0) {
-             const faceMatcher = new faceapi.FaceMatcher([userProfileDescriptor]);
-             detections.forEach(d => {
-                 const match = faceMatcher.findBestMatch(d.descriptor);
-                 if (match.label !== 'unknown' && 1 - match.distance > FACE_MATCH_THRESHOLD) userFaceFound = true;
-             })
-        }
+        const isEnvMatch = envSimilarity > SIMILARITY_THRESHOLD;
+        const areStudentsPresent = studentMatchCount >= MIN_STUDENTS_FOR_MATCH;
 
-        const overallScore = userFaceFound ? (bestMatch + 1) / 2 : bestMatch / 2;
-
-        if (overallScore > SIMILARITY_THRESHOLD) {
-            setStatusMessage(`Verification successful for this angle! Score: ${Math.round(overallScore * 100)}%`);
+        if (isEnvMatch && areStudentsPresent) {
+            setStatusMessage(`Classroom verified! Env: ${Math.round(envSimilarity * 100)}%, Students: ${studentMatchCount}`);
             setStepStatus('success');
+            stopCamera();
             setTimeout(() => {
                 setCurrentStep(2);
                 setStepStatus('instructions');
-                stopCamera();
             }, 2000);
         } else {
+             const reason = !isEnvMatch ? `Low environment match (${Math.round(envSimilarity * 100)}%)` : `Not enough students detected (${studentMatchCount})`;
             if (classroomVerificationSubstep < CLASSROOM_VERIFICATION_PROMPTS.length - 1) {
                 setClassroomVerificationSubstep(prev => prev + 1);
                 setStepStatus('instructions');
-                setStatusMessage(`Low match. Score: ${Math.round(overallScore * 100)}%. Let's try another angle.`);
+                setStatusMessage(`${reason}. Let's try another angle.`);
             } else {
-                setStatusMessage(`Could not verify classroom. Please try again. Score: ${Math.round(overallScore * 100)}%`);
+                setStatusMessage(`Could not verify classroom: ${reason}.`);
                 setStepStatus('failed');
-                 stopCamera();
+                stopCamera();
             }
         }
-    }, [isCameraLive, referenceDescriptors, classroomVerificationSubstep, stopCamera, userProfileDescriptor]);
+    }, [isCameraLive, envReferenceDescriptors, studentReferenceDescriptors, classroomVerificationSubstep, stopCamera]);
     
     const startScan = useCallback(() => {
         setIsScanning(true);
@@ -573,14 +578,14 @@ export default function VerifyAttendanceMode1Page() {
                 break;
             case 1:
                 isCameraStep = true;
-                if (showCodeInput || stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning)) {
+                if (showCodeInput || stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning) || !isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderClassroomContent();
                 break;
             case 2:
                 isCameraStep = true;
-                 if (stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning)) {
+                 if (stepStatus === 'instructions' || (stepStatus === 'verifying' && isScanning) || !isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderFaceContent();
@@ -640,7 +645,7 @@ export default function VerifyAttendanceMode1Page() {
     
     const mapCenter = department?.location ? [department.location.lat, department.location.lng] as LatLngExpression : userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
     const userMarkerPosition = userLocation ? [userLocation.lat, userLocation.lng] as LatLngExpression : null;
-    const isCameraStep = (currentStep === 1 || currentStep === 2) && !showCodeInput && stepStatus !== 'success';
+    const isCameraStep = (currentStep === 1 || currentStep === 2) && !showCodeInput;
     
     const cameraFrameColor = cn(
         "aspect-square w-full max-w-sm mx-auto bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 transition-colors",
@@ -690,7 +695,7 @@ export default function VerifyAttendanceMode1Page() {
             </div>
             
             <div className="max-w-2xl mx-auto">
-                {isCameraStep && (stepStatus === 'verifying' || stepStatus === 'instructions' || stepStatus === 'pending') ? (
+                {isCameraStep && (
                      <Card>
                         <CardContent className="p-4">
                            <div className={cameraFrameColor}>
@@ -709,7 +714,7 @@ export default function VerifyAttendanceMode1Page() {
                            </div>
                         </CardContent>
                      </Card>
-                ) : null}
+                )}
 
                 {renderStepContent()}
             </div>
@@ -727,4 +732,3 @@ export default function VerifyAttendanceMode1Page() {
         </div>
     );
 }
-
