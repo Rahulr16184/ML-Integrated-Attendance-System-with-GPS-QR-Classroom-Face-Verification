@@ -10,13 +10,14 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions } from '@/services/institution-service';
 import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, RefreshCw, UserCheck } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw, UserCheck, Info } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getFaceApi } from '@/lib/face-api';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 import { VerificationSteps } from '@/components/verification-steps';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { VerificationInfoDialog } from '@/components/verification-info-dialog';
 
 const FACE_MATCH_THRESHOLD = 0.45; // Stricter for user's own face
 
@@ -168,7 +169,16 @@ export default function VerifyFacePage() {
         <div className="p-4 sm:p-6 space-y-6">
             <div className="space-y-2 text-center">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">ATTENDANCE VERIFICATION</h1>
-                {department && <p className="text-muted-foreground">Department: {department.name}</p>}
+                {department && (
+                    <div className="flex items-center justify-center gap-2">
+                        <p className="text-muted-foreground">Department: {department.name}</p>
+                        <VerificationInfoDialog department={department} userProfile={userProfile}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Info className="h-4 w-4" />
+                            </Button>
+                        </VerificationInfoDialog>
+                    </div>
+                )}
             </div>
 
             <VerificationSteps currentStep={2} />

@@ -10,13 +10,13 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions, verifyClassroomCode } from '@/services/institution-service';
 import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, Camera } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Camera, Info } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { VerificationSteps } from '@/components/verification-steps';
 import { cn } from '@/lib/utils';
-import { getFaceApi } from '@/lib/face-api';
+import { VerificationInfoDialog } from '@/components/verification-info-dialog';
 
 export default function VerifyClassroomPage() {
     const router = useRouter();
@@ -47,7 +47,6 @@ export default function VerifyClassroomPage() {
 
             setLoading(true);
             try {
-                await getFaceApi(); // Pre-load models
                 const institutions = await getInstitutions();
                 const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
                 const currentDept = currentInstitution?.departments.find(dept => dept.id === departmentId);
@@ -57,7 +56,7 @@ export default function VerifyClassroomPage() {
                     setError(`Department not found.`);
                 }
             } catch (err) {
-                setError('Failed to fetch department details or load models.');
+                setError('Failed to fetch department details.');
             } finally {
                 setLoading(false);
             }
@@ -82,12 +81,10 @@ export default function VerifyClassroomPage() {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play();
-                    setIsCameraLive(true);
-                    setStatus('instructions');
-                    setStatusMessage('Point your camera at the classroom.');
-                };
+                await videoRef.current.play();
+                setIsCameraLive(true);
+                setStatus('instructions');
+                setStatusMessage('Point your camera at the classroom.');
             }
         } catch (err) {
             setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
@@ -170,7 +167,16 @@ export default function VerifyClassroomPage() {
         <div className="p-4 sm:p-6 space-y-6">
             <div className="space-y-2 text-center">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">ATTENDANCE VERIFICATION</h1>
-                {department && <p className="text-muted-foreground">Department: {department.name}</p>}
+                {department && (
+                    <div className="flex items-center justify-center gap-2">
+                        <p className="text-muted-foreground">Department: {department.name}</p>
+                        <VerificationInfoDialog department={department} userProfile={userProfile}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Info className="h-4 w-4" />
+                            </Button>
+                        </VerificationInfoDialog>
+                    </div>
+                )}
             </div>
 
             <VerificationSteps currentStep={1} />
@@ -247,5 +253,3 @@ export default function VerifyClassroomPage() {
         </div>
     );
 }
-
-    
