@@ -10,14 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions, verifyClassroomCode } from '@/services/institution-service';
-import type { Department, ClassroomPhoto } from '@/lib/types';
+import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, ArrowUp, KeyRound, Info } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw, MapPin, Camera, UserCheck, KeyRound, Info } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { LatLngExpression } from 'leaflet';
-import { Progress } from '@/components/ui/progress';
 import { getFaceApi } from '@/lib/face-api';
-import { getCachedDescriptor, updateClassroomDescriptorsCache, getClassroomCacheStatus } from '@/services/system-cache-service';
+import { getCachedDescriptor } from '@/services/system-cache-service';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { VerificationInfoDialog } from '@/components/verification-info-dialog';
@@ -45,26 +44,6 @@ const getDistance = (from: { lat: number; lng: number }, to: { lat: number; lng:
     return R * c; // in metres
 };
 
-const getBearing = (start: {lat: number, lng: number}, end: {lat: number, lng: number}) => {
-    const toRadians = (deg: number) => deg * Math.PI / 180;
-    const toDegrees = (rad: number) => rad * 180 / Math.PI;
-
-    const startLat = toRadians(start.lat);
-    const startLng = toRadians(start.lng);
-    const endLat = toRadians(end.lat);
-    const endLng = toRadians(end.lng);
-
-    const y = Math.sin(endLng - startLng) * Math.cos(endLat);
-    const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);
-    let brng = Math.atan2(y, x);
-    brng = toDegrees(brng);
-    return (brng + 360) % 360;
-};
-
-const CLASSROOM_VERIFICATION_PROMPTS = ['left', 'right', 'front'];
-const SCAN_DURATION = 5; // seconds
-const MIN_STUDENTS_FOR_MATCH = 3;
-const SIMILARITY_THRESHOLD = 0.5; // Environment similarity
 const FACE_MATCH_THRESHOLD = 0.45; // Stricter for user's own face
 
 export default function VerifyAttendanceMode1Page() {
@@ -82,22 +61,11 @@ export default function VerifyAttendanceMode1Page() {
     const [statusMessage, setStatusMessage] = useState('');
     const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
-    const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
-    const [arrowRotation, setArrowRotation] = useState(0);
-
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // Classroom verification state
     const [isCameraLive, setIsCameraLive] = useState(false);
-    const [classroomVerificationSubstep, setClassroomVerificationSubstep] = useState(0);
-    const [scanCountdown, setScanCountdown] = useState(SCAN_DURATION);
-    const [isScanning, setIsScanning] = useState(false);
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     
-    const [envReferenceDescriptors, setEnvReferenceDescriptors] = useState<Float32Array[]>([]);
-    const [studentReferenceDescriptors, setStudentReferenceDescriptors] = useState<Float32Array[]>([]);
-
     const [showCodeInput, setShowCodeInput] = useState(false);
     const [verificationCode, setVerificationCode] = useState("");
     const [isVerifyingCode, setIsVerifyingCode] = useState(false);
@@ -109,7 +77,6 @@ export default function VerifyAttendanceMode1Page() {
         ssr: false 
     }), []);
 
-    // Load Department Details & User Profile Descriptor
     useEffect(() => {
         async function fetchInitialData() {
             if (userProfileLoading) return;
@@ -123,34 +90,19 @@ export default function VerifyAttendanceMode1Page() {
             if (userProfile?.institutionId) {
                 setLoading(true);
                 try {
-                    await getFaceApi(); // Ensure models are loaded before anything else
+                    await getFaceApi();
                     const institutions = await getInstitutions();
                     const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
                     const currentDept = currentInstitution?.departments.find(dept => dept.id === departmentId);
 
                     if (currentDept) {
                         setDepartment(currentDept);
-                        const status = await getClassroomCacheStatus(currentDept);
-                        if(status.needsUpdate) {
-                           await updateClassroomDescriptorsCache(currentDept);
-                        }
-                        const cachedEnvDescriptors = getCachedDescriptor(`classroom-env_${currentDept.id}`);
-                         if (cachedEnvDescriptors) {
-                             const flatDescriptors = JSON.parse(new TextDecoder().decode(cachedEnvDescriptors));
-                             setEnvReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
-                         }
-                        const cachedStudentDescriptors = getCachedDescriptor(`classroom-student_${currentDept.id}`);
-                         if (cachedStudentDescriptors) {
-                             const flatDescriptors = JSON.parse(new TextDecoder().decode(cachedStudentDescriptors));
-                             setStudentReferenceDescriptors(flatDescriptors.map((d: number[]) => new Float32Array(d)));
-                         }
                         setError(null);
                     } else {
                         setError(`Department not found.`);
                         setDepartment(null);
                     }
 
-                    // Load user profile descriptor
                     const cachedProfileDescriptor = getCachedDescriptor('userProfileImage');
                     if (cachedProfileDescriptor) {
                         const descriptorArray = JSON.parse(new TextDecoder().decode(cachedProfileDescriptor));
@@ -170,15 +122,6 @@ export default function VerifyAttendanceMode1Page() {
         fetchInitialData();
     }, [departmentId, userProfile, userProfileLoading]);
 
-
-    // Device Orientation Handler
-    const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
-        const alpha = event.alpha;
-        if (alpha !== null) {
-            setDeviceHeading(alpha);
-        }
-    }, []);
-
     const stopCamera = useCallback(() => {
          if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
@@ -192,8 +135,8 @@ export default function VerifyAttendanceMode1Page() {
         if (videoRef.current?.srcObject) {
             stopCamera();
         }
-        setStepStatus('verifying');
         setStatusMessage('Starting camera...');
+        setStepStatus('verifying');
 
         try {
             const facingMode = step === 1 ? 'environment' : 'user';
@@ -228,15 +171,6 @@ export default function VerifyAttendanceMode1Page() {
         setStepStatus('verifying');
         setStatusMessage('Getting your location...');
         
-        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-            (DeviceOrientationEvent as any).requestPermission()
-                .then((permissionState: string) => {
-                    if (permissionState === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
-                }).catch(console.error);
-        } else {
-            window.addEventListener('deviceorientation', handleOrientation, true);
-        }
-
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const currentUserLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -247,15 +181,12 @@ export default function VerifyAttendanceMode1Page() {
                     if (distance <= (department.radius || 100)) {
                         setStatusMessage(`Location verified! You are inside the zone.`);
                         setStepStatus('success');
-                        window.removeEventListener('deviceorientation', handleOrientation, true);
                         setTimeout(() => {
                             setCurrentStep(1);
                             setStepStatus('pending');
                         }, 1500);
                     } else {
-                        const bearing = getBearing(currentUserLocation, department.location);
-                        if(deviceHeading !== null) setArrowRotation(bearing - deviceHeading);
-                        setStatusMessage(`You are ${distance.toFixed(0)}m away. Follow the arrow to get in range.`);
+                        setStatusMessage(`You are ${distance.toFixed(0)}m away. Move into the designated zone.`);
                         setStepStatus('failed');
                     }
                 }
@@ -269,14 +200,7 @@ export default function VerifyAttendanceMode1Page() {
                 setStepStatus('failed');
             }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
         );
-    }, [department, deviceHeading, handleOrientation]);
-
-    useEffect(() => {
-        if (stepStatus === 'failed' && deviceHeading !== null && userLocation && department?.location) {
-            const bearing = getBearing(userLocation, department.location);
-            setArrowRotation(bearing - deviceHeading);
-        }
-    }, [deviceHeading, userLocation, department, stepStatus]);
+    }, [department]);
 
     const handleFaceVerification = useCallback(async () => {
         if (!userProfileDescriptor) {
@@ -290,7 +214,8 @@ export default function VerifyAttendanceMode1Page() {
             return;
         }
         
-        setStatusMessage('Scanning face...');
+        setStepStatus('verifying');
+        setStatusMessage('Analyzing face...');
         const faceapi = await getFaceApi();
 
         const detection = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
@@ -303,7 +228,6 @@ export default function VerifyAttendanceMode1Page() {
                 setStatusMessage(`Face verified successfully! Attendance marked.`);
                 setStepStatus('success');
                 stopCamera();
-                // TODO: Here you would make an API call to record the attendance
             } else {
                 setStatusMessage(`Face does not match profile. Please try again.`);
                 setStepStatus('failed');
@@ -316,77 +240,17 @@ export default function VerifyAttendanceMode1Page() {
     }, [isCameraLive, userProfileDescriptor, stopCamera]);
 
     const handleClassroomVerification = useCallback(async () => {
-        if (!videoRef.current || !isCameraLive) return;
-        setStatusMessage('Analyzing...');
-        const faceapi = await getFaceApi();
-
-        const detections = await faceapi.detectAllFaces(videoRef.current).withFaceLandmarks().withFaceDescriptors();
-
-        let envSimilarity = 0;
-        if (detections.length > 0 && envReferenceDescriptors.length > 0) {
-            const envMatcher = new faceapi.FaceMatcher(envReferenceDescriptors);
-            const bestMatch = envMatcher.findBestMatch(detections[0].descriptor);
-            envSimilarity = 1 - bestMatch.distance;
-        }
-
-        let studentMatchCount = 0;
-        if (detections.length > 0 && studentReferenceDescriptors.length > 0) {
-            const studentMatcher = new faceapi.FaceMatcher(studentReferenceDescriptors);
-            detections.forEach(detection => {
-                const match = studentMatcher.findBestMatch(detection.descriptor);
-                if (match.label !== 'unknown') {
-                    studentMatchCount++;
-                }
-            });
-        }
-        
-        const isEnvMatch = envSimilarity > SIMILARITY_THRESHOLD;
-        const areStudentsPresent = studentMatchCount >= MIN_STUDENTS_FOR_MATCH;
-
-        if (isEnvMatch && areStudentsPresent) {
-            setStatusMessage(`Classroom verified! Env: ${Math.round(envSimilarity * 100)}%, Students: ${studentMatchCount}`);
-            setStepStatus('success');
-            stopCamera();
-            setTimeout(() => {
-                setCurrentStep(2);
-                setStepStatus('pending');
-            }, 2000);
-        } else {
-             const reason = !isEnvMatch ? `Low environment match (${Math.round(envSimilarity * 100)}%)` : `Not enough students detected (${studentMatchCount})`;
-            if (classroomVerificationSubstep < CLASSROOM_VERIFICATION_PROMPTS.length - 1) {
-                setClassroomVerificationSubstep(prev => prev + 1);
-                setStepStatus('instructions');
-                setStatusMessage(`${reason}. Let's try another angle.`);
-            } else {
-                setStatusMessage(`Could not verify classroom: ${reason}.`);
-                setStepStatus('failed');
-                stopCamera();
-            }
-        }
-    }, [isCameraLive, envReferenceDescriptors, studentReferenceDescriptors, classroomVerificationSubstep, stopCamera]);
-    
-    const startScan = useCallback(() => {
         setStepStatus('verifying');
-        setIsScanning(true);
-        setScanCountdown(SCAN_DURATION);
+        setStatusMessage('Classroom confirmed!');
+        // Simple confirmation, no complex logic
+        stopCamera();
+        setStepStatus('success');
+        setTimeout(() => {
+            setCurrentStep(2);
+            setStepStatus('pending');
+        }, 1500);
+    }, [stopCamera]);
     
-        countdownIntervalRef.current = setInterval(() => {
-            setScanCountdown(prev => (prev > 0 ? prev - 1 : 0));
-        }, 1000);
-
-        scanIntervalRef.current = setTimeout(() => {
-            clearInterval(countdownIntervalRef.current!);
-            countdownIntervalRef.current = null;
-            if (currentStep === 1) {
-                handleClassroomVerification();
-            } else if (currentStep === 2) {
-                handleFaceVerification();
-            }
-            setIsScanning(false);
-        }, SCAN_DURATION * 1000);
-
-    }, [currentStep, handleClassroomVerification, handleFaceVerification]);
-
     const handleVerifyCode = async () => {
         if (!verificationCode || !userProfile?.institutionId || !departmentId) return;
         setIsVerifyingCode(true);
@@ -415,22 +279,16 @@ export default function VerifyAttendanceMode1Page() {
         }
     }
 
-    // Effect to trigger verification for the current step
     useEffect(() => {
         if (loading || !department) return;
-
         if (currentStep === 0 && stepStatus === 'pending') {
             startGpsVerification();
         }
-
-        // Cleanup effect
         return () => {
-            window.removeEventListener('deviceorientation', handleOrientation, true);
             if (scanIntervalRef.current) clearTimeout(scanIntervalRef.current);
-            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
             stopCamera();
         };
-    }, [currentStep, stepStatus, loading, department, startGpsVerification, handleOrientation, stopCamera]);
+    }, [currentStep, stepStatus, loading, department, startGpsVerification, stopCamera]);
 
 
     const renderStepContent = () => {
@@ -441,9 +299,6 @@ export default function VerifyAttendanceMode1Page() {
                 <p className="text-muted-foreground font-medium">{statusMessage}</p>
                 {stepStatus === 'failed' && (
                     <div className="flex flex-col items-center gap-2 text-sm text-center">
-                        <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed">
-                            <ArrowUp className="h-10 w-10 text-primary transition-transform duration-500" style={{ transform: `rotate(${arrowRotation}deg)`}}/>
-                        </div>
                         <Button onClick={startGpsVerification}>
                             <RefreshCw className="mr-2 h-4 w-4" /> Retry
                         </Button>
@@ -477,19 +332,15 @@ export default function VerifyAttendanceMode1Page() {
                     </div>
                 )
             }
-            if (stepStatus === 'instructions' && !isScanning) {
+            if (stepStatus === 'instructions') {
                 return (
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage || `Point your camera at the classroom.`}</p>
-                        <Button onClick={startScan}>Start Scan</Button>
+                        <Button onClick={handleClassroomVerification}>Confirm I'm in the Classroom</Button>
                         <Button variant="link" onClick={() => { stopCamera(); setShowCodeInput(true); }}>Enter Code Instead</Button>
                     </div>
                 )
             }
-             if (stepStatus === 'verifying' && !isScanning && !isCameraLive) {
-                return <p className="text-muted-foreground font-medium">{statusMessage}</p>
-             }
-
              if (stepStatus === 'failed') {
                  return (
                      <div className="flex flex-col items-center gap-4">
@@ -499,17 +350,16 @@ export default function VerifyAttendanceMode1Page() {
                      </div>
                  )
              }
-
             return null;
         };
 
         const renderFaceContent = () => {
-             if (stepStatus === 'instructions' && !isScanning) {
+             if (stepStatus === 'instructions') {
                 return (
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground font-medium">{statusMessage || 'Center your face in the camera.'}</p>
-                        <Button onClick={startScan} disabled={!userProfileDescriptor}>
-                           {userProfileDescriptor ? "Start Scan" : "Loading Profile..."}
+                        <Button onClick={handleFaceVerification} disabled={!userProfileDescriptor}>
+                           {userProfileDescriptor ? "Scan My Face" : "Loading Profile..."}
                         </Button>
                     </div>
                 )
@@ -543,14 +393,14 @@ export default function VerifyAttendanceMode1Page() {
                 break;
             case 1:
                 isCameraStep = true;
-                if (showCodeInput || stepStatus === 'instructions' || isScanning || isCameraLive) {
+                if (showCodeInput || stepStatus === 'instructions' || isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderClassroomContent();
                 break;
             case 2:
                 isCameraStep = true;
-                 if (stepStatus === 'instructions' || isScanning || isCameraLive) {
+                 if (stepStatus === 'instructions' || isCameraLive) {
                     showMainIcon = false;
                 }
                 content = renderFaceContent();
@@ -616,7 +466,7 @@ export default function VerifyAttendanceMode1Page() {
         "aspect-square w-full max-w-sm mx-auto bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 transition-colors",
         {
             "border-muted": stepStatus === 'pending' || stepStatus === 'instructions',
-            "border-primary animate-pulse": stepStatus === 'verifying' && isScanning,
+            "border-primary": stepStatus === 'verifying',
             "border-green-500": stepStatus === 'success',
             "border-destructive": stepStatus === 'failed',
         }
@@ -660,22 +510,14 @@ export default function VerifyAttendanceMode1Page() {
             </div>
             
             <div className="max-w-2xl mx-auto">
-                {isCameraStep && (
+                {isCameraStep && isCameraLive && (
                      <Card>
                         <CardContent className="p-4">
                            <div className={cameraFrameColor}>
                                 <video ref={videoRef} autoPlay playsInline muted className={cn(
                                     "w-full h-full object-cover",
-                                    currentStep === 2 ? "transform -scale-x-100" : "", // Mirror for face verification only
-                                    isCameraLive ? "block" : "hidden"
+                                    currentStep === 2 ? "transform -scale-x-100" : ""
                                 )}/>
-                                {!isCameraLive && stepStatus !== 'pending' && <p className="text-muted-foreground">Camera is starting...</p>}
-                                {isScanning && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white gap-2">
-                                        <Loader2 className="h-8 w-8 animate-spin" />
-                                        <p>Keep still... Verifying in {scanCountdown}</p>
-                                    </div>
-                                )}
                            </div>
                         </CardContent>
                      </Card>
