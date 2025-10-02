@@ -21,7 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 
 const SIMILARITY_THRESHOLD = 0.55; 
-const EXPRESSION_THRESHOLD = 0.7; 
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -39,12 +38,9 @@ export default function VerifyFacePage() {
     const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const [userDescriptor, setUserDescriptor] = useState<Float32Array | null>(null);
 
-    const [status, setStatus] = useState<'pending' | 'scanning' | 'verified' | 'liveness_challenge' | 'liveness_verified' | 'failed'>('pending');
+    const [status, setStatus] = useState<'pending' | 'scanning' | 'verified' | 'failed'>('pending');
     const [feedbackMessage, setFeedbackMessage] = useState('Click "Start Scan" to begin.');
     const [similarity, setSimilarity] = useState<number | null>(null);
-
-    const [livenessChallenge, setLivenessChallenge] = useState<'blink' | 'smile' | null>(null);
-    const [livenessPrompt, setLivenessPrompt] = useState('');
 
     useEffect(() => {
         async function fetchInitialData() {
@@ -97,63 +93,28 @@ export default function VerifyFacePage() {
         }
         setIsCameraLive(false);
     }, [stopDetection]);
-
-    const startLivenessChallenge = () => {
-        setStatus('liveness_challenge');
-        const challenge = Math.random() > 0.5 ? 'blink' : 'smile';
-        setLivenessChallenge(challenge);
-        setLivenessPrompt(challenge === 'blink' ? 'Please Blink Now' : 'Please Smile Now');
-        // Restart detection for expressions
-        stopDetection();
-        detectionIntervalRef.current = setInterval(detectFace, 500);
-    }
     
     const detectFace = async () => {
-        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded()) return;
+        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor) return;
         const faceapi = await getFaceApi();
 
-        if (status === 'scanning' && userDescriptor) {
-            const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
-            if (detections) {
-                const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
-                const currentSimilarity = 1 - distance; 
-                setSimilarity(currentSimilarity);
+        const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
+        
+        if (detections) {
+            const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
+            const currentSimilarity = 1 - distance; 
+            setSimilarity(currentSimilarity);
 
-                if (distance < SIMILARITY_THRESHOLD) {
-                    setStatus('verified');
-                    setFeedbackMessage('Face Verified!');
-                    stopDetection();
-                    setTimeout(startLivenessChallenge, 1000);
-                } else {
-                    setFeedbackMessage("Keep your face centered.");
-                }
+            if (distance < SIMILARITY_THRESHOLD) {
+                setStatus('verified');
+                setFeedbackMessage('Face Verified!');
+                stopCamera();
             } else {
-                setSimilarity(0);
-                 toast({
-                    title: "No Face Detected",
-                    description: "Please ensure your face is clearly visible and centered in the frame.",
-                    variant: "destructive"
-                });
+                setFeedbackMessage("Keep your face centered.");
             }
-        } 
-        else if (status === 'liveness_challenge' && livenessChallenge) {
-             const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceExpressions();
-             if (detections) {
-                 if (livenessChallenge === 'smile' && detections.expressions.happy > EXPRESSION_THRESHOLD) {
-                     setStatus('liveness_verified');
-                     setFeedbackMessage('Liveness Verified!');
-                     stopCamera();
-                 }
-                 // A neutral expression can often be misinterpereted as a blink, so this logic is not reliable.
-                 // This is a placeholder for a more robust blink detection algorithm.
-                 if (livenessChallenge === 'blink') {
-                     if(detections.expressions.neutral > 0.8) {
-                        setStatus('liveness_verified');
-                        setFeedbackMessage('Liveness Verified!');
-                        stopCamera();
-                     }
-                 }
-             }
+        } else {
+            setSimilarity(0);
+            setFeedbackMessage("No face detected.");
         }
     };
 
@@ -190,30 +151,22 @@ export default function VerifyFacePage() {
             return (
                  <div className="w-full max-w-xs text-center space-y-2">
                     <p className="text-sm text-muted-foreground">{feedbackMessage}</p>
-                    <Progress value={percentage} />
-                    <p className="text-sm font-medium">{percentage}% Match</p>
+                    {feedbackMessage !== "No face detected." && (
+                        <>
+                            <Progress value={percentage} />
+                            <p className="text-sm font-medium">{percentage}% Match</p>
+                        </>
+                    )}
                 </div>
             )
         }
-        if (status === 'verified' || status === 'liveness_challenge' || status === 'liveness_verified') {
+        if (status === 'verified') {
             return (
                 <div className="text-center space-y-2">
                     <div className="flex items-center justify-center gap-2 text-green-600">
                         <CheckCircle className="h-5 w-5" />
-                        <span className="font-semibold">Face Verified!</span>
+                        <span className="font-semibold">{feedbackMessage}</span>
                     </div>
-                     {status === 'liveness_challenge' && (
-                        <div className="flex items-center justify-center gap-2 text-primary pt-2">
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                            <span className="font-semibold">{livenessPrompt}</span>
-                        </div>
-                    )}
-                    {status === 'liveness_verified' && (
-                        <div className="flex items-center justify-center gap-2 text-green-600 pt-2">
-                            <CheckCircle className="h-5 w-5" />
-                            <span className="font-semibold">Liveness Verified!</span>
-                        </div>
-                    )}
                 </div>
             )
         }
@@ -272,12 +225,12 @@ export default function VerifyFacePage() {
                         <div className={cn(
                             "aspect-square w-64 bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 transition-colors",
                             { "border-muted": status === 'pending',
-                              "border-primary": status === 'scanning' || status === 'liveness_challenge',
-                              "border-green-500": status === 'verified' || status === 'liveness_verified',
+                              "border-primary": status === 'scanning',
+                              "border-green-500": status === 'verified',
                               "border-destructive": status === 'failed' }
                         )}>
                            <video ref={videoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover transform -scale-x-100", !isCameraLive && "hidden")}/>
-                           {!isCameraLive && (status === 'liveness_verified' || status === 'verified') && (
+                           {!isCameraLive && status === 'verified' && (
                                <CheckCircle className="h-24 w-24 text-green-500" />
                            )}
                            {!isCameraLive && status === 'pending' && (
@@ -295,7 +248,7 @@ export default function VerifyFacePage() {
                         <div className="h-16 mt-2 flex flex-col justify-center items-center">
                             {renderVerificationStatus()}
                         </div>
-                         {status === 'liveness_verified' && (
+                         {status === 'verified' && (
                              <Button onClick={() => router.push('/student-dashboard')}>Done</Button>
                          )}
                     </CardContent>
