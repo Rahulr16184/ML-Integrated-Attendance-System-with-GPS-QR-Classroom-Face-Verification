@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { VerificationInfoDialog } from '@/components/verification-info-dialog';
 import { getFaceApi, areModelsLoaded } from '@/lib/face-api';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 
 const SIMILARITY_THRESHOLD = 0.55; // Threshold for face match (face-api.js L2 distance, lower is better)
 const EXPRESSION_THRESHOLD = 0.7; // Threshold for smile/blink detection (confidence)
@@ -35,6 +36,7 @@ export default function VerifyFacePage() {
     const searchParams = useSearchParams();
     const departmentId = searchParams.get('deptId');
     const { userProfile, loading: userProfileLoading } = useUserProfile();
+    const { toast } = useToast();
 
     const [department, setDepartment] = useState<Department | null>(null);
     const [loading, setLoading] = useState(true);
@@ -69,8 +71,6 @@ export default function VerifyFacePage() {
                 setFeedbackMessage("Loading AI models...");
                 await getFaceApi(); 
                 
-                // ** THE CRITICAL FIX IS HERE **
-                // Correctly retrieve and parse the cached descriptor from sessionStorage.
                 const cachedItemRaw = sessionStorage.getItem(`system-cache-v1-${userProfile.uid}`);
                 if (cachedItemRaw) {
                     const cachedItem = JSON.parse(cachedItemRaw) as CachedDescriptor;
@@ -141,6 +141,11 @@ export default function VerifyFacePage() {
             } else {
                 setFeedbackMessage("No face detected.");
                 setSimilarity(0);
+                toast({
+                    title: "No Face Detected",
+                    description: "Please ensure your face is clearly visible and centered in the frame.",
+                    variant: "destructive"
+                });
             }
         } 
         else if (status === 'liveness_challenge' && livenessChallenge) {
@@ -308,5 +313,3 @@ export default function VerifyFacePage() {
         </div>
     );
 }
-
-    
