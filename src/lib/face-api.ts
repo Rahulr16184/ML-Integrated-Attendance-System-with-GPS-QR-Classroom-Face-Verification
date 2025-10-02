@@ -17,12 +17,13 @@ export async function loadModels() {
   modelsLoaded = (async () => {
     try {
       await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL), // Use ssdMobilenetv1 for better detection
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
         faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
-        faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+        // These are not strictly required for the current flow but good to have
+        // faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
+        // faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       ]);
       console.log('Face-api models loaded successfully');
       modelsLoaded = true; // Set to true after promise resolves
@@ -44,3 +45,5 @@ export async function getFaceApi() {
     await loadModels();
     return faceapi;
 }
+
+    
