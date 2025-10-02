@@ -10,16 +10,11 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions } from '@/services/institution-service';
 import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, RefreshCw, UserCheck, Info } from 'lucide-react';
+import { Loader2, UserCheck, Info } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getFaceApi } from '@/lib/face-api';
-import { getCachedDescriptor } from '@/services/system-cache-service';
 import { VerificationSteps } from '@/components/verification-steps';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 import { VerificationInfoDialog } from '@/components/verification-info-dialog';
-
-const FACE_MATCH_THRESHOLD = 0.45; // Stricter for user's own face
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -31,12 +26,8 @@ export default function VerifyFacePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [status, setStatus] = useState<'pending' | 'instructions' | 'verifying' | 'success' | 'failed'>('pending');
-    const [statusMessage, setStatusMessage] = useState('');
-
-    const videoRef = useRef<HTMLVideoElement>(null);
     const [isCameraLive, setIsCameraLive] = useState(false);
-    const [userProfileDescriptor, setUserProfileDescriptor] = useState<Float32Array | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         async function fetchInitialData() {
@@ -46,22 +37,13 @@ export default function VerifyFacePage() {
 
             setLoading(true);
             try {
-                await getFaceApi();
                 const institutions = await getInstitutions();
                 const currentInstitution = institutions.find(inst => inst.id === userProfile.institutionId);
                 const currentDept = currentInstitution?.departments.find(dept => dept.id === departmentId);
                 if (currentDept) setDepartment(currentDept);
                 else setError(`Department not found.`);
-
-                const cachedDescriptor = getCachedDescriptor('userProfileImage');
-                if (cachedDescriptor) {
-                    const descriptorArray = JSON.parse(new TextDecoder().decode(cachedDescriptor));
-                    setUserProfileDescriptor(new Float32Array(descriptorArray));
-                } else {
-                    setError('User profile face data not found. Please set a profile picture.');
-                }
             } catch (err) {
-                setError('Failed to fetch data or load models.');
+                setError('Failed to fetch data.');
             } finally {
                 setLoading(false);
             }
@@ -80,20 +62,15 @@ export default function VerifyFacePage() {
 
     const startCamera = useCallback(async () => {
         if (isCameraLive) return;
-        setStatusMessage('Starting camera...');
-        setStatus('verifying');
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
                 await videoRef.current.play();
                 setIsCameraLive(true);
-                setStatus('instructions');
-                setStatusMessage('Center your face in the frame.');
             }
         } catch (err) {
-            setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
-            setStatus('failed');
+            setError(`Camera error: ${(err as Error).message}. Please grant permissions.`);
             setIsCameraLive(false);
         }
     }, [isCameraLive]);
@@ -101,42 +78,6 @@ export default function VerifyFacePage() {
     useEffect(() => {
         return () => stopCamera();
     }, [stopCamera]);
-    
-    const handleFaceVerification = useCallback(async () => {
-        if (!userProfileDescriptor) {
-            setStatusMessage('User profile data not found for verification.');
-            setStatus('failed');
-            return;
-        }
-        if (!videoRef.current || !isCameraLive) {
-            setStatusMessage('Camera not ready. Please try again.');
-            setStatus('failed');
-            return;
-        }
-        
-        setStatus('verifying');
-        setStatusMessage('Analyzing face...');
-        const faceapi = await getFaceApi();
-
-        const detection = await faceapi.detectSingleFace(videoRef.current).withFaceLandmarks().withFaceDescriptor();
-
-        if (detection) {
-            const faceMatcher = new faceapi.FaceMatcher(userProfileDescriptor);
-            const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-            
-            if (bestMatch.label !== 'unknown' && 1 - bestMatch.distance > FACE_MATCH_THRESHOLD) {
-                setStatusMessage(`Face verified successfully! Attendance marked.`);
-                setStatus('success');
-                stopCamera();
-            } else {
-                setStatusMessage(`Face does not match profile. Please try again.`);
-                setStatus('failed');
-            }
-        } else {
-            setStatusMessage('No face detected. Please position your face in the center.');
-            setStatus('failed');
-        }
-    }, [isCameraLive, userProfileDescriptor, stopCamera]);
 
     if (loading) {
         return (
@@ -158,12 +99,6 @@ export default function VerifyFacePage() {
             </div>
         );
     }
-
-    const cameraFrameColor = cn("aspect-square w-full max-w-sm mx-auto bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 transition-colors",
-        { "border-muted": status === 'pending' || status === 'instructions',
-          "border-primary": status === 'verifying',
-          "border-green-500": status === 'success',
-          "border-destructive": status === 'failed' });
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
@@ -191,43 +126,17 @@ export default function VerifyFacePage() {
                             Step 3: Face Verification
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="min-h-[350px] flex flex-col items-center justify-center gap-4 text-center">
-                        {status === 'pending' && (
-                             <Button onClick={startCamera} disabled={!userProfileDescriptor}>
-                                {userProfileDescriptor ? "Start Face Verification" : "Loading Profile..."}
-                            </Button>
-                        )}
-
-                        {isCameraLive && (
-                             <div className="w-full">
-                                <div className={cameraFrameColor}>
-                                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform -scale-x-100"/>
-                                </div>
-                             </div>
-                        )}
-
-                        {status === 'instructions' && isCameraLive && (
-                             <Button onClick={handleFaceVerification}>Scan My Face</Button>
-                        )}
+                    <CardContent className="min-h-[400px] flex flex-col items-center justify-center gap-4 text-center">
+                        <div className="aspect-square w-64 bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 border-muted">
+                           <video ref={videoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover transform -scale-x-100", !isCameraLive && "hidden")}/>
+                           {!isCameraLive && (
+                                <UserCheck className="h-24 w-24 text-muted-foreground/50"/>
+                           )}
+                        </div>
                         
-                        {(status === 'verifying' || status === 'failed' || status === 'success') && !isCameraLive && (
-                             <>
-                                {status === 'verifying' && <Loader2 className="h-12 w-12 animate-spin text-primary" />}
-                                {status === 'success' && <CheckCircle className="h-12 w-12 text-green-500" />}
-                                {status === 'failed' && <XCircle className="h-12 w-12 text-destructive" />}
-                                <p className="font-semibold">{statusMessage}</p>
-                                {status === 'failed' && (
-                                     <Button onClick={startCamera}><RefreshCw className="mr-2 h-4 w-4" /> Try Again</Button>
-                                )}
-                                {status === 'success' && (
-                                     <Button asChild><Link href="/student-dashboard">Go to Dashboard</Link></Button>
-                                )}
-                             </>
+                        {!isCameraLive && (
+                             <Button onClick={startCamera}>Start Scan</Button>
                         )}
-                         
-                         {statusMessage && isCameraLive && (
-                             <p className="text-muted-foreground font-medium">{statusMessage}</p>
-                         )}
 
                     </CardContent>
                 </Card>
