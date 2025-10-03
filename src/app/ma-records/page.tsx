@@ -9,7 +9,6 @@ import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
 import { getSemesters } from "@/services/working-days-service";
-import { getStudentAttendance } from "@/services/attendance-service";
 import type { Department, Semester, AttendanceLog } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -175,6 +174,13 @@ export default function MaRecordsPage() {
         setSelectedDateRecord("absent");
     }
   };
+  
+  const numberOfMonths = useMemo(() => {
+    if (!selectedSemester) return 1;
+    const from = selectedSemester.dateRange.from;
+    const to = selectedSemester.dateRange.to;
+    return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()) + 1;
+  }, [selectedSemester]);
 
 
   if (!isAuthorized || userLoading) {
@@ -253,7 +259,7 @@ export default function MaRecordsPage() {
                         modifiersClassNames={calendarModifiersClassNames}
                         onDayClick={handleDayClick}
                         disabled={{ after: new Date() }}
-                        numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
+                        numberOfMonths={numberOfMonths}
                         className="p-0"
                         classNames={{
                           day: cn("h-10 w-10"),
