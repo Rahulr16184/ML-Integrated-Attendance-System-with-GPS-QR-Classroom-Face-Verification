@@ -57,3 +57,15 @@ export type Semester = {
   holidays: string[];
   workingDays: number;
 };
+
+export type AttendanceLog = {
+    id: string;
+    studentId: string;
+    studentName: string;
+    departmentId: string;
+    date: string; // ISO string
+    status: 'Present' | 'Absent' | 'Late';
+    mode: 1 | 2;
+    verificationPhotoUrl: string;
+    markedBy: 'student' | 'teacher' | 'admin';
+};

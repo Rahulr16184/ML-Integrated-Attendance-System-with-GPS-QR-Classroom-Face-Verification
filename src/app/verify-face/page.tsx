@@ -20,6 +20,9 @@ import { getFaceApi, areModelsLoaded } from '@/lib/face-api';
 import { Progress } from '@/components/ui/progress';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 import { useToast } from '@/hooks/use-toast';
+import { uploadImage } from '@/services/user-service';
+import { addAttendanceRecord } from '@/services/attendance-service';
+import type { AttendanceLog } from '@/lib/types';
 
 const SIMILARITY_THRESHOLD = 0.55;
 const SMILE_THRESHOLD = 0.8;
@@ -105,7 +108,7 @@ export default function VerifyFacePage() {
     }, [stopDetection]);
 
     const captureFinalImage = useCallback(() => {
-        if (videoRef.current) {
+        if (videoRef.current && userProfile && department) {
             const canvas = document.createElement("canvas");
             canvas.width = videoRef.current.videoWidth;
             canvas.height = videoRef.current.videoHeight;
@@ -114,15 +117,42 @@ export default function VerifyFacePage() {
                 context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
                 const dataUri = canvas.toDataURL("image/jpeg");
                 setFinalCapture(dataUri);
-                // Here you would typically send the dataUri to your backend
-                toast({
-                    title: "Attendance Logged!",
-                    description: "Your attendance has been recorded with a verification photo.",
-                });
+
+                // Stop the camera before starting async operations
                 stopCamera();
+
+                // Now upload and save the record
+                (async () => {
+                    try {
+                        const imageUrl = await uploadImage(dataUri);
+                        const record: Omit<AttendanceLog, 'id'> = {
+                            studentId: userProfile.uid,
+                            studentName: userProfile.name,
+                            date: new Date().toISOString(),
+                            departmentId: department.id,
+                            mode: mode,
+                            status: 'Present',
+                            verificationPhotoUrl: imageUrl,
+                            markedBy: 'student',
+                        };
+                        await addAttendanceRecord(userProfile.institutionId, department.id, record);
+                        toast({
+                            title: "Attendance Logged!",
+                            description: "Your attendance has been recorded with a verification photo.",
+                        });
+                        setStatus('success');
+                    } catch (e) {
+                         toast({
+                            title: "Save Failed",
+                            description: "Could not save your attendance record. Please try again.",
+                            variant: 'destructive'
+                        });
+                        setStatus('failed');
+                    }
+                })();
             }
         }
-    }, [stopCamera, toast]);
+    }, [stopCamera, toast, userProfile, department, mode]);
     
     useEffect(() => {
         let countdownInterval: NodeJS.Timeout | null = null;
@@ -133,7 +163,6 @@ export default function VerifyFacePage() {
                     if (prev <= 1) {
                         clearInterval(countdownInterval!);
                         captureFinalImage();
-                        setStatus('success');
                         return 0;
                     }
                     return prev - 1;
