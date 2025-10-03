@@ -3,6 +3,7 @@
 "use client";
 
 import * as React from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -403,3 +404,4 @@ export default function VerifyFacePage() {
         </div>
     );
 }
+
