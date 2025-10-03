@@ -38,8 +38,9 @@ export default function MaRecordsPage() {
   const [loadingSemesters, setLoadingSemesters] = useState(false);
 
   useEffect(() => {
+    // This page is accessible to students, teachers, and admins
     const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
-    if (role !== 'admin' && role !== 'teacher') {
+    if (!role) {
       router.push('/login');
     } else {
       setIsAuthorized(true);
