@@ -117,16 +117,15 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [userProfile?.uid, selectedSemester, selectedDepartmentId]);
 
-  const { presentDays, absentDays, remainingDays, totalDaysInRange } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0, totalDaysInRange: 0 };
+  const { presentDays, absentDays, remainingDays, totalDaysInRange, holidaysCount } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0, totalDaysInRange: 0, holidaysCount: 0 };
     
     const present = attendanceRecords.map(r => parseISO(r.date));
     const absent: Date[] = [];
     
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
     const presentDates = new Set(present.map(p => p.toDateString()));
-
-    const totalDays = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
+    const holidaysCount = selectedSemester.holidays.length;
 
     // Calculate absent days (past working days with no attendance)
     for (let d = new Date(selectedSemester.dateRange.from); isBefore(d, startOfToday()); d.setDate(d.getDate() + 1)) {
@@ -152,7 +151,9 @@ export default function MaRecordsPage() {
         }
     }
 
-    return { presentDays: present, absentDays: absent, remainingDays: remaining, totalDaysInRange: totalDays };
+    const totalDays = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
+
+    return { presentDays: present, absentDays: absent, remainingDays: remaining, totalDaysInRange: totalDays, holidaysCount };
   }, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
@@ -168,7 +169,7 @@ export default function MaRecordsPage() {
   };
 
   const handleDayClick = (day: Date, modifiers: { present?: boolean, absent?: boolean }) => {
-    if (isAfter(day, new Date())) return; // Disable clicks on future dates
+    if (isAfter(day, new Date()) && !isSameDay(day, new Date())) return; // Disable clicks on future dates, but allow today
     if (modifiers.present) {
       const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
       if (record) {
@@ -177,6 +178,10 @@ export default function MaRecordsPage() {
     } else if (modifiers.absent) {
         setSelectedDateRecord("absent");
     }
+  };
+
+  const isDayDisabled = (day: Date) => {
+    return isAfter(day, new Date()) && !isSameDay(day, new Date());
   };
 
   if (!isAuthorized || userLoading) {
@@ -254,11 +259,11 @@ export default function MaRecordsPage() {
                         modifiers={calendarModifiers}
                         modifiersClassNames={calendarModifiersClassNames}
                         onDayClick={handleDayClick}
-                        disabled={{ after: new Date() }}
+                        disabled={isDayDisabled}
                         className="p-0"
                         classNames={{
                           day: cn("h-10 w-10"),
-                          day_disabled: "text-muted-foreground/50",
+                          day_disabled: "text-muted-foreground/50 cursor-not-allowed",
                           day_selected: "",
                           day_range_middle: "",
                         }}
@@ -270,10 +275,14 @@ export default function MaRecordsPage() {
                 <CardHeader>
                     <CardTitle>Attendance Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Total Days</p>
                         <p className="text-2xl font-bold">{totalDaysInRange}</p>
+                    </div>
+                     <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400">Holidays</p>
+                        <p className="text-2xl font-bold">{holidaysCount}</p>
                     </div>
                     <div className="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg">
                         <p className="text-sm text-green-600 dark:text-green-400">Present</p>
