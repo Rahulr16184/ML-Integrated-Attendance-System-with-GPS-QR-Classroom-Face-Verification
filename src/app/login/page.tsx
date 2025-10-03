@@ -140,6 +140,10 @@ export default function LoginPage() {
       }
     }
   }
+  
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -198,16 +202,14 @@ export default function LoginPage() {
             </div>
           </div>
           <div className="flex items-center justify-between">
-            {isMounted && (
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="remember-me" 
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                />
-                <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="remember-me" 
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+              />
+              <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
+            </div>
             <Link href="#" className="inline-block text-sm underline">
                 Forgot your password?
             </Link>
