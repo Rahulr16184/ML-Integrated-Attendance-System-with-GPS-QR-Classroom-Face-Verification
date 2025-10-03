@@ -201,7 +201,7 @@ export default function VerifyQrPage() {
                              {(status === 'failed' && !isCameraLive) && <XCircle className="h-12 w-12 text-destructive" />}
                              {(status === 'success' && !isCameraLive) && <CheckCircle className="h-12 w-12 text-green-500" />}
 
-                            <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraLive && "hidden")} />
+                            <video ref={videoRef} className={cn("w-full h-full object-cover transform -scale-x-100", !isCameraLive && "hidden")} />
                             <canvas ref={canvasRef} className="hidden" />
                             
                             {isCameraLive && (
