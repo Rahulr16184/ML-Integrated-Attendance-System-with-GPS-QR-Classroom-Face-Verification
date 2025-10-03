@@ -1,8 +1,10 @@
 
+
 "use client";
 
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +20,7 @@ import { VerificationInfoDialog } from '@/components/verification-info-dialog';
 import { getFaceApi, areModelsLoaded } from '@/lib/face-api';
 import { Progress } from '@/components/ui/progress';
 import { getCachedDescriptor } from '@/services/system-cache-service';
+import { useToast } from '@/hooks/use-toast';
 
 const SIMILARITY_THRESHOLD = 0.55;
 const SMILE_THRESHOLD = 0.8;
@@ -25,6 +28,7 @@ const SMILE_THRESHOLD = 0.8;
 export default function VerifyFacePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { toast } = useToast();
     const departmentId = searchParams.get('deptId');
     const { userProfile, loading: userProfileLoading } = useUserProfile();
 
@@ -36,10 +40,12 @@ export default function VerifyFacePage() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const [userDescriptor, setUserDescriptor] = useState<Float32Array | null>(null);
-
-    const [status, setStatus] = useState<'pending' | 'scanning' | 'liveness' | 'success' | 'failed'>('pending');
+    
+    const [status, setStatus] = useState<'pending' | 'scanning' | 'liveness' | 'positioning' | 'success' | 'failed'>('pending');
     const [feedbackMessage, setFeedbackMessage] = useState('Click "Start Scan" to begin.');
     const [similarity, setSimilarity] = useState<number | null>(null);
+    const [countdown, setCountdown] = useState(5);
+    const [finalCapture, setFinalCapture] = useState<string | null>(null);
     
     const statusRef = useRef(status);
     useEffect(() => {
@@ -80,7 +86,7 @@ export default function VerifyFacePage() {
         }
         fetchInitialData();
     }, [departmentId, userProfile, userProfileLoading]);
-
+    
     const stopDetection = useCallback(() => {
         if (detectionIntervalRef.current) {
             clearInterval(detectionIntervalRef.current);
@@ -97,44 +103,88 @@ export default function VerifyFacePage() {
         }
         setIsCameraLive(false);
     }, [stopDetection]);
+
+    const captureFinalImage = useCallback(() => {
+        if (videoRef.current) {
+            const canvas = document.createElement("canvas");
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const context = canvas.getContext("2d");
+            if (context) {
+                context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                const dataUri = canvas.toDataURL("image/jpeg");
+                setFinalCapture(dataUri);
+                // Here you would typically send the dataUri to your backend
+                toast({
+                    title: "Attendance Logged!",
+                    description: "Your attendance has been recorded with a verification photo.",
+                });
+                stopCamera();
+            }
+        }
+    }, [stopCamera, toast]);
     
+    useEffect(() => {
+        let countdownInterval: NodeJS.Timeout | null = null;
+        if (status === 'positioning') {
+            stopDetection();
+            countdownInterval = setInterval(() => {
+                setCountdown(prev => {
+                    if (prev <= 1) {
+                        clearInterval(countdownInterval!);
+                        captureFinalImage();
+                        setStatus('success');
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => {
+            if (countdownInterval) clearInterval(countdownInterval);
+        };
+    }, [status, stopDetection, captureFinalImage]);
     
-    const detectFace = async () => {
-        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) return;
+    const detectFace = useCallback(async () => {
+        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) {
+            return;
+        }
         
         const faceapi = await getFaceApi();
-        const currentStatus = statusRef.current; 
+        const currentStatus = statusRef.current;
 
         if (currentStatus === 'scanning') {
-            const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
-            if (detections) {
-                const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
+            const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
+            if (detection) {
+                const distance = faceapi.euclideanDistance(detection.descriptor, userDescriptor);
                 const currentSimilarity = 1 - distance; 
                 setSimilarity(currentSimilarity);
 
                 if (currentSimilarity > SIMILARITY_THRESHOLD) {
+                    setFeedbackMessage('Face verified! Now for liveness...');
                     setStatus('liveness');
                 } else {
                      setFeedbackMessage('Verifying similarity...');
                 }
             } else {
                 setSimilarity(0);
-                setFeedbackMessage("No face detected.");
+                setFeedbackMessage("No face detected. Please center your face.");
             }
         } else if (currentStatus === 'liveness') {
-            const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceExpressions();
-            if (!detections) {
+            const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceExpressions();
+            if (!detection) {
                 setFeedbackMessage("Keep your face in the frame.");
                 return;
             }
 
-            if (detections.expressions.happy > SMILE_THRESHOLD) {
-                setStatus('success');
+            if (detection.expressions.happy > SMILE_THRESHOLD) {
+                setStatus('positioning');
+                setFeedbackMessage("Great! Now hold your pose for the final photo.");
             } else {
                 setFeedbackMessage("Please Smile!");
             }
         }
-    };
+    }, [userDescriptor]);
 
 
     const startCamera = useCallback(async () => {
@@ -145,11 +195,13 @@ export default function VerifyFacePage() {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
             if (videoRef.current) {
                 videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play();
-                    setIsCameraLive(true);
-                    setFeedbackMessage('Center your face in the frame.');
-                    if (!detectionIntervalRef.current) {
-                        detectionIntervalRef.current = setInterval(detectFace, 500);
+                    if (videoRef.current) {
+                        videoRef.current.play();
+                        setIsCameraLive(true);
+                        setFeedbackMessage('Center your face in the frame.');
+                        if (!detectionIntervalRef.current) {
+                            detectionIntervalRef.current = setInterval(detectFace, 500);
+                        }
                     }
                 }
                 videoRef.current.srcObject = mediaStream;
@@ -159,13 +211,13 @@ export default function VerifyFacePage() {
             setStatus('failed');
             setIsCameraLive(false);
         }
-    }, [isCameraLive, userDescriptor]);
+    }, [isCameraLive, userDescriptor, detectFace]);
     
     useEffect(() => {
-        if (status === 'success') {
+        if (status === 'success' && !finalCapture) {
             stopCamera();
         }
-    }, [status, stopCamera]);
+    }, [status, stopCamera, finalCapture]);
 
     useEffect(() => {
         return () => stopCamera();
@@ -182,6 +234,10 @@ export default function VerifyFacePage() {
                      <div className="flex items-center justify-center gap-2 text-green-600">
                         <CheckCircle className="h-5 w-5" />
                         <span className="font-semibold">Liveness Verified!</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-green-600">
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="font-semibold">Attendance Logged!</span>
                     </div>
                 </div>
             );
@@ -207,10 +263,19 @@ export default function VerifyFacePage() {
                     </div>
                     <div className="flex items-center justify-center gap-2 text-primary animate-pulse">
                          <Loader2 className="h-5 w-5 animate-spin" />
-                        <span className="font-semibold">Now, Please Smile</span>
+                        <span className="font-semibold">{feedbackMessage}</span>
                     </div>
                 </div>
             );
+        }
+
+        if (status === 'positioning') {
+            return (
+                <div className="text-center space-y-2">
+                    <p className="text-sm text-muted-foreground">Frame your face with the classroom in the background.</p>
+                    <p className="text-2xl font-bold">{countdown}</p>
+                </div>
+            )
         }
 
         return <p className="text-muted-foreground text-sm">{feedbackMessage}</p>;
@@ -267,12 +332,15 @@ export default function VerifyFacePage() {
                         <div className={cn(
                             "aspect-square w-64 bg-muted rounded-full flex items-center justify-center overflow-hidden relative border-4 transition-colors",
                             { "border-muted": status === 'pending',
-                              "border-primary": status === 'scanning' || status === 'liveness',
+                              "border-primary": status === 'scanning' || status === 'liveness' || status === 'positioning',
                               "border-green-500": status === 'success',
                               "border-destructive": status === 'failed' }
                         )}>
                            <video ref={videoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover transform -scale-x-100", !isCameraLive && "hidden")}/>
-                           {!isCameraLive && status === 'success' && (
+                           {!isCameraLive && finalCapture && (
+                               <Image src={finalCapture} alt="Final capture" layout="fill" className="object-cover transform -scale-x-100" />
+                           )}
+                           {!isCameraLive && !finalCapture && status === 'success' && (
                                <CheckCircle className="h-24 w-24 text-green-500" />
                            )}
                            {!isCameraLive && status === 'pending' && (
@@ -280,6 +348,11 @@ export default function VerifyFacePage() {
                            )}
                            {!isCameraLive && status === 'failed' && (
                                 <XCircle className="h-24 w-24 text-destructive"/>
+                           )}
+                           {status === 'positioning' && (
+                               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                   <span className="text-white text-6xl font-bold drop-shadow-lg">{countdown}</span>
+                               </div>
                            )}
                         </div>
                         
@@ -305,3 +378,4 @@ export default function VerifyFacePage() {
         </div>
     );
 }
+
