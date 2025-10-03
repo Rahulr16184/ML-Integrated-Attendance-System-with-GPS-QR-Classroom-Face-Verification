@@ -236,7 +236,7 @@ export default function MaRecordsPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                         <p className="font-medium">Status:</p>
-                        <p><Badge>{selectedDateRecord.status}</Badge></p>
+                        <div><Badge>{selectedDateRecord.status}</Badge></div>
                         
                         <p className="font-medium">Time:</p>
                         <p>{format(parseISO(selectedDateRecord.date), "p")}</p>
