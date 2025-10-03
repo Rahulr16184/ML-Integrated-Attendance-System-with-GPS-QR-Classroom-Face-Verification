@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday, isAfter, endOfDay } from "date-fns";
+import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday, isAfter, endOfDay, differenceInDays } from "date-fns";
 import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
@@ -116,14 +117,16 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [userProfile?.uid, selectedSemester, selectedDepartmentId]);
 
-  const { presentDays, absentDays, remainingDays } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0 };
+  const { presentDays, absentDays, remainingDays, totalDaysInRange } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0, totalDaysInRange: 0 };
     
     const present = attendanceRecords.map(r => parseISO(r.date));
     const absent: Date[] = [];
     
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
     const presentDates = new Set(present.map(p => p.toDateString()));
+
+    const totalDays = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
 
     // Calculate absent days (past working days with no attendance)
     for (let d = new Date(selectedSemester.dateRange.from); isBefore(d, startOfToday()); d.setDate(d.getDate() + 1)) {
@@ -149,7 +152,7 @@ export default function MaRecordsPage() {
         }
     }
 
-    return { presentDays: present, absentDays: absent, remainingDays: remaining };
+    return { presentDays: present, absentDays: absent, remainingDays: remaining, totalDaysInRange: totalDays };
   }, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
@@ -165,6 +168,7 @@ export default function MaRecordsPage() {
   };
 
   const handleDayClick = (day: Date, modifiers: { present?: boolean, absent?: boolean }) => {
+    if (isAfter(day, new Date())) return; // Disable clicks on future dates
     if (modifiers.present) {
       const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
       if (record) {
@@ -174,14 +178,6 @@ export default function MaRecordsPage() {
         setSelectedDateRecord("absent");
     }
   };
-  
-  const numberOfMonths = useMemo(() => {
-    if (!selectedSemester) return 1;
-    const from = selectedSemester.dateRange.from;
-    const to = selectedSemester.dateRange.to;
-    return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()) + 1;
-  }, [selectedSemester]);
-
 
   if (!isAuthorized || userLoading) {
     return (
@@ -196,7 +192,6 @@ export default function MaRecordsPage() {
       return record !== null && record !== 'absent';
   }
   
-  const totalWorkingDays = selectedSemester?.workingDays ?? 0;
   const presentCount = presentDays.length;
   const absentCount = absentDays.length;
 
@@ -278,7 +273,7 @@ export default function MaRecordsPage() {
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Total Days</p>
-                        <p className="text-2xl font-bold">{totalWorkingDays}</p>
+                        <p className="text-2xl font-bold">{totalDaysInRange}</p>
                     </div>
                     <div className="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg">
                         <p className="text-sm text-green-600 dark:text-green-400">Present</p>
