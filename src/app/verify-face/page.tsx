@@ -116,7 +116,11 @@ export default function VerifyFacePage() {
             canvas.height = videoRef.current.videoHeight;
             const context = canvas.getContext("2d");
             if (context) {
+                // Flip the canvas horizontally to mirror the final image
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
                 context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                
                 const dataUri = canvas.toDataURL("image/jpeg");
                 setFinalCapture(dataUri);
 
@@ -370,7 +374,7 @@ export default function VerifyFacePage() {
                         )}>
                            <video ref={videoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover transform -scale-x-100", !isCameraLive && "hidden")}/>
                            {!isCameraLive && finalCapture && (
-                               <Image src={finalCapture} alt="Final capture" layout="fill" className="object-cover transform -scale-x-100" />
+                               <Image src={finalCapture} alt="Final capture" layout="fill" className="object-cover" />
                            )}
                            {!isCameraLive && !finalCapture && status === 'success' && (
                                <CheckCircle className="h-24 w-24 text-green-500" />
