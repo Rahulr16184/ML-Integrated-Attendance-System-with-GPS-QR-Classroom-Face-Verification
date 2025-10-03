@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday } from "date-fns";
+import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday, isAfter, endOfDay } from "date-fns";
 import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
@@ -117,8 +117,8 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [userProfile, selectedSemester, selectedDepartmentId]);
 
-  const { presentDays, absentDays } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [] };
+  const { presentDays, absentDays, remainingDays } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0 };
     
     const present = attendanceRecords.map(r => parseISO(r.date));
     const absent: Date[] = [];
@@ -126,6 +126,7 @@ export default function MaRecordsPage() {
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
     const presentDates = new Set(present.map(p => p.toDateString()));
 
+    // Calculate absent days (past working days with no attendance)
     for (let d = new Date(selectedSemester.dateRange.from); isBefore(d, startOfToday()); d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
@@ -135,7 +136,21 @@ export default function MaRecordsPage() {
         }
     }
     
-    return { presentDays: present, absentDays: absent };
+    // Calculate remaining working days (from tomorrow to end of semester)
+    let remaining = 0;
+    const tomorrow = startOfTomorrow();
+    if (isAfter(selectedSemester.dateRange.to, tomorrow)) {
+        for (let d = tomorrow; isBefore(d, endOfDay(selectedSemester.dateRange.to)); d.setDate(d.getDate() + 1)) {
+            const dayOfWeek = d.getDay();
+            const dateString = d.toDateString();
+
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString)) {
+                remaining++;
+            }
+        }
+    }
+
+    return { presentDays: present, absentDays: absent, remainingDays: remaining };
   }, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
@@ -178,7 +193,6 @@ export default function MaRecordsPage() {
   const totalWorkingDays = selectedSemester?.workingDays ?? 0;
   const presentCount = presentDays.length;
   const absentCount = absentDays.length;
-  const remainingDays = Math.max(0, totalWorkingDays - presentCount - absentCount);
 
   return (
     <>
@@ -238,7 +252,7 @@ export default function MaRecordsPage() {
                         modifiers={calendarModifiers}
                         modifiersClassNames={calendarModifiersClassNames}
                         onDayClick={handleDayClick}
-                        disabled={{ after: startOfToday() }}
+                        disabled={{ after: startOfTomorrow() }}
                         numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
                         className="p-0"
                         classNames={{
