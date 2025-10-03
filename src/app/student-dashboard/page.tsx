@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpen, CheckSquare, Info, CreditCard, Settings, School, DatabaseZap } from "lucide-react";
+import { BookOpen, CheckSquare, Info, CreditCard, Settings, School, DatabaseZap, ClipboardCheck } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -92,11 +92,17 @@ export default function StudentDashboardPage() {
                     MASTER ATTENDANCE ACCESS
                 </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-wrap gap-4">
                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
                     <Link href="/mark-attendance">
                         <CheckSquare className="h-8 w-8" />
                         <span className="text-sm font-semibold">MARK MASTER ATTENDANCE</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
+                    <Link href="/ma-records">
+                        <ClipboardCheck className="h-8 w-8" />
+                        <span className="text-sm font-semibold">MA RECORDS</span>
                     </Link>
                 </Button>
             </CardContent>
