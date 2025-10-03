@@ -68,4 +68,5 @@ export type AttendanceLog = {
     mode: 1 | 2;
     verificationPhotoUrl: string;
     markedBy: 'student' | 'teacher' | 'admin';
+    location?: { lat: number; lng: number } | null;
 };

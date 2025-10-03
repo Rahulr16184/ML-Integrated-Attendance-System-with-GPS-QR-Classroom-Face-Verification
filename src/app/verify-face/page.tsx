@@ -50,6 +50,7 @@ export default function VerifyFacePage() {
     const [similarity, setSimilarity] = useState<number | null>(null);
     const [countdown, setCountdown] = useState(5);
     const [finalCapture, setFinalCapture] = useState<string | null>(null);
+    const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
     
     const statusRef = useRef(status);
     useEffect(() => {
@@ -133,6 +134,7 @@ export default function VerifyFacePage() {
                             status: 'Present',
                             verificationPhotoUrl: imageUrl,
                             markedBy: 'student',
+                            location: userLocation,
                         };
                         await addAttendanceRecord(userProfile.uid, record);
                         toast({
@@ -151,12 +153,18 @@ export default function VerifyFacePage() {
                 })();
             }
         }
-    }, [stopCamera, toast, userProfile, department, mode]);
+    }, [stopCamera, toast, userProfile, department, mode, userLocation]);
     
     useEffect(() => {
         let countdownInterval: NodeJS.Timeout | null = null;
         if (status === 'positioning') {
             stopDetection();
+            
+            // Get location one last time before capture
+            navigator.geolocation.getCurrentPosition((pos) => {
+                setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            });
+
             countdownInterval = setInterval(() => {
                 setCountdown(prev => {
                     if (prev <= 1) {

@@ -109,6 +109,8 @@ export default function MaRecordsPage() {
         const filteredRecords = records.filter(rec => rec.departmentId === selectedDepartmentId);
         setAttendanceRecords(filteredRecords);
         setLoadingAttendance(false);
+      } else {
+        setAttendanceRecords([]);
       }
     };
     fetchAttendance();
@@ -234,15 +236,21 @@ export default function MaRecordsPage() {
                     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
                         <Image src={selectedDateRecord.verificationPhotoUrl} alt="Verification Photo" layout="fill" objectFit="contain" data-ai-hint="student classroom" />
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                        <p className="font-medium">Status:</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div className="font-medium">Status:</div>
                         <div><Badge>{selectedDateRecord.status}</Badge></div>
                         
-                        <p className="font-medium">Time:</p>
-                        <p>{format(parseISO(selectedDateRecord.date), "p")}</p>
+                        <div className="font-medium">Time:</div>
+                        <div>{format(parseISO(selectedDateRecord.date), "p")}</div>
 
-                        <p className="font-medium">Mode:</p>
-                        <p>Mode {selectedDateRecord.mode}</p>
+                        <div className="font-medium">Mode:</div>
+                        <div>{selectedDateRecord.mode === 1 ? "GPS + Classroom + Face" : "QR + Face"}</div>
+                        
+                        <div className="font-medium">Marked by:</div>
+                        <div className="capitalize">{selectedDateRecord.markedBy || '--'}</div>
+
+                        <div className="font-medium">Location:</div>
+                        <div>{selectedDateRecord.location ? `${selectedDateRecord.location.lat.toFixed(5)}, ${selectedDateRecord.location.lng.toFixed(5)}` : '--'}</div>
                     </div>
                 </div>
             )}
@@ -251,3 +259,4 @@ export default function MaRecordsPage() {
     </>
   );
 }
+
