@@ -20,8 +20,8 @@ import { Progress } from '@/components/ui/progress';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 
 const SIMILARITY_THRESHOLD = 0.55;
-const SMILE_THRESHOLD = 0.8; // Increased from 0.75
-const EAR_THRESHOLD = 0.22; // Increased from 0.2 for Eye Aspect Ratio
+const SMILE_THRESHOLD = 0.8; 
+const EAR_THRESHOLD = 0.25; 
 const LIVENESS_CHALLENGES = ['smile', 'blink'] as const;
 
 type LivenessChallenge = (typeof LIVENESS_CHALLENGES)[number];
@@ -118,6 +118,11 @@ export default function VerifyFacePage() {
         setIsCameraLive(false);
     }, [stopDetection]);
     
+    const statusRef = useRef(status);
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
+    
     const detectFace = async () => {
         if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) return;
         
@@ -170,11 +175,6 @@ export default function VerifyFacePage() {
             }
         }
     };
-    
-    const statusRef = useRef(status);
-    useEffect(() => {
-        statusRef.current = status;
-    }, [status]);
 
 
     const startCamera = useCallback(async () => {
@@ -199,7 +199,7 @@ export default function VerifyFacePage() {
             setStatus('failed');
             setIsCameraLive(false);
         }
-    }, [isCameraLive, userDescriptor]);
+    }, [isCameraLive, userDescriptor, detectFace]);
     
     useEffect(() => {
         if (status === 'success') {
