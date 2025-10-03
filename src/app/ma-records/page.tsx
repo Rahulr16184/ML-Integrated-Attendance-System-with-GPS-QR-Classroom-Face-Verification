@@ -140,7 +140,7 @@ export default function MaRecordsPage() {
     let remaining = 0;
     const tomorrow = startOfTomorrow();
     if (isAfter(selectedSemester.dateRange.to, tomorrow)) {
-        for (let d = tomorrow; isBefore(d, endOfDay(selectedSemester.dateRange.to)); d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(tomorrow); isBefore(d, endOfDay(selectedSemester.dateRange.to)); d.setDate(d.getDate() + 1)) {
             const dayOfWeek = d.getDay();
             const dateString = d.toDateString();
 
@@ -252,7 +252,7 @@ export default function MaRecordsPage() {
                         modifiers={calendarModifiers}
                         modifiersClassNames={calendarModifiersClassNames}
                         onDayClick={handleDayClick}
-                        disabled={{ after: startOfTomorrow() }}
+                        disabled={{ after: new Date() }}
                         numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
                         className="p-0"
                         classNames={{
