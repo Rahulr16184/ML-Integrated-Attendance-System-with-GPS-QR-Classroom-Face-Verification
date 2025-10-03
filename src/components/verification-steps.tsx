@@ -3,24 +3,33 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { MapPin, Camera, UserCheck, CheckCircle } from 'lucide-react';
+import { MapPin, Camera, UserCheck, CheckCircle, QrCode } from 'lucide-react';
 
-const STEPS = [
+const STEPS_MODE_1 = [
     { id: 'gps', title: 'GPS', icon: MapPin },
     { id: 'classroom', title: 'Classroom', icon: Camera },
     { id: 'face', title: 'Face', icon: UserCheck },
 ];
 
+const STEPS_MODE_2 = [
+    { id: 'qr', title: 'QR Code', icon: QrCode },
+    { id: 'face', title: 'Face', icon: UserCheck },
+];
+
+
 interface VerificationStepsProps {
-    currentStep: number; // 0 for GPS, 1 for Classroom, 2 for Face
+    currentStep: number; // 0 for GPS/QR, 1 for Classroom/Face, 2 for Face
+    mode?: 1 | 2;
 }
 
-export function VerificationSteps({ currentStep }: VerificationStepsProps) {
+export function VerificationSteps({ currentStep, mode = 1 }: VerificationStepsProps) {
+  const steps = mode === 1 ? STEPS_MODE_1 : STEPS_MODE_2;
+  
   return (
     <div className="flex justify-between items-center max-w-2xl mx-auto">
-        {STEPS.map((step, index) => (
+        {steps.map((step, index) => (
             <React.Fragment key={step.id}>
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-2 text-center w-20">
                     <div className={cn(
                         'w-10 h-10 rounded-full flex items-center justify-center', 
                         currentStep > index ? 'bg-green-500 text-white' : 
@@ -36,7 +45,7 @@ export function VerificationSteps({ currentStep }: VerificationStepsProps) {
                          'text-muted-foreground'
                     )}>{step.title}</span>
                 </div>
-                {index < STEPS.length - 1 && (
+                {index < steps.length - 1 && (
                      <div className={cn(
                          "flex-1 h-1 mx-2",
                          currentStep > index ? 'bg-green-500' : 'bg-muted'

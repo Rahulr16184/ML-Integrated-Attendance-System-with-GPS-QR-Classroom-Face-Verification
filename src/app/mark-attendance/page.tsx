@@ -52,7 +52,7 @@ export default function MarkAttendancePage() {
         if (userProfile) {
             fetchDepartments();
         }
-    }, [userProfile, userLoading, toast]);
+    }, [userProfile, userLoading, toast, selectedDepartmentId]);
 
 
     const selectedDepartment = useMemo(() => {
@@ -70,7 +70,7 @@ export default function MarkAttendancePage() {
         if (mode === 1) {
             router.push(`/verify-gps?deptId=${selectedDepartmentId}`);
         } else {
-             toast({title: "Coming Soon!", description: "This feature is under development."})
+             router.push(`/verify-qr?deptId=${selectedDepartmentId}`);
         }
     }
 
