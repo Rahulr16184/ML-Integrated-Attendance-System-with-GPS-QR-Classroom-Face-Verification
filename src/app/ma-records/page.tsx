@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseISO, isSameDay, format } from "date-fns";
+import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday } from "date-fns";
 import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
@@ -44,7 +45,7 @@ export default function MaRecordsPage() {
 
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceLog[]>([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
-  const [selectedDateRecord, setSelectedDateRecord] = useState<AttendanceLog | null>(null);
+  const [selectedDateRecord, setSelectedDateRecord] = useState<AttendanceLog | "absent" | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
@@ -116,24 +117,47 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [userProfile, selectedSemester, selectedDepartmentId]);
 
-  const markedDays = useMemo(() => attendanceRecords.map(r => parseISO(r.date)), [attendanceRecords]);
+  const { presentDays, absentDays } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [] };
+    
+    const present = attendanceRecords.map(r => parseISO(r.date));
+    const absent: Date[] = [];
+    
+    const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
+    const presentDates = new Set(present.map(p => p.toDateString()));
+
+    for (let d = new Date(selectedSemester.dateRange.from); isBefore(d, startOfToday()); d.setDate(d.getDate() + 1)) {
+        const dayOfWeek = d.getDay();
+        const dateString = d.toDateString();
+
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !presentDates.has(dateString)) {
+            absent.push(new Date(d));
+        }
+    }
+    
+    return { presentDays: present, absentDays: absent };
+  }, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
-    present: markedDays,
+    present: presentDays,
+    absent: absentDays,
     holiday: selectedSemester?.holidays || [],
   };
 
   const calendarModifiersClassNames = {
     present: "bg-green-200 dark:bg-green-800 rounded-full",
+    absent: "bg-red-200 dark:bg-red-800 rounded-full",
     holiday: 'text-red-500 line-through',
   };
 
-  const handleDayClick = (day: Date, modifiers: { present?: boolean }) => {
+  const handleDayClick = (day: Date, modifiers: { present?: boolean, absent?: boolean }) => {
     if (modifiers.present) {
       const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
       if (record) {
         setSelectedDateRecord(record);
       }
+    } else if (modifiers.absent) {
+        setSelectedDateRecord("absent");
     }
   };
 
@@ -145,6 +169,10 @@ export default function MaRecordsPage() {
         <Skeleton className="h-96 w-full" />
       </div>
     );
+  }
+
+  const isPresentRecord = (record: typeof selectedDateRecord): record is AttendanceLog => {
+      return record !== null && record !== 'absent';
   }
 
   return (
@@ -204,6 +232,7 @@ export default function MaRecordsPage() {
                       modifiers={calendarModifiers}
                       modifiersClassNames={calendarModifiersClassNames}
                       onDayClick={handleDayClick}
+                      disabled={{ after: startOfToday() }}
                       numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
                       className="p-0"
                       classNames={{
@@ -228,10 +257,19 @@ export default function MaRecordsPage() {
       <Dialog open={!!selectedDateRecord} onOpenChange={() => setSelectedDateRecord(null)}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Attendance for {selectedDateRecord ? format(parseISO(selectedDateRecord.date), "PPP") : ""}</DialogTitle>
-                <DialogDescription>Details of your attendance record for this day.</DialogDescription>
+                <DialogTitle>
+                    {selectedDateRecord === 'absent' ? "Absent" : `Attendance for ${isPresentRecord(selectedDateRecord) ? format(parseISO(selectedDateRecord.date), "PPP") : ""}`}
+                </DialogTitle>
+                {selectedDateRecord !== 'absent' && (
+                  <DialogDescription>Details of your attendance record for this day.</DialogDescription>
+                )}
             </DialogHeader>
-            {selectedDateRecord && (
+             {selectedDateRecord === 'absent' && (
+                <div className="py-4 text-center">
+                    <p className="text-muted-foreground">No attendance marked for this day.</p>
+                </div>
+            )}
+            {isPresentRecord(selectedDateRecord) && (
                 <div className="space-y-4 py-4">
                     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
                         <Image src={selectedDateRecord.verificationPhotoUrl} alt="Verification Photo" layout="fill" objectFit="contain" data-ai-hint="student classroom" />
@@ -259,4 +297,3 @@ export default function MaRecordsPage() {
     </>
   );
 }
-
