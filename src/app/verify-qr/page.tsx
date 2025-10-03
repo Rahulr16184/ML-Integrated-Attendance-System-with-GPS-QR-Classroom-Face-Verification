@@ -10,7 +10,7 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { getInstitutions } from '@/services/institution-service';
 import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, QrCode, Info, ScanLine, VideoOff } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, QrCode, Info, ScanLine } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { VerificationSteps } from '@/components/verification-steps';
 import { cn } from '@/lib/utils';
@@ -99,7 +99,7 @@ export default function VerifyQrPage() {
                         stopCamera();
                         toast({ title: "Success", description: "QR Code is valid." });
                         setTimeout(() => {
-                            router.push(`/verify-face?deptId=${departmentId}`);
+                            router.push(`/verify-face?deptId=${departmentId}&mode=2`);
                         }, 1500);
                     } else {
                         setStatus('failed');
@@ -181,14 +181,14 @@ export default function VerifyQrPage() {
                 )}
             </div>
 
-            <VerificationSteps currentStep={1} />
+            <VerificationSteps currentStep={0} mode={2} />
             
             <div className="max-w-2xl mx-auto">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <QrCode className="h-5 w-5" />
-                            Step 2: QR Code Verification
+                            Step 1: QR Code Verification
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="min-h-[300px] flex flex-col items-center justify-center gap-4 text-center">
@@ -219,7 +219,7 @@ export default function VerifyQrPage() {
                         <p className="font-medium text-muted-foreground">{statusMessage}</p>
 
                         {status === 'pending' && <Button onClick={startCamera}><ScanLine className="mr-2 h-4 w-4"/>Start Scan</Button>}
-                        {status === 'failed' && <Button onClick={startCamera}>Try Again</Button>}
+                        {status === 'failed' && <Button onClick={startCamera} variant="outline">Try Again</Button>}
 
                     </CardContent>
                 </Card>

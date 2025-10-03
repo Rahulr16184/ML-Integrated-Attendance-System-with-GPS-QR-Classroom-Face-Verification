@@ -31,7 +31,7 @@ export function VerificationSteps({ currentStep, mode = 1 }: VerificationStepsPr
             <React.Fragment key={step.id}>
                 <div className="flex flex-col items-center gap-2 text-center w-20">
                     <div className={cn(
-                        'w-10 h-10 rounded-full flex items-center justify-center', 
+                        'w-10 h-10 rounded-full flex items-center justify-center transition-colors', 
                         currentStep > index ? 'bg-green-500 text-white' : 
                         currentStep === index ? 'bg-primary text-primary-foreground' : 
                         'bg-muted text-muted-foreground'
@@ -39,7 +39,7 @@ export function VerificationSteps({ currentStep, mode = 1 }: VerificationStepsPr
                         {currentStep > index ? <CheckCircle /> : <step.icon />}
                     </div>
                     <span className={cn(
-                        "text-xs font-medium",
+                        "text-xs font-medium transition-colors",
                          currentStep > index ? 'text-green-600' :
                          currentStep === index ? 'text-primary' :
                          'text-muted-foreground'
@@ -47,7 +47,7 @@ export function VerificationSteps({ currentStep, mode = 1 }: VerificationStepsPr
                 </div>
                 {index < steps.length - 1 && (
                      <div className={cn(
-                         "flex-1 h-1 mx-2",
+                         "flex-1 h-1 mx-2 transition-colors",
                          currentStep > index ? 'bg-green-500' : 'bg-muted'
                       )}></div>
                 )}

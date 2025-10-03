@@ -3,7 +3,6 @@
 "use client";
 
 import * as React from 'react';
-import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +29,7 @@ export default function VerifyFacePage() {
     const searchParams = useSearchParams();
     const { toast } = useToast();
     const departmentId = searchParams.get('deptId');
+    const mode = searchParams.get('mode') === '2' ? 2 : 1;
     const { userProfile, loading: userProfileLoading } = useUserProfile();
 
     const [department, setDepartment] = useState<Department | null>(null);
@@ -214,12 +214,6 @@ export default function VerifyFacePage() {
     }, [isCameraLive, userDescriptor, detectFace]);
     
     useEffect(() => {
-        if (status === 'success' && !finalCapture) {
-            stopCamera();
-        }
-    }, [status, stopCamera, finalCapture]);
-
-    useEffect(() => {
         return () => stopCamera();
     }, [stopCamera]);
 
@@ -302,6 +296,8 @@ export default function VerifyFacePage() {
         );
     }
 
+    const currentStepIndex = mode === 1 ? 2 : 1;
+
     return (
         <div className="p-4 sm:p-6 space-y-6">
             <div className="space-y-2 text-center">
@@ -318,14 +314,14 @@ export default function VerifyFacePage() {
                 )}
             </div>
 
-            <VerificationSteps currentStep={2} />
+            <VerificationSteps currentStep={currentStepIndex} mode={mode} />
 
             <div className="max-w-2xl mx-auto">
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <UserCheck className="h-5 w-5" />
-                            Step 3: Face & Liveness Verification
+                            Step {currentStepIndex + 1}: Face & Liveness Verification
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="min-h-[400px] flex flex-col items-center justify-center gap-4 text-center">
@@ -378,4 +374,3 @@ export default function VerifyFacePage() {
         </div>
     );
 }
-
