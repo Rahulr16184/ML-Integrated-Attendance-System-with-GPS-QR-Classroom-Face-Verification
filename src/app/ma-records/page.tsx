@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -9,6 +8,7 @@ import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
 import { getSemesters } from "@/services/working-days-service";
+import { getStudentAttendance } from "@/services/attendance-service";
 import type { Department, Semester, AttendanceLog } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -348,3 +348,5 @@ export default function MaRecordsPage() {
     </>
   );
 }
+
+    
