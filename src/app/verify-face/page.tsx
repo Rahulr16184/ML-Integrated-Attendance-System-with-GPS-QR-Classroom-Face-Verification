@@ -121,27 +121,27 @@ export default function VerifyFacePage() {
     const detectFace = async () => {
         if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) return;
         const faceapi = await getFaceApi();
+        const currentStatus = status;
 
-        if (status === 'scanning') {
+        if (currentStatus === 'scanning') {
             const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
             if (detections) {
                 const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
                 const currentSimilarity = 1 - distance; 
                 setSimilarity(currentSimilarity);
+                setFeedbackMessage('Verifying similarity...');
 
                 if (currentSimilarity > SIMILARITY_THRESHOLD) {
-                    setStatus('liveness');
                     const challenge = LIVENESS_CHALLENGES[Math.floor(Math.random() * LIVENESS_CHALLENGES.length)];
+                    setStatus('liveness');
                     setLivenessChallenge(challenge);
                     if (challenge === 'blink') earHistory.current = []; // Reset blink history
-                } else {
-                    setFeedbackMessage('Face detected. Verifying similarity...');
                 }
             } else {
                 setSimilarity(0);
                 setFeedbackMessage("No face detected.");
             }
-        } else if (status === 'liveness' && livenessChallenge) {
+        } else if (currentStatus === 'liveness') {
             const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceExpressions();
             if (!detections) {
                 setFeedbackMessage("Keep your face in the frame.");
@@ -151,7 +151,6 @@ export default function VerifyFacePage() {
             if (livenessChallenge === 'smile') {
                 if (detections.expressions.happy > SMILE_THRESHOLD) {
                     setStatus('success');
-                    stopCamera();
                 } else {
                     setFeedbackMessage("Please Smile!");
                 }
@@ -164,7 +163,6 @@ export default function VerifyFacePage() {
                 const maxEAR = Math.max(...earHistory.current);
                 if (maxEAR > 0.25 && currentEAR < EAR_THRESHOLD) { // Check for open eye then a close
                     setStatus('success');
-                    stopCamera();
                 } else {
                     setFeedbackMessage("Please Blink!");
                 }
@@ -183,7 +181,9 @@ export default function VerifyFacePage() {
                     videoRef.current?.play();
                     setIsCameraLive(true);
                     setFeedbackMessage('Center your face in the frame.');
-                    detectionIntervalRef.current = setInterval(detectFace, 500);
+                    if (!detectionIntervalRef.current) {
+                        detectionIntervalRef.current = setInterval(detectFace, 500);
+                    }
                 }
                 videoRef.current.srcObject = mediaStream;
             }
@@ -194,6 +194,12 @@ export default function VerifyFacePage() {
         }
     }, [isCameraLive, userDescriptor]);
     
+    useEffect(() => {
+        if (status === 'success') {
+            stopCamera();
+        }
+    }, [status, stopCamera]);
+
     useEffect(() => {
         return () => stopCamera();
     }, [stopCamera]);
@@ -214,8 +220,8 @@ export default function VerifyFacePage() {
             );
         }
         
-        if (status === 'scanning' && similarity !== null) {
-             const percentage = Math.max(0, Math.min(100, Math.round(similarity * 100)));
+        if (status === 'scanning') {
+            const percentage = similarity === null ? 0 : Math.max(0, Math.min(100, Math.round(similarity * 100)));
             return (
                  <div className="w-full max-w-xs text-center space-y-2">
                     <p className="text-sm text-muted-foreground">{feedbackMessage}</p>
@@ -323,6 +329,9 @@ export default function VerifyFacePage() {
                          {status === 'success' && (
                              <Button onClick={() => router.push('/student-dashboard')}>Done</Button>
                          )}
+                         {status === 'failed' && (
+                              <Button onClick={startCamera} variant="outline">Try Again</Button>
+                         )}
                     </CardContent>
                 </Card>
             </div>
@@ -330,4 +339,3 @@ export default function VerifyFacePage() {
     );
 }
 
-    
