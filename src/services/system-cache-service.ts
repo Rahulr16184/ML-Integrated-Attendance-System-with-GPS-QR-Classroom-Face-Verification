@@ -198,18 +198,19 @@ export async function updateClassroomDescriptorsCache(department: Department): P
 
 
 /**
- * Retrieves a cached single face descriptor.
+ * Retrieves a cached single face descriptor as a plain number array.
+ * This is the raw data from session storage, intended to be reconstructed into a Float32Array.
  * @param key - The unique key for the data (e.g., user UID).
- * @returns The cached Float32Array descriptor or null if not found or on error.
+ * @returns The cached descriptor as a number array or null.
  */
-export function getCachedDescriptor(key: string): Float32Array | null {
+export function getCachedDescriptor(key: string): number[] | null {
   try {
     const item = getCachedDescriptorWithMetadata(key);
     // Ensure it is not an array of arrays (for classrooms) and is a single descriptor
     if (!item || !Array.isArray(item.descriptor) || (item.descriptor.length > 0 && Array.isArray(item.descriptor[0]))) {
       return null;
     }
-    return new Float32Array(item.descriptor as number[]);
+    return item.descriptor as number[];
   } catch (e) {
     console.error(`Error retrieving single descriptor for key "${key}":`, e);
     return null;

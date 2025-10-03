@@ -19,7 +19,7 @@ import { getFaceApi, areModelsLoaded } from '@/lib/face-api';
 import { Progress } from '@/components/ui/progress';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 
-const SIMILARITY_THRESHOLD = 0.55; 
+const SIMILARITY_THRESHOLD = 0.55;
 const SMILE_THRESHOLD = 0.75;
 const EAR_THRESHOLD = 0.2; // Eye Aspect Ratio threshold for blink detection
 const LIVENESS_CHALLENGES = ['smile', 'blink'] as const;
@@ -83,9 +83,10 @@ export default function VerifyFacePage() {
                 setFeedbackMessage("Loading AI models...");
                 await getFaceApi(); 
                 
-                const cachedDescriptor = getCachedDescriptor(userProfile.uid);
-                if (cachedDescriptor) {
-                    setUserDescriptor(cachedDescriptor);
+                const cachedDescriptorArray = getCachedDescriptor(userProfile.uid);
+                if (cachedDescriptorArray) {
+                    // **CRITICAL FIX**: Reconstruct the Float32Array from the cached plain array.
+                    setUserDescriptor(new Float32Array(cachedDescriptorArray));
                     setFeedbackMessage('Models loaded. Ready to scan.');
                 } else {
                     setError("Your profile photo hasn't been analyzed. Please go to your profile, set a picture, and run the System Update.");
@@ -120,8 +121,9 @@ export default function VerifyFacePage() {
     
     const detectFace = async () => {
         if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) return;
+        
         const faceapi = await getFaceApi();
-        const currentStatus = status;
+        const currentStatus = statusRef.current; // Use a ref to get the latest status inside the interval
 
         if (currentStatus === 'scanning') {
             const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptor();
@@ -129,13 +131,14 @@ export default function VerifyFacePage() {
                 const distance = faceapi.euclideanDistance(detections.descriptor, userDescriptor);
                 const currentSimilarity = 1 - distance; 
                 setSimilarity(currentSimilarity);
-                setFeedbackMessage('Verifying similarity...');
 
                 if (currentSimilarity > SIMILARITY_THRESHOLD) {
                     const challenge = LIVENESS_CHALLENGES[Math.floor(Math.random() * LIVENESS_CHALLENGES.length)];
                     setStatus('liveness');
                     setLivenessChallenge(challenge);
                     if (challenge === 'blink') earHistory.current = []; // Reset blink history
+                } else {
+                     setFeedbackMessage('Verifying similarity...');
                 }
             } else {
                 setSimilarity(0);
@@ -159,9 +162,8 @@ export default function VerifyFacePage() {
                 earHistory.current.push(currentEAR);
                 if (earHistory.current.length > 5) earHistory.current.shift(); // Keep a short history
 
-                // Check for a dip in EAR which indicates a blink
                 const maxEAR = Math.max(...earHistory.current);
-                if (maxEAR > 0.25 && currentEAR < EAR_THRESHOLD) { // Check for open eye then a close
+                if (maxEAR > 0.25 && currentEAR < EAR_THRESHOLD) { 
                     setStatus('success');
                 } else {
                     setFeedbackMessage("Please Blink!");
@@ -169,6 +171,13 @@ export default function VerifyFacePage() {
             }
         }
     };
+    
+    // Use a ref to track the status for the interval callback
+    const statusRef = useRef(status);
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
+
 
     const startCamera = useCallback(async () => {
         if (isCameraLive || !userDescriptor) return;
@@ -181,6 +190,7 @@ export default function VerifyFacePage() {
                     videoRef.current?.play();
                     setIsCameraLive(true);
                     setFeedbackMessage('Center your face in the frame.');
+                    // **CRITICAL FIX**: Start detection only after video is ready.
                     if (!detectionIntervalRef.current) {
                         detectionIntervalRef.current = setInterval(detectFace, 500);
                     }
@@ -192,7 +202,7 @@ export default function VerifyFacePage() {
             setStatus('failed');
             setIsCameraLive(false);
         }
-    }, [isCameraLive, userDescriptor]);
+    }, [isCameraLive, userDescriptor, detectFace]);
     
     useEffect(() => {
         if (status === 'success') {
@@ -338,4 +348,3 @@ export default function VerifyFacePage() {
         </div>
     );
 }
-
