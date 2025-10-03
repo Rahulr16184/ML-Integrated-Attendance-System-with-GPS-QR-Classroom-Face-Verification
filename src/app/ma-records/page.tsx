@@ -117,8 +117,8 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [userProfile?.uid, selectedSemester, selectedDepartmentId]);
 
-  const { presentDays, absentDays, remainingDays, totalDaysInRange, holidaysCount } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0, totalDaysInRange: 0, holidaysCount: 0 };
+  const { presentDays, absentDays, remainingDays, totalWorkingDays, holidaysCount } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0, totalWorkingDays: 0, holidaysCount: 0 };
     
     const present = attendanceRecords.map(r => parseISO(r.date));
     const absent: Date[] = [];
@@ -127,16 +127,27 @@ export default function MaRecordsPage() {
     const presentDates = new Set(present.map(p => p.toDateString()));
     const holidaysCount = selectedSemester.holidays.length;
 
-    // Calculate absent days (past working days with no attendance)
-    for (let d = new Date(selectedSemester.dateRange.from); isBefore(d, startOfToday()); d.setDate(d.getDate() + 1)) {
+    let totalDays = 0;
+    let weekends = 0;
+
+    // Calculate absent days (past working days with no attendance) and total working days
+    for (let d = new Date(selectedSemester.dateRange.from); d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
+        totalDays++;
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
 
-        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !presentDates.has(dateString)) {
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        if(isWeekend) {
+            weekends++;
+        }
+
+        if (isBefore(d, startOfToday()) && !isWeekend && !holidays.has(dateString) && !presentDates.has(dateString)) {
             absent.push(new Date(d));
         }
     }
     
+    const totalWorking = totalDays - weekends - holidaysCount;
+
     // Calculate remaining working days (from tomorrow to end of semester)
     let remaining = 0;
     const tomorrow = startOfTomorrow();
@@ -151,9 +162,7 @@ export default function MaRecordsPage() {
         }
     }
 
-    const totalDays = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
-
-    return { presentDays: present, absentDays: absent, remainingDays: remaining, totalDaysInRange: totalDays, holidaysCount };
+    return { presentDays: present, absentDays: absent, remainingDays: remaining, totalWorkingDays: totalWorking, holidaysCount };
   }, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
@@ -277,8 +286,8 @@ export default function MaRecordsPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Total Days</p>
-                        <p className="text-2xl font-bold">{totalDaysInRange}</p>
+                        <p className="text-sm text-muted-foreground">Total Working Days</p>
+                        <p className="text-2xl font-bold">{totalWorkingDays}</p>
                     </div>
                      <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
                         <p className="text-sm text-yellow-600 dark:text-yellow-400">Holidays</p>
