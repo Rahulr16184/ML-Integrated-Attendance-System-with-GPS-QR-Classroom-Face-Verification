@@ -197,21 +197,21 @@ export async function updateClassroomDescriptorsCache(department: Department): P
 }
 
 
-// Generic getter for use in verification page, simplified from the metadata version
+/**
+ * Retrieves a cached single face descriptor.
+ * @param key - The unique key for the data (e.g., user UID).
+ * @returns The cached Float32Array descriptor or null if not found or on error.
+ */
 export function getCachedDescriptor(key: string): Float32Array | null {
   try {
     const item = getCachedDescriptorWithMetadata(key);
-    if (!item || !Array.isArray(item.descriptor)) return null;
-
-    // Check if it's a single descriptor (array of numbers) or multiple (array of arrays of numbers)
-    if (item.descriptor.length > 0 && !Array.isArray(item.descriptor[0])) {
-         return new Float32Array(item.descriptor as number[]);
+    // Ensure it is not an array of arrays (for classrooms) and is a single descriptor
+    if (!item || !Array.isArray(item.descriptor) || (item.descriptor.length > 0 && Array.isArray(item.descriptor[0]))) {
+      return null;
     }
-   
-    // This function is intended for single descriptors, so returning null for multiple.
-    return null;
-
+    return new Float32Array(item.descriptor as number[]);
   } catch (e) {
+    console.error(`Error retrieving single descriptor for key "${key}":`, e);
     return null;
   }
 }
