@@ -119,10 +119,8 @@ export default function VerifyFacePage() {
                 const dataUri = canvas.toDataURL("image/jpeg");
                 setFinalCapture(dataUri);
 
-                // Stop the camera before starting async operations
                 stopCamera();
 
-                // Now upload and save the record
                 (async () => {
                     try {
                         const imageUrl = await uploadImage(dataUri);
@@ -136,7 +134,7 @@ export default function VerifyFacePage() {
                             verificationPhotoUrl: imageUrl,
                             markedBy: 'student',
                         };
-                        await addAttendanceRecord(userProfile.institutionId, department.id, record);
+                        await addAttendanceRecord(userProfile.uid, record);
                         toast({
                             title: "Attendance Logged!",
                             description: "Your attendance has been recorded with a verification photo.",
@@ -404,4 +402,3 @@ export default function VerifyFacePage() {
         </div>
     );
 }
-

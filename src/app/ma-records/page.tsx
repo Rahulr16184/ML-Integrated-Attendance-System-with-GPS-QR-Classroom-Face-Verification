@@ -1,19 +1,24 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseISO, isWithinInterval, isSameDay } from "date-fns";
+import { parseISO, isSameDay, format } from "date-fns";
+import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
 import { getSemesters } from "@/services/working-days-service";
-import type { Department, Semester } from "@/lib/types";
+import { getStudentAttendance } from "@/services/attendance-service";
+import type { Department, Semester, AttendanceLog } from "@/lib/types";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const parseSemesterDates = (semester: Semester) => ({
   ...semester,
@@ -37,8 +42,11 @@ export default function MaRecordsPage() {
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
   const [loadingSemesters, setLoadingSemesters] = useState(false);
 
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceLog[]>([]);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [selectedDateRecord, setSelectedDateRecord] = useState<AttendanceLog | null>(null);
+
   useEffect(() => {
-    // This page is accessible to students, teachers, and admins
     const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
     if (!role) {
       router.push('/login');
@@ -76,7 +84,8 @@ export default function MaRecordsPage() {
         const parsedSemesters = fetchedSemesters.map(parseSemesterDates);
         setSemesters(parsedSemesters);
         if (parsedSemesters.length > 0) {
-          setSelectedSemesterId(parsedSemesters[0].id);
+          const currentSem = parsedSemesters.find(s => isSameDay(s.dateRange.from, new Date()) || (new Date() > s.dateRange.from && new Date() < s.dateRange.to)) || parsedSemesters[0];
+          setSelectedSemesterId(currentSem.id);
         } else {
           setSelectedSemesterId("");
         }
@@ -92,26 +101,40 @@ export default function MaRecordsPage() {
     return semesters.find(s => s.id === selectedSemesterId);
   }, [semesters, selectedSemesterId]);
 
-  const workingDaysModifiers = useMemo(() => {
-    if (!selectedSemester) return { working: [], holiday: [] };
-    
-    const holidays = selectedSemester.holidays.map(h => new Date(h));
-
-    return {
-      working: (date: Date) => {
-        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        const isHoliday = holidays.some(h => isSameDay(date, h));
-        const isInRange = isWithinInterval(date, { start: selectedSemester.dateRange.from, end: selectedSemester.dateRange.to });
-        return isInRange && !isWeekend && !isHoliday;
-      },
-      holiday: holidays,
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (userProfile?.uid && selectedSemester) {
+        setLoadingAttendance(true);
+        const records = await getStudentAttendance(userProfile.uid, selectedSemester.dateRange.from, selectedSemester.dateRange.to);
+        const filteredRecords = records.filter(rec => rec.departmentId === selectedDepartmentId);
+        setAttendanceRecords(filteredRecords);
+        setLoadingAttendance(false);
+      }
     };
-  }, [selectedSemester]);
+    fetchAttendance();
+  }, [userProfile, selectedSemester, selectedDepartmentId]);
 
-  const workingDaysModifiersClassNames = {
-    working: 'bg-green-200 dark:bg-green-800 rounded-full',
+  const markedDays = useMemo(() => attendanceRecords.map(r => parseISO(r.date)), [attendanceRecords]);
+  
+  const calendarModifiers = {
+    present: markedDays,
+    holiday: selectedSemester?.holidays || [],
+  };
+
+  const calendarModifiersClassNames = {
+    present: "bg-green-200 dark:bg-green-800 rounded-full",
     holiday: 'text-red-500 line-through',
   };
+
+  const handleDayClick = (day: Date, modifiers: { present?: boolean }) => {
+    if (modifiers.present) {
+      const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
+      if (record) {
+        setSelectedDateRecord(record);
+      }
+    }
+  };
+
 
   if (!isAuthorized || userLoading) {
     return (
@@ -123,85 +146,108 @@ export default function MaRecordsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Master Attendance Records</CardTitle>
-          <CardDescription>
-            Select a department and semester to view the calendar of working days.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Department</Label>
-              {loadingDepartments ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
-                <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length === 0}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allDepartments.map(dept => (
-                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Semester</Label>
-              {loadingSemesters ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
-                <Select onValueChange={setSelectedSemesterId} value={selectedSemesterId} disabled={semesters.length === 0}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Semester" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {semesters.map(sem => (
-                      <SelectItem key={sem.id} value={sem.id}>{sem.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {selectedSemester ? (
+    <>
+      <div className="p-4 sm:p-6 space-y-6">
         <Card>
-            <CardHeader>
-                <CardTitle>Calendar for {selectedSemester.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-                 <Calendar
-                    mode="default"
-                    month={selectedSemester.dateRange.from}
-                    fromDate={selectedSemester.dateRange.from}
-                    toDate={selectedSemester.dateRange.to}
-                    modifiers={workingDaysModifiers}
-                    modifiersClassNames={workingDaysModifiersClassNames}
-                    numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
-                    className="p-0"
-                    classNames={{
-                      day: cn("h-10 w-10"),
-                      day_disabled: "text-muted-foreground/50",
-                    }}
-                 />
-            </CardContent>
+          <CardHeader>
+            <CardTitle>My Attendance Records</CardTitle>
+            <CardDescription>Select a department and semester to view your attendance.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Department</Label>
+                {loadingDepartments ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length === 0}>
+                    <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
+                    <SelectContent>
+                      {allDepartments.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Semester</Label>
+                {loadingSemesters ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Select onValueChange={setSelectedSemesterId} value={selectedSemesterId} disabled={semesters.length === 0}>
+                    <SelectTrigger><SelectValue placeholder="Select Semester" /></SelectTrigger>
+                    <SelectContent>
+                      {semesters.map(sem => <SelectItem key={sem.id} value={sem.id}>{sem.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          </CardContent>
         </Card>
-      ) : (
-        <Card>
+        
+        {(loadingSemesters || loadingAttendance) && <Skeleton className="h-96 w-full" />}
+        
+        {selectedSemester && !loadingAttendance && (
+          <Card>
+              <CardHeader>
+                  <CardTitle>Calendar for {selectedSemester.name}</CardTitle>
+                  <CardDescription>Click on a highlighted day to see details.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                   <Calendar
+                      mode="default"
+                      month={selectedSemester.dateRange.from}
+                      fromDate={selectedSemester.dateRange.from}
+                      toDate={selectedSemester.dateRange.to}
+                      modifiers={calendarModifiers}
+                      modifiersClassNames={calendarModifiersClassNames}
+                      onDayClick={handleDayClick}
+                      numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
+                      className="p-0"
+                      classNames={{
+                        day: cn("h-10 w-10"),
+                        day_disabled: "text-muted-foreground/50",
+                        day_selected: "",
+                        day_range_middle: "",
+                      }}
+                   />
+              </CardContent>
+          </Card>
+        )}
+        {!selectedSemester && !loadingSemesters && (
+          <Card>
             <CardContent className="pt-6 text-center text-muted-foreground">
-                <p>
-                    {loadingSemesters ? "Loading semesters..." : "Please select a department and semester to view the calendar."}
-                </p>
+              <p>Please select a department and semester to view the calendar.</p>
             </CardContent>
-        </Card>
-      )}
-    </div>
+          </Card>
+        )}
+      </div>
+
+      <Dialog open={!!selectedDateRecord} onOpenChange={() => setSelectedDateRecord(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Attendance for {selectedDateRecord ? format(parseISO(selectedDateRecord.date), "PPP") : ""}</DialogTitle>
+                <DialogDescription>Details of your attendance record for this day.</DialogDescription>
+            </DialogHeader>
+            {selectedDateRecord && (
+                <div className="space-y-4 py-4">
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
+                        <Image src={selectedDateRecord.verificationPhotoUrl} alt="Verification Photo" layout="fill" objectFit="contain" data-ai-hint="student classroom" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                        <p className="font-medium">Status:</p>
+                        <p><Badge>{selectedDateRecord.status}</Badge></p>
+                        
+                        <p className="font-medium">Time:</p>
+                        <p>{format(parseISO(selectedDateRecord.date), "p")}</p>
+
+                        <p className="font-medium">Mode:</p>
+                        <p>Mode {selectedDateRecord.mode}</p>
+                    </div>
+                </div>
+            )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
