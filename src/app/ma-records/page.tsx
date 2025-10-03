@@ -174,6 +174,11 @@ export default function MaRecordsPage() {
   const isPresentRecord = (record: typeof selectedDateRecord): record is AttendanceLog => {
       return record !== null && record !== 'absent';
   }
+  
+  const totalWorkingDays = selectedSemester?.workingDays ?? 0;
+  const presentCount = presentDays.length;
+  const absentCount = absentDays.length;
+  const remainingDays = Math.max(0, totalWorkingDays - presentCount - absentCount);
 
   return (
     <>
@@ -218,32 +223,58 @@ export default function MaRecordsPage() {
         {(loadingSemesters || loadingAttendance) && <Skeleton className="h-96 w-full" />}
         
         {selectedSemester && !loadingAttendance && (
-          <Card>
-              <CardHeader>
-                  <CardTitle>Calendar for {selectedSemester.name}</CardTitle>
-                  <CardDescription>Click on a highlighted day to see details.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                   <Calendar
-                      mode="default"
-                      month={selectedSemester.dateRange.from}
-                      fromDate={selectedSemester.dateRange.from}
-                      toDate={selectedSemester.dateRange.to}
-                      modifiers={calendarModifiers}
-                      modifiersClassNames={calendarModifiersClassNames}
-                      onDayClick={handleDayClick}
-                      disabled={{ after: startOfToday() }}
-                      numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
-                      className="p-0"
-                      classNames={{
-                        day: cn("h-10 w-10"),
-                        day_disabled: "text-muted-foreground/50",
-                        day_selected: "",
-                        day_range_middle: "",
-                      }}
-                   />
-              </CardContent>
-          </Card>
+          <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Calendar for {selectedSemester.name}</CardTitle>
+                    <CardDescription>Click on a highlighted day to see details.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                    <Calendar
+                        mode="default"
+                        month={selectedSemester.dateRange.from}
+                        fromDate={selectedSemester.dateRange.from}
+                        toDate={selectedSemester.dateRange.to}
+                        modifiers={calendarModifiers}
+                        modifiersClassNames={calendarModifiersClassNames}
+                        onDayClick={handleDayClick}
+                        disabled={{ after: startOfToday() }}
+                        numberOfMonths={Math.min(3, new Date(selectedSemester.dateRange.to).getMonth() - new Date(selectedSemester.dateRange.from).getMonth() + 1)}
+                        className="p-0"
+                        classNames={{
+                          day: cn("h-10 w-10"),
+                          day_disabled: "text-muted-foreground/50",
+                          day_selected: "",
+                          day_range_middle: "",
+                        }}
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attendance Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Total Days</p>
+                        <p className="text-2xl font-bold">{totalWorkingDays}</p>
+                    </div>
+                    <div className="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                        <p className="text-sm text-green-600 dark:text-green-400">Present</p>
+                        <p className="text-2xl font-bold">{presentCount}</p>
+                    </div>
+                    <div className="p-4 bg-red-100 dark:bg-red-900/50 rounded-lg">
+                        <p className="text-sm text-red-600 dark:text-red-400">Absent</p>
+                        <p className="text-2xl font-bold">{absentCount}</p>
+                    </div>
+                    <div className="p-4 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                        <p className="text-sm text-blue-600 dark:text-blue-400">Remaining</p>
+                        <p className="text-2xl font-bold">{remainingDays}</p>
+                    </div>
+                </CardContent>
+            </Card>
+          </>
         )}
         {!selectedSemester && !loadingSemesters && (
           <Card>
