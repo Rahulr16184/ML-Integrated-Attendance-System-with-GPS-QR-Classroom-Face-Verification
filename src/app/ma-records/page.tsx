@@ -114,7 +114,7 @@ export default function MaRecordsPage() {
       }
     };
     fetchAttendance();
-  }, [userProfile, selectedSemester, selectedDepartmentId]);
+  }, [userProfile?.uid, selectedSemester, selectedDepartmentId]);
 
   const { presentDays, absentDays, remainingDays } = useMemo(() => {
     if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0 };
@@ -251,15 +251,15 @@ export default function MaRecordsPage() {
                 </CardHeader>
                 <CardContent className="flex justify-center">
                     <Calendar
-                        mode="default"
-                        month={selectedSemester.dateRange.from}
+                        pagedNavigation
+                        fixedWeeks
+                        defaultMonth={selectedSemester.dateRange.from}
                         fromDate={selectedSemester.dateRange.from}
                         toDate={selectedSemester.dateRange.to}
                         modifiers={calendarModifiers}
                         modifiersClassNames={calendarModifiersClassNames}
                         onDayClick={handleDayClick}
                         disabled={{ after: new Date() }}
-                        numberOfMonths={numberOfMonths}
                         className="p-0"
                         classNames={{
                           day: cn("h-10 w-10"),
