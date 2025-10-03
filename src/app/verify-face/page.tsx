@@ -20,29 +20,7 @@ import { Progress } from '@/components/ui/progress';
 import { getCachedDescriptor } from '@/services/system-cache-service';
 
 const SIMILARITY_THRESHOLD = 0.55;
-const SMILE_THRESHOLD = 0.8; 
-const EAR_THRESHOLD = 0.25; 
-const LIVENESS_CHALLENGES = ['smile', 'blink'] as const;
-
-type LivenessChallenge = (typeof LIVENESS_CHALLENGES)[number];
-
-// Function to calculate Eye Aspect Ratio
-const getEAR = (landmarks: any) => {
-    const leftEye = landmarks.getLeftEye();
-    const rightEye = landmarks.getRightEye();
-
-    const dist = (p1: any, p2: any) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-
-    const ear = (eye: any[]) => {
-        const A = dist(eye[1], eye[5]);
-        const B = dist(eye[2], eye[4]);
-        const C = dist(eye[0], eye[3]);
-        return (A + B) / (2.0 * C);
-    };
-
-    return (ear(leftEye) + ear(rightEye)) / 2.0;
-};
-
+const SMILE_THRESHOLD = 0.8;
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -62,9 +40,11 @@ export default function VerifyFacePage() {
     const [status, setStatus] = useState<'pending' | 'scanning' | 'liveness' | 'success' | 'failed'>('pending');
     const [feedbackMessage, setFeedbackMessage] = useState('Click "Start Scan" to begin.');
     const [similarity, setSimilarity] = useState<number | null>(null);
-    const [livenessChallenge, setLivenessChallenge] = useState<LivenessChallenge | null>(null);
     
-    const earHistory = useRef<number[]>([]);
+    const statusRef = useRef(status);
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
 
     useEffect(() => {
         async function fetchInitialData() {
@@ -118,10 +98,6 @@ export default function VerifyFacePage() {
         setIsCameraLive(false);
     }, [stopDetection]);
     
-    const statusRef = useRef(status);
-    useEffect(() => {
-        statusRef.current = status;
-    }, [status]);
     
     const detectFace = async () => {
         if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) return;
@@ -137,10 +113,7 @@ export default function VerifyFacePage() {
                 setSimilarity(currentSimilarity);
 
                 if (currentSimilarity > SIMILARITY_THRESHOLD) {
-                    const challenge = LIVENESS_CHALLENGES[Math.floor(Math.random() * LIVENESS_CHALLENGES.length)];
                     setStatus('liveness');
-                    setLivenessChallenge(challenge);
-                    if (challenge === 'blink') earHistory.current = []; // Reset blink history
                 } else {
                      setFeedbackMessage('Verifying similarity...');
                 }
@@ -149,29 +122,16 @@ export default function VerifyFacePage() {
                 setFeedbackMessage("No face detected.");
             }
         } else if (currentStatus === 'liveness') {
-            const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceExpressions();
+            const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()).withFaceExpressions();
             if (!detections) {
                 setFeedbackMessage("Keep your face in the frame.");
                 return;
             }
 
-            if (livenessChallenge === 'smile') {
-                if (detections.expressions.happy > SMILE_THRESHOLD) {
-                    setStatus('success');
-                } else {
-                    setFeedbackMessage("Please Smile!");
-                }
-            } else if (livenessChallenge === 'blink') {
-                const currentEAR = getEAR(detections.landmarks);
-                earHistory.current.push(currentEAR);
-                if (earHistory.current.length > 5) earHistory.current.shift(); // Keep a short history
-
-                const maxEAR = Math.max(...earHistory.current);
-                if (maxEAR > 0.25 && currentEAR < EAR_THRESHOLD) { 
-                    setStatus('success');
-                } else {
-                    setFeedbackMessage("Please Blink!");
-                }
+            if (detections.expressions.happy > SMILE_THRESHOLD) {
+                setStatus('success');
+            } else {
+                setFeedbackMessage("Please Smile!");
             }
         }
     };
@@ -199,7 +159,7 @@ export default function VerifyFacePage() {
             setStatus('failed');
             setIsCameraLive(false);
         }
-    }, [isCameraLive, userDescriptor, detectFace]);
+    }, [isCameraLive, userDescriptor]);
     
     useEffect(() => {
         if (status === 'success') {
@@ -247,7 +207,7 @@ export default function VerifyFacePage() {
                     </div>
                     <div className="flex items-center justify-center gap-2 text-primary animate-pulse">
                          <Loader2 className="h-5 w-5 animate-spin" />
-                        <span className="font-semibold">{livenessChallenge === 'smile' ? "Now, Please Smile" : "Now, Please Blink"}</span>
+                        <span className="font-semibold">Now, Please Smile</span>
                     </div>
                 </div>
             );
