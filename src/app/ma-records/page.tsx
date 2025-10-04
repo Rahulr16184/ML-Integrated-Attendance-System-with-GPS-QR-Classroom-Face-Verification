@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -111,8 +112,10 @@ export default function MaRecordsPage() {
         try {
           const fetchedStudents = await getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId);
           setStudents(fetchedStudents);
-          if (fetchedStudents.length > 0) {
+          if (fetchedStudents.length > 0 && !selectedStudentId) {
             setSelectedStudentId(fetchedStudents[0].uid);
+          } else if (fetchedStudents.length === 0) {
+            setSelectedStudentId("");
           }
         } catch (error) {
           toast({ title: 'Error', description: 'Could not fetch student list.', variant: 'destructive' });
@@ -130,6 +133,8 @@ export default function MaRecordsPage() {
         if (parsedSemesters.length > 0) {
           const currentSem = parsedSemesters.find(s => isSameDay(s.dateRange.from, new Date()) || (new Date() > s.dateRange.from && new Date() < s.dateRange.to)) || parsedSemesters[0];
           setSelectedSemesterId(currentSem.id);
+        } else {
+           setSelectedSemesterId("");
         }
       } catch (error) {
         toast({ title: 'Error', description: 'Could not fetch semesters.', variant: 'destructive' });
@@ -139,7 +144,7 @@ export default function MaRecordsPage() {
     }
 
     fetchStudentsAndSemesters();
-  }, [selectedDepartmentId, userProfile, isAuthorized, toast]);
+  }, [selectedDepartmentId, userProfile, isAuthorized, toast, selectedStudentId]);
   
 
   const selectedSemester = useMemo(() => {
@@ -162,8 +167,8 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  const { presentDays, absentDays, approvedDays, remainingDays, totalWorkingDays, holidaysCount } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalWorkingDays: 0, holidaysCount: 0 };
+  const { presentDays, absentDays, approvedDays, remainingDays, totalDays, holidaysCount } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0 };
     
     const present = attendanceRecords.filter(r => r.status === 'Present').map(r => parseISO(r.date));
     const approved = attendanceRecords.filter(r => r.status === 'Approved Present').map(r => parseISO(r.date));
@@ -173,37 +178,34 @@ export default function MaRecordsPage() {
     const attendedDates = new Set([...present, ...approved].map(p => p.toDateString()));
     
     const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
-    let weekends = 0;
-    for (let d = new Date(selectedSemester.dateRange.from); d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
-        const dayOfWeek = d.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            weekends++;
-        }
+    
+    let daysPassed = 0;
+    const today = startOfToday();
+    if (isAfter(today, selectedSemester.dateRange.from)) {
+        daysPassed = differenceInDays(today, selectedSemester.dateRange.from) + 1;
+        if(daysPassed > totalDaysInRange) daysPassed = totalDaysInRange;
     }
-    const workingDays = totalDaysInRange - weekends - selectedSemester.holidays.length;
+    const remainingCalendarDays = totalDaysInRange - daysPassed;
 
-    for (let d = new Date(selectedSemester.dateRange.from); d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(selectedSemester.dateRange.from); d < today; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
 
-        if (isBefore(d, startOfToday()) && dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !attendedDates.has(dateString)) {
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !attendedDates.has(dateString)) {
             absent.push(new Date(d));
         }
     }
 
-    let remaining = 0;
-    const tomorrow = startOfTomorrow();
-    if (isAfter(selectedSemester.dateRange.to, tomorrow)) {
-        for (let d = new Date(tomorrow); isBefore(d, endOfDay(selectedSemester.dateRange.to)); d.setDate(d.getDate() + 1)) {
-            const dayOfWeek = d.getDay();
-            const dateString = d.toDateString();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString)) {
-                remaining++;
-            }
-        }
-    }
-    return { presentDays: present, absentDays: absent, approvedDays: approved, remainingDays: remaining, totalWorkingDays: workingDays, holidaysCount: selectedSemester.holidays.length };
-  }, [attendanceRecords, selectedSemester]);
+    return { 
+        presentDays: present, 
+        absentDays: absent, 
+        approvedDays: approved, 
+        remainingDays: remainingCalendarDays, 
+        totalDays: totalDaysInRange, 
+        holidaysCount: selectedSemester.holidays.length 
+    };
+}, [attendanceRecords, selectedSemester]);
+
   
   const calendarModifiers = {
     present: presentDays,
@@ -390,8 +392,8 @@ export default function MaRecordsPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Total Working</p>
-                        <p className="text-2xl font-bold">{totalWorkingDays}</p>
+                        <p className="text-sm text-muted-foreground">Total Days</p>
+                        <p className="text-2xl font-bold">{totalDays}</p>
                     </div>
                      <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
                         <p className="text-sm text-yellow-600 dark:text-yellow-400">Holidays</p>
@@ -500,3 +502,5 @@ export default function MaRecordsPage() {
     </>
   );
 }
+
+    
