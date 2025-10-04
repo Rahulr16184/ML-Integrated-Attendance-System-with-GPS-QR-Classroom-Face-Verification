@@ -169,19 +169,20 @@ export default function VerifyFacePage() {
             });
 
             countdownInterval = setInterval(() => {
-                setCountdown(prev => prev - 1);
+                setCountdown(prev => {
+                    if (prev <= 1) {
+                        clearInterval(countdownInterval!);
+                        captureFinalImage();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
             }, 1000);
         }
         return () => {
             if (countdownInterval) clearInterval(countdownInterval);
         };
-    }, [status, stopDetection]);
-
-    useEffect(() => {
-        if (countdown === 0 && status === 'positioning') {
-            captureFinalImage();
-        }
-    }, [countdown, status, captureFinalImage]);
+    }, [status, stopDetection, captureFinalImage]);
     
     const detectFace = useCallback(async () => {
         if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) {
