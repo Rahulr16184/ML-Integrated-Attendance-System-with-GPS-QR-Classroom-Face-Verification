@@ -1,6 +1,4 @@
 
-
-
 export type AttendanceRecord = {
   id: string;
   employeeId: string;
@@ -71,3 +69,10 @@ export type AttendanceLog = {
     markedBy: 'student' | 'teacher' | 'admin';
     location?: { lat: number; lng: number } | null;
 };
+
+export type Student = {
+    uid: string;
+    name: string;
+};
+
+    

@@ -1,8 +1,8 @@
 
-
 import { auth, db, CLOUDINARY_UPLOAD_URL, CLOUDINARY_UPLOAD_PRESET } from '@/lib/conf';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { collection, doc, setDoc, getDocs, query, where, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import type { Student } from '@/lib/types';
 
 // This is a much improved user registration flow.
 
@@ -115,6 +115,31 @@ export const getUserData = async (email: string): Promise<UserProfile | null> =>
     }
 }
 
+export const getStudentsByDepartment = async (institutionId: string, departmentId: string): Promise<Student[]> => {
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(
+            usersRef,
+            where('institutionId', '==', institutionId),
+            where('departmentIds', 'array-contains', departmentId),
+            where('role', '==', 'student')
+        );
+
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            return [];
+        }
+
+        return querySnapshot.docs.map(doc => ({
+            uid: doc.id,
+            name: doc.data().name,
+        }));
+    } catch (error) {
+        console.error("Error fetching students by department:", error);
+        throw new Error("Could not fetch student list.");
+    }
+};
+
 export const uploadImage = async (file: string): Promise<string> => {
   const formData = new FormData();
   formData.append('file', file);
@@ -150,3 +175,4 @@ export const updateUser = async (uid: string, data: Partial<UserProfile>): Promi
     }
 };
 
+    

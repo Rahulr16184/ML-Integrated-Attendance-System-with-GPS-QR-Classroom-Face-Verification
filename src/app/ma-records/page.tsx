@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -10,7 +9,8 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
 import { getSemesters } from "@/services/working-days-service";
 import { getStudentAttendance, addAttendanceRecord } from "@/services/attendance-service";
-import type { Department, Semester, AttendanceLog } from "@/lib/types";
+import { getStudentsByDepartment } from "@/services/user-service";
+import type { Department, Semester, AttendanceLog, Student } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,10 @@ export default function MaRecordsPage() {
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const [loadingDepartments, setLoadingDepartments] = useState(true);
+
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
@@ -87,6 +91,32 @@ export default function MaRecordsPage() {
   }, [userProfile, userLoading, isAuthorized, selectedDepartmentId]);
 
   useEffect(() => {
+    async function fetchStudents() {
+        if (userProfile?.institutionId && selectedDepartmentId && (userProfile.role === 'admin' || userProfile.role === 'teacher')) {
+            setLoadingStudents(true);
+            try {
+                const fetchedStudents = await getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId);
+                setStudents(fetchedStudents);
+            } catch (error) {
+                toast({ title: 'Error', description: 'Could not fetch student list.', variant: 'destructive' });
+            } finally {
+                setLoadingStudents(false);
+            }
+        }
+    }
+    fetchStudents();
+  }, [selectedDepartmentId, userProfile, toast]);
+
+  useEffect(() => {
+    if (userProfile?.role === 'student' && userProfile.uid) {
+        setSelectedStudentId(userProfile.uid);
+    } else {
+        // For teacher/admin, don't auto-select a student
+        setSelectedStudentId("");
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
     async function fetchSemesters() {
       if (userProfile?.institutionId && selectedDepartmentId) {
         setLoadingSemesters(true);
@@ -112,16 +142,16 @@ export default function MaRecordsPage() {
   }, [semesters, selectedSemesterId]);
 
   const fetchAttendance = useCallback(async () => {
-      if (userProfile?.uid && selectedSemester) {
+      if (selectedStudentId && selectedSemester) {
         setLoadingAttendance(true);
-        const records = await getStudentAttendance(userProfile.uid, selectedSemester.dateRange.from, selectedSemester.dateRange.to);
+        const records = await getStudentAttendance(selectedStudentId, selectedSemester.dateRange.from, selectedSemester.dateRange.to);
         const filteredRecords = records.filter(rec => rec.departmentId === selectedDepartmentId);
         setAttendanceRecords(filteredRecords);
         setLoadingAttendance(false);
       } else {
         setAttendanceRecords([]);
       }
-    }, [userProfile?.uid, selectedSemester, selectedDepartmentId]);
+    }, [selectedStudentId, selectedSemester, selectedDepartmentId]);
 
   useEffect(() => {
     fetchAttendance();
@@ -136,25 +166,26 @@ export default function MaRecordsPage() {
     
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
     const attendedDates = new Set([...present, ...approved].map(p => p.toDateString()));
-    const holidaysCount = selectedSemester.holidays.length;
-
+    
     let weekends = 0;
     for (let d = new Date(selectedSemester.dateRange.from); d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
 
         if (dayOfWeek === 0 || dayOfWeek === 6) {
-            weekends++;
+            if (!holidays.has(dateString)) { // Don't double count holidays on weekends
+                weekends++;
+            }
         }
 
         if (isBefore(d, startOfToday()) && dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !attendedDates.has(dateString)) {
             absent.push(new Date(d));
         }
     }
-
-    const totalDaysInRange = Math.ceil((selectedSemester.dateRange.to.getTime() - selectedSemester.dateRange.from.getTime()) / (1000 * 3600 * 24)) +1;
-    const totalWorking = totalDaysInRange - weekends - holidaysCount;
     
+    const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
+    const workingDays = totalDaysInRange - weekends - selectedSemester.holidays.length;
+
     let remaining = 0;
     const tomorrow = startOfTomorrow();
     if (isAfter(selectedSemester.dateRange.to, tomorrow)) {
@@ -166,7 +197,7 @@ export default function MaRecordsPage() {
             }
         }
     }
-    return { presentDays: present, absentDays: absent, approvedDays: approved, remainingDays: remaining, totalWorkingDays: totalWorking, holidaysCount };
+    return { presentDays: present, absentDays: absent, approvedDays: approved, remainingDays: remaining, totalWorkingDays: workingDays, holidaysCount: selectedSemester.holidays.length };
   }, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
@@ -184,6 +215,10 @@ export default function MaRecordsPage() {
   };
 
   const handleDayClick = (day: Date, modifiers: { present?: boolean; absent?: boolean; approved?: boolean; }) => {
+    if (!selectedStudentId) {
+        toast({ title: "No Student Selected", description: "Please select a student to view or modify attendance.", variant: "destructive" });
+        return;
+    }
     if (isAfter(day, new Date()) && !isSameDay(day, new Date())) return;
 
     if (modifiers.present || modifiers.approved) {
@@ -200,15 +235,17 @@ export default function MaRecordsPage() {
   };
 
   const handleApproveAbsence = async () => {
-    if (!dateToApprove || !userProfile || !selectedDepartmentId || !approvalReason) {
-        toast({ title: 'Error', description: 'Reason for approval is required.', variant: 'destructive' });
+    const studentToApprove = students.find(s => s.uid === selectedStudentId);
+
+    if (!dateToApprove || !userProfile || !selectedDepartmentId || !approvalReason || !studentToApprove) {
+        toast({ title: 'Error', description: 'A student and reason for approval are required.', variant: 'destructive' });
         return;
     }
     setIsSavingApproval(true);
     try {
         const newRecord: Omit<AttendanceLog, 'id'> = {
-            studentId: userProfile.uid,
-            studentName: userProfile.name,
+            studentId: studentToApprove.uid,
+            studentName: studentToApprove.name,
             departmentId: selectedDepartmentId,
             date: dateToApprove.toISOString(),
             status: 'Approved Present',
@@ -217,7 +254,7 @@ export default function MaRecordsPage() {
             markedBy: userProfile.role as 'teacher' | 'admin',
         };
 
-        await addAttendanceRecord(userProfile.uid, newRecord);
+        await addAttendanceRecord(studentToApprove.uid, newRecord);
         toast({ title: 'Success', description: 'Absence has been marked as approved present.' });
         
         await fetchAttendance(); // Refetch data
@@ -235,7 +272,8 @@ export default function MaRecordsPage() {
   };
 
   const isDayDisabled = (day: Date) => {
-    return isAfter(day, new Date()) && !isSameDay(day, new Date());
+    if (!selectedSemester) return true;
+    return isAfter(day, selectedSemester.dateRange.to) || isBefore(day, selectedSemester.dateRange.from) || (isAfter(day, new Date()) && !isSameDay(day, new Date()));
   };
 
   if (!isAuthorized || userLoading) {
@@ -254,7 +292,6 @@ export default function MaRecordsPage() {
   const presentCount = presentDays.length;
   const absentCount = absentDays.length;
   const approvedCount = approvedDays.length;
-  const numberOfMonths = selectedSemester ? (selectedSemester.dateRange.to.getFullYear() - selectedSemester.dateRange.from.getFullYear()) * 12 + (selectedSemester.dateRange.to.getMonth() - selectedSemester.dateRange.from.getMonth()) + 1 : 1;
 
   return (
     <>
@@ -262,10 +299,10 @@ export default function MaRecordsPage() {
         <Card>
           <CardHeader>
             <CardTitle>My Attendance Records</CardTitle>
-            <CardDescription>Select a department and semester to view your attendance.</CardDescription>
+            <CardDescription>Select a department and semester to view attendance.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Department</Label>
                 {loadingDepartments ? (
@@ -279,6 +316,21 @@ export default function MaRecordsPage() {
                   </Select>
                 )}
               </div>
+              
+               {(userProfile?.role === 'admin' || userProfile?.role === 'teacher') && (
+                 <div className="space-y-2">
+                    <Label>Student</Label>
+                    {loadingStudents ? <Skeleton className="h-10 w-full" /> : (
+                         <Select onValueChange={setSelectedStudentId} value={selectedStudentId} disabled={students.length === 0}>
+                            <SelectTrigger><SelectValue placeholder="Select Student" /></SelectTrigger>
+                            <SelectContent>
+                                {students.map(s => <SelectItem key={s.uid} value={s.uid}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
+                </div>
+               )}
+
               <div className="space-y-2">
                 <Label>Semester</Label>
                 {loadingSemesters ? (
@@ -296,9 +348,9 @@ export default function MaRecordsPage() {
           </CardContent>
         </Card>
         
-        {(loadingSemesters || loadingAttendance) && <Skeleton className="h-96 w-full" />}
+        {(loadingSemesters || loadingAttendance || loadingStudents) && <Skeleton className="h-96 w-full" />}
         
-        {selectedSemester && !loadingAttendance && (
+        {selectedSemester && !loadingAttendance && !loadingSemesters && (
           <>
             <Card>
                 <CardHeader>
@@ -360,10 +412,10 @@ export default function MaRecordsPage() {
             </Card>
           </>
         )}
-        {!selectedSemester && !loadingSemesters && (
+        {!selectedSemester && !loadingSemesters && selectedDepartmentId && (
           <Card>
             <CardContent className="pt-6 text-center text-muted-foreground">
-              <p>Please select a department and semester to view the calendar.</p>
+              <p>No semesters have been configured for this department.</p>
             </CardContent>
           </Card>
         )}
@@ -376,7 +428,7 @@ export default function MaRecordsPage() {
                     {selectedDateRecord === 'absent' ? "Absent" : `Attendance for ${isPresentRecord(selectedDateRecord) ? format(parseISO(selectedDateRecord.date), "PPP") : ""}`}
                 </DialogTitle>
                 {selectedDateRecord !== 'absent' && (
-                  <DialogDescription>Details of your attendance record for this day.</DialogDescription>
+                  <DialogDescription>Details of attendance record for this day.</DialogDescription>
                 )}
             </DialogHeader>
              {selectedDateRecord === 'absent' && (
@@ -443,3 +495,5 @@ export default function MaRecordsPage() {
     </>
   );
 }
+
+    
