@@ -167,7 +167,7 @@ export default function ViewAttendancePage() {
         approvedDays: approved,
         conflictDays: conflict,
         remainingDays: remainingCalendarDays,
-        totalDays: totalDaysInRange - selectedSemester.holidays.length, 
+        totalDays: totalDaysInRange,
         holidaysCount: selectedSemester.holidays.length,
         attendancePercentage: percentage
     };
@@ -305,8 +305,8 @@ export default function ViewAttendancePage() {
                         <p className="text-sm text-muted-foreground">Total Days</p>
                         <p className="text-2xl font-bold">{totalDays}</p>
                     </div>
-                     <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
-                        <p className="text-sm text-yellow-600 dark:text-yellow-400">Holidays</p>
+                     <div className="p-4 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
+                        <p className="text-sm text-orange-600 dark:text-orange-400">Holidays</p>
                         <p className="text-2xl font-bold">{holidaysCount}</p>
                     </div>
                     <div className="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg">

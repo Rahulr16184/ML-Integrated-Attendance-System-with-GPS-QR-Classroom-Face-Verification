@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { RotateCcw } from "lucide-react";
 
 const parseSemesterDates = (semester: Semester) => ({
   ...semester,
@@ -65,6 +66,11 @@ export default function MaRecordsPage() {
   const [recordToConflict, setRecordToConflict] = useState<AttendanceLog | null>(null);
   const [conflictReason, setConflictReason] = useState("");
   const [isSavingConflict, setIsSavingConflict] = useState(false);
+
+  const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
+  const [recordToRevert, setRecordToRevert] = useState<AttendanceLog | null>(null);
+  const [revertReason, setRevertReason] = useState("");
+  const [isSavingRevert, setIsSavingRevert] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
@@ -209,7 +215,7 @@ export default function MaRecordsPage() {
         approvedDays: approved,
         conflictDays: conflict,
         remainingDays: remainingCalendarDays,
-        totalDays: totalDaysInRange - selectedSemester.holidays.length, 
+        totalDays: totalDaysInRange,
         holidaysCount: selectedSemester.holidays.length,
         attendancePercentage: percentage
     };
@@ -242,9 +248,15 @@ export default function MaRecordsPage() {
         const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
         if (record) {
             setSelectedDateRecord(record);
-            if (record.status === 'Present' && (userProfile?.role === 'admin' || userProfile?.role === 'teacher')) {
-                setRecordToConflict(record);
-                setIsConflictDialogOpen(true);
+            // Open conflict/revert dialogs only for teachers/admins
+            if (userProfile?.role === 'admin' || userProfile?.role === 'teacher') {
+                if (record.status === 'Present') {
+                    setRecordToConflict(record);
+                    setIsConflictDialogOpen(true);
+                } else if (record.status === 'Conflict') {
+                    setRecordToRevert(record);
+                    setIsRevertDialogOpen(true);
+                }
             }
         }
     } else if (modifiers.absent) {
@@ -316,6 +328,30 @@ export default function MaRecordsPage() {
       } finally {
           setIsSavingConflict(false);
       }
+  };
+
+  const handleRevertConflict = async () => {
+    if (!recordToRevert || !revertReason || !selectedStudentId) {
+        toast({ title: 'Error', description: 'A reason is required to revert the status.', variant: 'destructive' });
+        return;
+    }
+    setIsSavingRevert(true);
+    try {
+        await updateAttendanceRecord(selectedStudentId, recordToRevert.id, {
+            status: 'Present',
+            notes: `Reverted by ${userProfile?.name} on ${new Date().toLocaleDateString()}: ${revertReason}`,
+        });
+        toast({ title: 'Success', description: 'Attendance record has been reverted to Present.' });
+        await fetchAttendance(); // Refetch data
+        setIsRevertDialogOpen(false);
+        setRevertReason("");
+        setRecordToRevert(null);
+    } catch (error) {
+        console.error(error);
+        toast({ title: 'Error', description: 'Failed to revert record.', variant: 'destructive' });
+    } finally {
+        setIsSavingRevert(false);
+    }
   };
 
 
@@ -437,8 +473,8 @@ export default function MaRecordsPage() {
                         <p className="text-sm text-muted-foreground">Total Days</p>
                         <p className="text-2xl font-bold">{totalDays}</p>
                     </div>
-                     <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
-                        <p className="text-sm text-yellow-600 dark:text-yellow-400">Holidays</p>
+                     <div className="p-4 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
+                        <p className="text-sm text-orange-600 dark:text-orange-400">Holidays</p>
                         <p className="text-2xl font-bold">{holidaysCount}</p>
                     </div>
                     <div className="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg">
@@ -532,6 +568,13 @@ export default function MaRecordsPage() {
                         <div className="font-medium">Location:</div>
                         <div>{selectedDateRecord.location ? `${selectedDateRecord.location.lat.toFixed(5)}, ${selectedDateRecord.location.lng.toFixed(5)}` : '--'}</div>
                     </div>
+                     {(userProfile?.role === 'admin' || userProfile?.role === 'teacher') && selectedDateRecord.status === 'Conflict' && (
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => { setIsRevertDialogOpen(true); setRecordToRevert(selectedDateRecord); setSelectedDateRecord(null); }}>
+                                <RotateCcw className="mr-2 h-4 w-4" /> Revert to Present
+                            </Button>
+                        </DialogFooter>
+                    )}
                 </div>
             )}
         </DialogContent>
@@ -580,6 +623,30 @@ export default function MaRecordsPage() {
                 <Button variant="outline" onClick={() => { setIsConflictDialogOpen(false); setRecordToConflict(null); }}>Cancel</Button>
                 <Button variant="destructive" onClick={handleMarkAsConflict} disabled={isSavingConflict || !conflictReason}>
                     {isSavingConflict ? "Saving..." : "Confirm Absent"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+       <Dialog open={isRevertDialogOpen} onOpenChange={(open) => { if (!open) { setIsRevertDialogOpen(false); setRecordToRevert(null); }}}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Revert to Present for {recordToRevert ? format(parseISO(recordToRevert.date), "PPP") : ""}</DialogTitle>
+                <DialogDescription>Change the status from 'Conflict' back to 'Present'.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+                <Label htmlFor="revert-reason">Reason for Reversal</Label>
+                <Textarea 
+                    id="revert-reason"
+                    placeholder="e.g., Mistakenly marked, issue resolved..."
+                    value={revertReason}
+                    onChange={(e) => setRevertReason(e.target.value)}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => { setIsRevertDialogOpen(false); setRecordToRevert(null); }}>Cancel</Button>
+                <Button onClick={handleRevertConflict} disabled={isSavingRevert || !revertReason}>
+                    {isSavingRevert ? "Saving..." : "Revert and Save"}
                 </Button>
             </DialogFooter>
         </DialogContent>
