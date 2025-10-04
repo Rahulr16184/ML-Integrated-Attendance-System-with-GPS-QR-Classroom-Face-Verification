@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -8,7 +9,7 @@ import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
 import { getSemesters } from "@/services/working-days-service";
-import { getStudentAttendance, addAttendanceRecord } from "@/services/attendance-service";
+import { getStudentAttendance, addAttendanceRecord, updateAttendanceRecord } from "@/services/attendance-service";
 import { getStudentsByDepartment } from "@/services/user-service";
 import type { Department, Semester, AttendanceLog, Student } from "@/lib/types";
 
@@ -59,6 +60,11 @@ export default function MaRecordsPage() {
   const [dateToApprove, setDateToApprove] = useState<Date | null>(null);
   const [approvalReason, setApprovalReason] = useState("");
   const [isSavingApproval, setIsSavingApproval] = useState(false);
+
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+  const [recordToConflict, setRecordToConflict] = useState<AttendanceLog | null>(null);
+  const [conflictReason, setConflictReason] = useState("");
+  const [isSavingConflict, setIsSavingConflict] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
@@ -166,21 +172,21 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
- const { presentDays, absentDays, approvedDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
+ const { presentDays, absentDays, approvedDays, conflictDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], conflictDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
     
     const present = attendanceRecords.filter(r => r.status === 'Present').map(r => parseISO(r.date));
     const approved = attendanceRecords.filter(r => r.status === 'Approved Present').map(r => parseISO(r.date));
-    const absent: Date[] = [];
+    const conflict = attendanceRecords.filter(r => r.status === 'Conflict').map(r => parseISO(r.date));
     
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
-    const attendedDates = new Set([...present, ...approved].map(p => p.toDateString()));
-    
-    const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
+    const attendedDates = new Set([...present, ...approved, ...conflict].map(p => p.toDateString()));
+    const absent: Date[] = [];
     
     const today = startOfToday();
+    const totalDaysInRange = differenceInDays(endOfDay(selectedSemester.dateRange.to), startOfToday(selectedSemester.dateRange.from)) + 1;
     
-    for (let d = new Date(selectedSemester.dateRange.from); d < today; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(selectedSemester.dateRange.from); d <= today && d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
 
@@ -189,20 +195,21 @@ export default function MaRecordsPage() {
         }
     }
     
-    const passedWorkingDays = present.length + approved.length + absent.length;
+    const passedWorkingDays = present.length + approved.length + absent.length + conflict.length;
     const percentage = passedWorkingDays > 0 ? ((present.length + approved.length) / passedWorkingDays) * 100 : 0;
     
     const remainingCalendarDays = isAfter(today, selectedSemester.dateRange.to)
         ? 0
-        : differenceInDays(selectedSemester.dateRange.to, today) + 1;
+        : differenceInDays(selectedSemester.dateRange.to, today);
 
 
     return { 
         presentDays: present, 
         absentDays: absent, 
-        approvedDays: approved, 
+        approvedDays: approved,
+        conflictDays: conflict,
         remainingDays: remainingCalendarDays,
-        totalDays: totalDaysInRange, 
+        totalDays: totalDaysInRange - selectedSemester.holidays.length, 
         holidaysCount: selectedSemester.holidays.length,
         attendancePercentage: percentage
     };
@@ -212,6 +219,7 @@ export default function MaRecordsPage() {
     present: presentDays,
     absent: absentDays,
     approved: approvedDays,
+    conflict: conflictDays,
     holiday: selectedSemester?.holidays || [],
   };
 
@@ -219,19 +227,26 @@ export default function MaRecordsPage() {
     present: "bg-green-200 dark:bg-green-800",
     absent: "bg-red-200 dark:bg-red-800",
     approved: "bg-blue-200 dark:bg-blue-800",
+    conflict: "bg-yellow-200 dark:bg-yellow-800",
     holiday: 'text-red-500 line-through',
   };
 
-  const handleDayClick = (day: Date, modifiers: { present?: boolean; absent?: boolean; approved?: boolean; }) => {
+  const handleDayClick = (day: Date, modifiers: { present?: boolean; absent?: boolean; approved?: boolean; conflict?: boolean; }) => {
     if (!selectedStudentId) {
         toast({ title: "No Student Selected", description: "Please select a student to view or modify attendance.", variant: "destructive" });
         return;
     }
     if (isAfter(day, new Date()) && !isSameDay(day, new Date())) return;
 
-    if (modifiers.present || modifiers.approved) {
-      const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
-      if (record) setSelectedDateRecord(record);
+    if (modifiers.present || modifiers.approved || modifiers.conflict) {
+        const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
+        if (record) {
+            setSelectedDateRecord(record);
+            if (record.status === 'Present' && (userProfile?.role === 'admin' || userProfile?.role === 'teacher')) {
+                setRecordToConflict(record);
+                setIsConflictDialogOpen(true);
+            }
+        }
     } else if (modifiers.absent) {
         if (userProfile?.role === 'admin' || userProfile?.role === 'teacher') {
             setDateToApprove(day);
@@ -279,6 +294,31 @@ export default function MaRecordsPage() {
     }
   };
 
+  const handleMarkAsConflict = async () => {
+      if (!recordToConflict || !conflictReason || !selectedStudentId) {
+           toast({ title: 'Error', description: 'A reason is required to mark as absent.', variant: 'destructive' });
+           return;
+      }
+      setIsSavingConflict(true);
+      try {
+          await updateAttendanceRecord(selectedStudentId, recordToConflict.id, {
+              status: 'Conflict',
+              notes: conflictReason,
+          });
+          toast({ title: 'Success', description: 'Attendance record has been updated.' });
+          await fetchAttendance(); // Refetch data
+          setIsConflictDialogOpen(false);
+          setConflictReason("");
+          setRecordToConflict(null);
+      } catch (error) {
+          console.error(error);
+          toast({ title: 'Error', description: 'Failed to update record.', variant: 'destructive' });
+      } finally {
+          setIsSavingConflict(false);
+      }
+  };
+
+
   const isDayDisabled = (day: Date) => {
     if (!selectedSemester) return true;
     return isAfter(day, selectedSemester.dateRange.to) || isBefore(day, selectedSemester.dateRange.from) || (isAfter(day, new Date()) && !isSameDay(day, new Date()));
@@ -300,6 +340,7 @@ export default function MaRecordsPage() {
   const presentCount = presentDays.length;
   const absentCount = absentDays.length;
   const approvedCount = approvedDays.length;
+  const conflictCount = conflictDays.length;
 
   return (
     <>
@@ -363,7 +404,7 @@ export default function MaRecordsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Calendar for {selectedSemester.name}</CardTitle>
-                    <CardDescription>Click on a highlighted day to see details or approve an absence.</CardDescription>
+                    <CardDescription>Click on a highlighted day to see details or modify a record.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex justify-center">
                     <Calendar
@@ -391,7 +432,7 @@ export default function MaRecordsPage() {
                 <CardHeader>
                     <CardTitle>Attendance Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 text-center">
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Total Days</p>
                         <p className="text-2xl font-bold">{totalDays}</p>
@@ -412,15 +453,19 @@ export default function MaRecordsPage() {
                         <p className="text-sm text-red-600 dark:text-red-400">Absent</p>
                         <p className="text-2xl font-bold">{absentCount}</p>
                     </div>
+                    <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400">Conflict</p>
+                        <p className="text-2xl font-bold">{conflictCount}</p>
+                    </div>
                     <div className="p-4 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
                         <p className="text-2xl font-bold">{remainingDays}</p>
                     </div>
-                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg col-span-2 lg:col-span-1">
                         <p className="text-sm text-indigo-600 dark:text-indigo-400">Attendance %</p>
                         <p className="text-2xl font-bold">{attendancePercentage.toFixed(1)}%</p>
                     </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="p-4 bg-muted/50 rounded-lg col-span-2 lg:col-span-2">
                         <p className="text-sm text-muted-foreground">Semester Dates</p>
                         <p className="text-sm font-bold mt-2">
                             {format(selectedSemester.dateRange.from, 'MMM dd')} - {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
@@ -461,6 +506,11 @@ export default function MaRecordsPage() {
                            <h4 className="font-semibold text-blue-800 dark:text-blue-300">Approval Reason</h4>
                            <p className="text-sm text-muted-foreground mt-1">{selectedDateRecord.verificationPhotoUrl}</p>
                        </div>
+                   ) : selectedDateRecord.status === 'Conflict' && selectedDateRecord.notes ? (
+                       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+                           <h4 className="font-semibold text-yellow-800 dark:text-yellow-300">Conflict Reason</h4>
+                           <p className="text-sm text-muted-foreground mt-1">{selectedDateRecord.notes}</p>
+                       </div>
                    ) : (
                     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
                         <Image src={selectedDateRecord.verificationPhotoUrl} alt="Verification Photo" layout="fill" objectFit="contain" data-ai-hint="student classroom" />
@@ -468,7 +518,7 @@ export default function MaRecordsPage() {
                    )}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div className="font-medium">Status:</div>
-                        <div><Badge variant={selectedDateRecord.status === 'Approved Present' ? 'secondary' : 'default'}>{selectedDateRecord.status}</Badge></div>
+                        <div><Badge variant={selectedDateRecord.status === 'Approved Present' ? 'secondary' : selectedDateRecord.status === 'Conflict' ? 'destructive' : 'default'}>{selectedDateRecord.status}</Badge></div>
                         
                         <div className="font-medium">Time:</div>
                         <div>{selectedDateRecord.status === 'Approved Present' ? '--' : format(parseISO(selectedDateRecord.date), "p")}</div>
@@ -506,6 +556,30 @@ export default function MaRecordsPage() {
                 <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleApproveAbsence} disabled={isSavingApproval || !approvalReason}>
                     {isSavingApproval ? "Saving..." : "Approve and Save"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isConflictDialogOpen} onOpenChange={(open) => { if (!open) { setIsConflictDialogOpen(false); setRecordToConflict(null); }}}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Mark as Absent for {recordToConflict ? format(parseISO(recordToConflict.date), "PPP") : ""}</DialogTitle>
+                <DialogDescription>Override this 'Present' record. The student's original verification photo will be kept for reference.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+                <Label htmlFor="conflict-reason">Reason for Override</Label>
+                <Textarea 
+                    id="conflict-reason"
+                    placeholder="e.g., Student left early, not present during secondary check..."
+                    value={conflictReason}
+                    onChange={(e) => setConflictReason(e.target.value)}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => { setIsConflictDialogOpen(false); setRecordToConflict(null); }}>Cancel</Button>
+                <Button variant="destructive" onClick={handleMarkAsConflict} disabled={isSavingConflict || !conflictReason}>
+                    {isSavingConflict ? "Saving..." : "Confirm Absent"}
                 </Button>
             </DialogFooter>
         </DialogContent>

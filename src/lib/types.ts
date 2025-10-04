@@ -63,11 +63,12 @@ export type AttendanceLog = {
     studentName: string;
     departmentId: string;
     date: string; // ISO string
-    status: 'Present' | 'Absent' | 'Late' | 'Approved Present';
+    status: 'Present' | 'Absent' | 'Late' | 'Approved Present' | 'Conflict';
     mode: 1 | 2;
     verificationPhotoUrl: string;
     markedBy: 'student' | 'teacher' | 'admin';
     location?: { lat: number; lng: number } | null;
+    notes?: string;
 };
 
 export type Student = {

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -129,21 +130,21 @@ export default function ViewAttendancePage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  const { presentDays, absentDays, approvedDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
+  const { presentDays, absentDays, approvedDays, conflictDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], conflictDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
     
     const present = attendanceRecords.filter(r => r.status === 'Present').map(r => parseISO(r.date));
     const approved = attendanceRecords.filter(r => r.status === 'Approved Present').map(r => parseISO(r.date));
-    const absent: Date[] = [];
+    const conflict = attendanceRecords.filter(r => r.status === 'Conflict').map(r => parseISO(r.date));
     
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
-    const attendedDates = new Set([...present, ...approved].map(p => p.toDateString()));
-    
-    const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
+    const attendedDates = new Set([...present, ...approved, ...conflict].map(p => p.toDateString()));
+    const absent: Date[] = [];
     
     const today = startOfToday();
+    const totalDaysInRange = differenceInDays(endOfDay(selectedSemester.dateRange.to), startOfToday(selectedSemester.dateRange.from)) + 1;
     
-    for (let d = new Date(selectedSemester.dateRange.from); d < today; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(selectedSemester.dateRange.from); d <= today && d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
 
@@ -152,20 +153,21 @@ export default function ViewAttendancePage() {
         }
     }
     
-    const passedWorkingDays = present.length + approved.length + absent.length;
+    const passedWorkingDays = present.length + approved.length + absent.length + conflict.length;
     const percentage = passedWorkingDays > 0 ? ((present.length + approved.length) / passedWorkingDays) * 100 : 0;
     
     const remainingCalendarDays = isAfter(today, selectedSemester.dateRange.to)
         ? 0
-        : differenceInDays(selectedSemester.dateRange.to, today) + 1;
+        : differenceInDays(selectedSemester.dateRange.to, today);
 
 
     return { 
         presentDays: present, 
         absentDays: absent, 
-        approvedDays: approved, 
+        approvedDays: approved,
+        conflictDays: conflict,
         remainingDays: remainingCalendarDays,
-        totalDays: totalDaysInRange, 
+        totalDays: totalDaysInRange - selectedSemester.holidays.length, 
         holidaysCount: selectedSemester.holidays.length,
         attendancePercentage: percentage
     };
@@ -175,6 +177,7 @@ export default function ViewAttendancePage() {
     present: presentDays,
     absent: absentDays,
     approved: approvedDays,
+    conflict: conflictDays,
     holiday: selectedSemester?.holidays || [],
   };
 
@@ -182,13 +185,14 @@ export default function ViewAttendancePage() {
     present: "bg-green-200 dark:bg-green-800",
     absent: "bg-red-200 dark:bg-red-800",
     approved: "bg-blue-200 dark:bg-blue-800",
+    conflict: "bg-yellow-200 dark:bg-yellow-800",
     holiday: 'text-red-500 line-through',
   };
 
-  const handleDayClick = (day: Date, modifiers: { present?: boolean; absent?: boolean; approved?: boolean; }) => {
+  const handleDayClick = (day: Date, modifiers: { present?: boolean; absent?: boolean; approved?: boolean; conflict?: boolean }) => {
     if (isAfter(day, new Date()) && !isSameDay(day, new Date())) return;
 
-    if (modifiers.present || modifiers.approved) {
+    if (modifiers.present || modifiers.approved || modifiers.conflict) {
       const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
       if (record) setSelectedDateRecord(record);
     } else if (modifiers.absent) {
@@ -217,6 +221,8 @@ export default function ViewAttendancePage() {
   const presentCount = presentDays.length;
   const absentCount = absentDays.length;
   const approvedCount = approvedDays.length;
+  const conflictCount = conflictDays.length;
+
 
   return (
     <>
@@ -294,7 +300,7 @@ export default function ViewAttendancePage() {
                 <CardHeader>
                     <CardTitle>Attendance Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 text-center">
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Total Days</p>
                         <p className="text-2xl font-bold">{totalDays}</p>
@@ -315,15 +321,19 @@ export default function ViewAttendancePage() {
                         <p className="text-sm text-red-600 dark:text-red-400">Absent</p>
                         <p className="text-2xl font-bold">{absentCount}</p>
                     </div>
+                     <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400">Conflict</p>
+                        <p className="text-2xl font-bold">{conflictCount}</p>
+                    </div>
                     <div className="p-4 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
                         <p className="text-2xl font-bold">{remainingDays}</p>
                     </div>
-                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg col-span-2 lg:col-span-1">
                         <p className="text-sm text-indigo-600 dark:text-indigo-400">Attendance %</p>
                         <p className="text-2xl font-bold">{attendancePercentage.toFixed(1)}%</p>
                     </div>
-                     <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="p-4 bg-muted/50 rounded-lg col-span-2 lg:col-span-2">
                         <p className="text-sm text-muted-foreground">Semester Dates</p>
                         <p className="text-sm font-bold mt-2">
                             {format(selectedSemester.dateRange.from, 'MMM dd')} - {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
@@ -364,6 +374,11 @@ export default function ViewAttendancePage() {
                            <h4 className="font-semibold text-blue-800 dark:text-blue-300">Approval Reason</h4>
                            <p className="text-sm text-muted-foreground mt-1">{selectedDateRecord.verificationPhotoUrl}</p>
                        </div>
+                   ) : selectedDateRecord.status === 'Conflict' && selectedDateRecord.notes ? (
+                       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+                           <h4 className="font-semibold text-yellow-800 dark:text-yellow-300">Conflict Reason</h4>
+                           <p className="text-sm text-muted-foreground mt-1">{selectedDateRecord.notes}</p>
+                       </div>
                    ) : (
                     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
                         <Image src={selectedDateRecord.verificationPhotoUrl} alt="Verification Photo" layout="fill" objectFit="contain" data-ai-hint="student classroom" />
@@ -371,7 +386,7 @@ export default function ViewAttendancePage() {
                    )}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div className="font-medium">Status:</div>
-                        <div><Badge variant={selectedDateRecord.status === 'Approved Present' ? 'secondary' : 'default'}>{selectedDateRecord.status}</Badge></div>
+                        <div><Badge variant={selectedDateRecord.status === 'Approved Present' ? 'secondary' : selectedDateRecord.status === 'Conflict' ? 'destructive' : 'default'}>{selectedDateRecord.status}</Badge></div>
                         
                         <div className="font-medium">Time:</div>
                         <div>{selectedDateRecord.status === 'Approved Present' ? '--' : format(parseISO(selectedDateRecord.date), "p")}</div>

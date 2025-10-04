@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/conf';
-import { collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
 import type { AttendanceLog } from '@/lib/types';
 import { startOfDay, endOfDay } from 'date-fns';
 
@@ -25,6 +25,27 @@ export const addAttendanceRecord = async (
         throw new Error("Could not log attendance. Please try again.");
     }
 };
+
+/**
+ * Updates an existing attendance record.
+ * @param studentId - The UID of the student whose record is being updated.
+ * @param recordId - The ID of the attendance document to update.
+ * @param updateData - The data to update.
+ */
+export const updateAttendanceRecord = async (
+    studentId: string,
+    recordId: string,
+    updateData: Partial<AttendanceLog>
+): Promise<void> => {
+    try {
+        const recordDocRef = doc(db, `users/${studentId}/attendance`, recordId);
+        await updateDoc(recordDocRef, updateData);
+    } catch (error) {
+        console.error("Error updating attendance record: ", error);
+        throw new Error("Could not update the attendance record.");
+    }
+};
+
 
 /**
  * Fetches all attendance records for a specific student within a given semester date range.
