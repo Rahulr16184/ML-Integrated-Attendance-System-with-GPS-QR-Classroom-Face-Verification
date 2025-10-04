@@ -4,22 +4,25 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday, isAfter, endOfDay, differenceInDays } from "date-fns";
+import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday, isAfter, endOfDay } from "date-fns";
 import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
 import { getSemesters } from "@/services/working-days-service";
-import { getStudentAttendance } from "@/services/attendance-service";
+import { getStudentAttendance, addAttendanceRecord } from "@/services/attendance-service";
 import type { Department, Semester, AttendanceLog } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 const parseSemesterDates = (semester: Semester) => ({
   ...semester,
@@ -34,6 +37,7 @@ export default function MaRecordsPage() {
   const router = useRouter();
   const { userProfile, loading: userLoading } = useUserProfile();
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const { toast } = useToast();
 
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
@@ -46,6 +50,11 @@ export default function MaRecordsPage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceLog[]>([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [selectedDateRecord, setSelectedDateRecord] = useState<AttendanceLog | "absent" | null>(null);
+
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [dateToApprove, setDateToApprove] = useState<Date | null>(null);
+  const [approvalReason, setApprovalReason] = useState("");
+  const [isSavingApproval, setIsSavingApproval] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
@@ -102,8 +111,7 @@ export default function MaRecordsPage() {
     return semesters.find(s => s.id === selectedSemesterId);
   }, [semesters, selectedSemesterId]);
 
-  useEffect(() => {
-    const fetchAttendance = async () => {
+  const fetchAttendance = useCallback(async () => {
       if (userProfile?.uid && selectedSemester) {
         setLoadingAttendance(true);
         const records = await getStudentAttendance(userProfile.uid, selectedSemester.dateRange.from, selectedSemester.dateRange.to);
@@ -113,79 +121,116 @@ export default function MaRecordsPage() {
       } else {
         setAttendanceRecords([]);
       }
-    };
-    fetchAttendance();
-  }, [userProfile?.uid, selectedSemester, selectedDepartmentId]);
+    }, [userProfile?.uid, selectedSemester, selectedDepartmentId]);
 
-  const { presentDays, absentDays, remainingDays, totalWorkingDays, holidaysCount } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], remainingDays: 0, totalWorkingDays: 0, holidaysCount: 0 };
+  useEffect(() => {
+    fetchAttendance();
+  }, [fetchAttendance]);
+
+  const { presentDays, absentDays, approvedDays, remainingDays, totalWorkingDays, holidaysCount } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalWorkingDays: 0, holidaysCount: 0 };
     
-    const present = attendanceRecords.map(r => parseISO(r.date));
+    const present = attendanceRecords.filter(r => r.status === 'Present').map(r => parseISO(r.date));
+    const approved = attendanceRecords.filter(r => r.status === 'Approved Present').map(r => parseISO(r.date));
     const absent: Date[] = [];
     
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
-    const presentDates = new Set(present.map(p => p.toDateString()));
+    const attendedDates = new Set([...present, ...approved].map(p => p.toDateString()));
     const holidaysCount = selectedSemester.holidays.length;
 
-    let totalDays = 0;
     let weekends = 0;
-
-    // Calculate absent days (past working days with no attendance) and total working days
     for (let d = new Date(selectedSemester.dateRange.from); d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
-        totalDays++;
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
 
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        if(isWeekend) {
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
             weekends++;
         }
 
-        if (isBefore(d, startOfToday()) && !isWeekend && !holidays.has(dateString) && !presentDates.has(dateString)) {
+        if (isBefore(d, startOfToday()) && dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !attendedDates.has(dateString)) {
             absent.push(new Date(d));
         }
     }
-    
-    const totalWorking = totalDays - weekends - holidaysCount;
 
-    // Calculate remaining working days (from tomorrow to end of semester)
+    const totalDaysInRange = Math.ceil((selectedSemester.dateRange.to.getTime() - selectedSemester.dateRange.from.getTime()) / (1000 * 3600 * 24)) +1;
+    const totalWorking = totalDaysInRange - weekends - holidaysCount;
+    
     let remaining = 0;
     const tomorrow = startOfTomorrow();
     if (isAfter(selectedSemester.dateRange.to, tomorrow)) {
         for (let d = new Date(tomorrow); isBefore(d, endOfDay(selectedSemester.dateRange.to)); d.setDate(d.getDate() + 1)) {
             const dayOfWeek = d.getDay();
             const dateString = d.toDateString();
-
             if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString)) {
                 remaining++;
             }
         }
     }
-
-    return { presentDays: present, absentDays: absent, remainingDays: remaining, totalWorkingDays: totalWorking, holidaysCount };
+    return { presentDays: present, absentDays: absent, approvedDays: approved, remainingDays: remaining, totalWorkingDays: totalWorking, holidaysCount };
   }, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
     present: presentDays,
     absent: absentDays,
+    approved: approvedDays,
     holiday: selectedSemester?.holidays || [],
   };
 
   const calendarModifiersClassNames = {
     present: "bg-green-200 dark:bg-green-800 rounded-full",
     absent: "bg-red-200 dark:bg-red-800 rounded-full",
+    approved: "bg-blue-200 dark:bg-blue-800 rounded-full",
     holiday: 'text-red-500 line-through',
   };
 
-  const handleDayClick = (day: Date, modifiers: { present?: boolean, absent?: boolean }) => {
-    if (isAfter(day, new Date()) && !isSameDay(day, new Date())) return; // Disable clicks on future dates, but allow today
-    if (modifiers.present) {
+  const handleDayClick = (day: Date, modifiers: { present?: boolean; absent?: boolean; approved?: boolean; }) => {
+    if (isAfter(day, new Date()) && !isSameDay(day, new Date())) return;
+
+    if (modifiers.present || modifiers.approved) {
       const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
-      if (record) {
-        setSelectedDateRecord(record);
-      }
+      if (record) setSelectedDateRecord(record);
     } else if (modifiers.absent) {
-        setSelectedDateRecord("absent");
+        if (userProfile?.role === 'admin' || userProfile?.role === 'teacher') {
+            setDateToApprove(day);
+            setIsApprovalDialogOpen(true);
+        } else {
+            setSelectedDateRecord("absent");
+        }
+    }
+  };
+
+  const handleApproveAbsence = async () => {
+    if (!dateToApprove || !userProfile || !selectedDepartmentId || !approvalReason) {
+        toast({ title: 'Error', description: 'Reason for approval is required.', variant: 'destructive' });
+        return;
+    }
+    setIsSavingApproval(true);
+    try {
+        const newRecord: Omit<AttendanceLog, 'id'> = {
+            studentId: userProfile.uid,
+            studentName: userProfile.name,
+            departmentId: selectedDepartmentId,
+            date: dateToApprove.toISOString(),
+            status: 'Approved Present',
+            mode: 1, // Or a specific mode for approved
+            verificationPhotoUrl: approvalReason, // Storing reason in photo url field
+            markedBy: userProfile.role as 'teacher' | 'admin',
+        };
+
+        await addAttendanceRecord(userProfile.uid, newRecord);
+        toast({ title: 'Success', description: 'Absence has been marked as approved present.' });
+        
+        await fetchAttendance(); // Refetch data
+        
+        setIsApprovalDialogOpen(false);
+        setApprovalReason("");
+        setDateToApprove(null);
+
+    } catch (error) {
+        console.error(error);
+        toast({ title: 'Error', description: 'Failed to approve absence.', variant: 'destructive' });
+    } finally {
+        setIsSavingApproval(false);
     }
   };
 
@@ -208,6 +253,7 @@ export default function MaRecordsPage() {
   
   const presentCount = presentDays.length;
   const absentCount = absentDays.length;
+  const approvedCount = approvedDays.length;
   const numberOfMonths = selectedSemester ? (selectedSemester.dateRange.to.getFullYear() - selectedSemester.dateRange.from.getFullYear()) * 12 + (selectedSemester.dateRange.to.getMonth() - selectedSemester.dateRange.from.getMonth()) + 1 : 1;
 
   return (
@@ -285,9 +331,9 @@ export default function MaRecordsPage() {
                 <CardHeader>
                     <CardTitle>Attendance Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Total Working Days</p>
+                        <p className="text-sm text-muted-foreground">Total Working</p>
                         <p className="text-2xl font-bold">{totalWorkingDays}</p>
                     </div>
                      <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
@@ -298,12 +344,16 @@ export default function MaRecordsPage() {
                         <p className="text-sm text-green-600 dark:text-green-400">Present</p>
                         <p className="text-2xl font-bold">{presentCount}</p>
                     </div>
+                     <div className="p-4 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                        <p className="text-sm text-blue-600 dark:text-blue-400">Approved</p>
+                        <p className="text-2xl font-bold">{approvedCount}</p>
+                    </div>
                     <div className="p-4 bg-red-100 dark:bg-red-900/50 rounded-lg">
                         <p className="text-sm text-red-600 dark:text-red-400">Absent</p>
                         <p className="text-2xl font-bold">{absentCount}</p>
                     </div>
-                    <div className="p-4 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                        <p className="text-sm text-blue-600 dark:text-blue-400">Remaining</p>
+                    <div className="p-4 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
                         <p className="text-2xl font-bold">{remainingDays}</p>
                     </div>
                 </CardContent>
@@ -336,18 +386,25 @@ export default function MaRecordsPage() {
             )}
             {isPresentRecord(selectedDateRecord) && (
                 <div className="space-y-4 py-4">
+                   {selectedDateRecord.status === 'Approved Present' ? (
+                       <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                           <h4 className="font-semibold text-blue-800 dark:text-blue-300">Approval Reason</h4>
+                           <p className="text-sm text-muted-foreground mt-1">{selectedDateRecord.verificationPhotoUrl}</p>
+                       </div>
+                   ) : (
                     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
                         <Image src={selectedDateRecord.verificationPhotoUrl} alt="Verification Photo" layout="fill" objectFit="contain" data-ai-hint="student classroom" />
                     </div>
+                   )}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div className="font-medium">Status:</div>
-                        <div><Badge>{selectedDateRecord.status}</Badge></div>
+                        <div><Badge variant={selectedDateRecord.status === 'Approved Present' ? 'secondary' : 'default'}>{selectedDateRecord.status}</Badge></div>
                         
                         <div className="font-medium">Time:</div>
-                        <div>{format(parseISO(selectedDateRecord.date), "p")}</div>
+                        <div>{selectedDateRecord.status === 'Approved Present' ? '--' : format(parseISO(selectedDateRecord.date), "p")}</div>
 
                         <div className="font-medium">Mode:</div>
-                        <div>{selectedDateRecord.mode === 1 ? "GPS + Classroom + Face" : "QR + Face"}</div>
+                        <div>{selectedDateRecord.status === 'Approved Present' ? '--' : selectedDateRecord.mode === 1 ? "GPS + Classroom + Face" : "QR + Face"}</div>
                         
                         <div className="font-medium">Marked by:</div>
                         <div className="capitalize">{selectedDateRecord.markedBy || '--'}</div>
@@ -359,7 +416,30 @@ export default function MaRecordsPage() {
             )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Approve Absence for {dateToApprove ? format(dateToApprove, "PPP") : ""}</DialogTitle>
+                <DialogDescription>Mark this student as 'Approved Present' for the selected day. This action will be logged.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+                <Label htmlFor="approval-reason">Reason for Approval</Label>
+                <Textarea 
+                    id="approval-reason"
+                    placeholder="e.g., Medical leave, approved event participation..."
+                    value={approvalReason}
+                    onChange={(e) => setApprovalReason(e.target.value)}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleApproveAbsence} disabled={isSavingApproval || !approvalReason}>
+                    {isSavingApproval ? "Saving..." : "Approve and Save"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
-
