@@ -159,31 +159,29 @@ export default function VerifyFacePage() {
         }
     }, [stopCamera, toast, userProfile, department, mode, userLocation]);
     
-    useEffect(() => {
+     useEffect(() => {
         let countdownInterval: NodeJS.Timeout | null = null;
         if (status === 'positioning') {
             stopDetection();
-            
-            // Get location one last time before capture
+
             navigator.geolocation.getCurrentPosition((pos) => {
                 setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
             });
 
             countdownInterval = setInterval(() => {
-                setCountdown(prev => {
-                    if (prev <= 1) {
-                        clearInterval(countdownInterval!);
-                        captureFinalImage();
-                        return 0;
-                    }
-                    return prev - 1;
-                });
+                setCountdown(prev => prev - 1);
             }, 1000);
         }
         return () => {
             if (countdownInterval) clearInterval(countdownInterval);
         };
-    }, [status, stopDetection, captureFinalImage]);
+    }, [status, stopDetection]);
+
+    useEffect(() => {
+        if (countdown === 0 && status === 'positioning') {
+            captureFinalImage();
+        }
+    }, [countdown, status, captureFinalImage]);
     
     const detectFace = useCallback(async () => {
         if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || !areModelsLoaded() || !userDescriptor || videoRef.current.readyState < 3) {
