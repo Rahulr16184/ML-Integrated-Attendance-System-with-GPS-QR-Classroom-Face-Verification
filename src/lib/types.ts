@@ -1,4 +1,5 @@
 
+
 export type AttendanceRecord = {
   id: string;
   employeeId: string;
@@ -63,7 +64,7 @@ export type AttendanceLog = {
     studentName: string;
     departmentId: string;
     date: string; // ISO string
-    status: 'Present' | 'Absent' | 'Late' | 'Approved Present' | 'Conflict';
+    status: 'Present' | 'Absent' | 'Late' | 'Approved Present' | 'Conflict' | 'Revoked';
     mode: 1 | 2;
     verificationPhotoUrl: string;
     markedBy: 'student' | 'teacher' | 'admin';

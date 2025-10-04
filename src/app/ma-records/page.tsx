@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseISO, isSameDay, format, startOfTomorrow, isBefore, startOfToday, isAfter, endOfDay, differenceInDays } from "date-fns";
+import { parseISO, isSameDay, format, startOfToday, isBefore, isAfter, endOfDay, differenceInDays } from "date-fns";
 import Image from "next/image";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
@@ -66,6 +66,11 @@ export default function MaRecordsPage() {
   const [recordToConflict, setRecordToConflict] = useState<AttendanceLog | null>(null);
   const [conflictReason, setConflictReason] = useState("");
   const [isSavingConflict, setIsSavingConflict] = useState(false);
+  
+  const [isRevokeDialogOpen, setIsRevokeDialogOpen] = useState(false);
+  const [recordToRevoke, setRecordToRevoke] = useState<AttendanceLog | null>(null);
+  const [revokeReason, setRevokeReason] = useState("");
+  const [isSavingRevoke, setIsSavingRevoke] = useState(false);
 
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
   const [recordToRevert, setRecordToRevert] = useState<AttendanceLog | null>(null);
@@ -178,15 +183,16 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
- const { presentDays, absentDays, approvedDays, conflictDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], conflictDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
+ const { presentDays, absentDays, approvedDays, conflictDays, revokedDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], conflictDays: [], revokedDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
     
     const present = attendanceRecords.filter(r => r.status === 'Present').map(r => parseISO(r.date));
     const approved = attendanceRecords.filter(r => r.status === 'Approved Present').map(r => parseISO(r.date));
     const conflict = attendanceRecords.filter(r => r.status === 'Conflict').map(r => parseISO(r.date));
+    const revoked = attendanceRecords.filter(r => r.status === 'Revoked').map(r => parseISO(r.date));
     
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
-    const attendedDates = new Set([...present, ...approved, ...conflict].map(p => p.toDateString()));
+    const attendedDates = new Set([...present, ...approved, ...conflict, ...revoked].map(p => p.toDateString()));
     const absent: Date[] = [];
     
     const today = startOfToday();
@@ -201,7 +207,7 @@ export default function MaRecordsPage() {
         }
     }
     
-    const passedWorkingDays = present.length + approved.length + absent.length + conflict.length;
+    const passedWorkingDays = present.length + approved.length + absent.length + conflict.length + revoked.length;
     const percentage = passedWorkingDays > 0 ? ((present.length + approved.length) / passedWorkingDays) * 100 : 0;
     
     const remainingCalendarDays = isAfter(today, selectedSemester.dateRange.to)
@@ -214,8 +220,9 @@ export default function MaRecordsPage() {
         absentDays: absent, 
         approvedDays: approved,
         conflictDays: conflict,
+        revokedDays: revoked,
         remainingDays: remainingCalendarDays,
-        totalDays: totalDaysInRange,
+        totalDays: totalDaysInRange - selectedSemester.holidays.length,
         holidaysCount: selectedSemester.holidays.length,
         attendancePercentage: percentage
     };
@@ -226,6 +233,7 @@ export default function MaRecordsPage() {
     absent: absentDays,
     approved: approvedDays,
     conflict: conflictDays,
+    revoked: revokedDays,
     holiday: selectedSemester?.holidays || [],
   };
 
@@ -234,10 +242,11 @@ export default function MaRecordsPage() {
     absent: "bg-red-200 dark:bg-red-800",
     approved: "bg-blue-200 dark:bg-blue-800",
     conflict: "bg-yellow-200 dark:bg-yellow-800",
+    revoked: "bg-purple-200 dark:bg-purple-800",
     holiday: 'text-red-500 line-through',
   };
 
-  const handleDayClick = (day: Date, modifiers: { present?: boolean; absent?: boolean; approved?: boolean; conflict?: boolean; }) => {
+  const handleDayClick = (day: Date, modifiers: any) => {
     if (!selectedStudentId) {
         toast({ title: "No Student Selected", description: "Please select a student to view or modify attendance.", variant: "destructive" });
         return;
@@ -342,6 +351,29 @@ export default function MaRecordsPage() {
     }
   };
 
+  const handleRevokeApproval = async () => {
+    if (!recordToRevoke || !revokeReason || !selectedStudentId) {
+        toast({ title: 'Error', description: 'A reason is required to revoke the approval.', variant: 'destructive' });
+        return;
+    }
+    setIsSavingRevoke(true);
+    try {
+        await updateAttendanceRecord(selectedStudentId, recordToRevoke.id, {
+            status: 'Revoked',
+            notes: revokeReason,
+        });
+        toast({ title: 'Success', description: 'Approval has been revoked.' });
+        await fetchAttendance();
+        setIsRevokeDialogOpen(false);
+        setRevokeReason("");
+        setRecordToRevoke(null);
+    } catch (error) {
+        console.error(error);
+        toast({ title: 'Error', description: 'Failed to revoke approval.', variant: 'destructive' });
+    } finally {
+        setIsSavingRevoke(false);
+    }
+  };
 
   const isDayDisabled = (day: Date) => {
     if (!selectedSemester) return true;
@@ -365,6 +397,7 @@ export default function MaRecordsPage() {
   const absentCount = absentDays.length;
   const approvedCount = approvedDays.length;
   const conflictCount = conflictDays.length;
+  const revokedCount = revokedDays.length;
 
   return (
     <>
@@ -456,9 +489,9 @@ export default function MaRecordsPage() {
                 <CardHeader>
                     <CardTitle>Attendance Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-center">
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Total Days</p>
+                        <p className="text-sm text-muted-foreground">Total Working Days</p>
                         <p className="text-2xl font-bold">{totalDays}</p>
                     </div>
                      <div className="p-4 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
@@ -481,11 +514,15 @@ export default function MaRecordsPage() {
                         <p className="text-sm text-yellow-600 dark:text-yellow-400">Conflict</p>
                         <p className="text-2xl font-bold">{conflictCount}</p>
                     </div>
+                    <div className="p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                        <p className="text-sm text-purple-600 dark:text-purple-400">Revoked</p>
+                        <p className="text-2xl font-bold">{revokedCount}</p>
+                    </div>
                     <div className="p-4 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
                         <p className="text-2xl font-bold">{remainingDays}</p>
                     </div>
-                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg col-span-2 lg:col-span-1">
+                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg col-span-2 lg:col-span-2">
                         <p className="text-sm text-indigo-600 dark:text-indigo-400">Attendance %</p>
                         <p className="text-2xl font-bold">{attendancePercentage.toFixed(1)}%</p>
                     </div>
@@ -536,6 +573,11 @@ export default function MaRecordsPage() {
                            <h4 className="font-semibold text-yellow-800 dark:text-yellow-300">Conflict Reason</h4>
                            <p className="text-sm text-muted-foreground mt-1">{selectedDateRecord.notes}</p>
                        </div>
+                   ) : selectedDateRecord.status === 'Revoked' && selectedDateRecord.notes ? (
+                       <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                           <h4 className="font-semibold text-purple-800 dark:text-purple-300">Revocation Reason</h4>
+                           <p className="text-sm text-muted-foreground mt-1">{selectedDateRecord.notes}</p>
+                       </div>
                    ) : (
                     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
                         <Image src={selectedDateRecord.verificationPhotoUrl} alt="Verification Photo" layout="fill" objectFit="contain" data-ai-hint="student classroom" />
@@ -543,7 +585,18 @@ export default function MaRecordsPage() {
                    )}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div className="font-medium">Status:</div>
-                        <div><Badge variant={selectedDateRecord.status === 'Approved Present' ? 'secondary' : selectedDateRecord.status === 'Conflict' ? 'destructive' : 'default'}>{selectedDateRecord.status}</Badge></div>
+                        <div>
+                          <Badge 
+                            variant={
+                              selectedDateRecord.status === 'Approved Present' ? 'secondary' : 
+                              selectedDateRecord.status === 'Conflict' ? 'destructive' : 
+                              selectedDateRecord.status === 'Revoked' ? 'outline' : 'default'
+                            }
+                            className={cn(selectedDateRecord.status === 'Revoked' && "bg-purple-100 text-purple-800 border-purple-300")}
+                           >
+                            {selectedDateRecord.status}
+                           </Badge>
+                        </div>
                         
                         <div className="font-medium">Time:</div>
                         <div>{selectedDateRecord.status === 'Approved Present' ? '--' : format(parseISO(selectedDateRecord.date), "p")}</div>
@@ -568,6 +621,11 @@ export default function MaRecordsPage() {
                         {selectedDateRecord.status === 'Conflict' && (
                             <Button variant="outline" onClick={() => { setIsRevertDialogOpen(true); setRecordToRevert(selectedDateRecord); setSelectedDateRecord(null); }}>
                                 <RotateCcw className="mr-2 h-4 w-4" /> Revert to Present
+                            </Button>
+                        )}
+                         {selectedDateRecord.status === 'Approved Present' && (
+                            <Button variant="destructive" onClick={() => { setIsRevokeDialogOpen(true); setRecordToRevoke(selectedDateRecord); setSelectedDateRecord(null); }}>
+                                <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Approval
                             </Button>
                         )}
                     </DialogFooter>
@@ -644,6 +702,30 @@ export default function MaRecordsPage() {
                 <Button variant="outline" onClick={() => { setIsRevertDialogOpen(false); setRecordToRevert(null); }}>Cancel</Button>
                 <Button onClick={handleRevertConflict} disabled={isSavingRevert || !revertReason}>
                     {isSavingRevert ? "Saving..." : "Revert and Save"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+       <Dialog open={isRevokeDialogOpen} onOpenChange={(open) => { if (!open) { setIsRevokeDialogOpen(false); setRecordToRevoke(null); }}}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Revoke Approval for {recordToRevoke ? format(parseISO(recordToRevoke.date), "PPP") : ""}</DialogTitle>
+                <DialogDescription>This will mark the student's previously approved day as 'Revoked'.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+                <Label htmlFor="revoke-reason">Reason for Revocation</Label>
+                <Textarea 
+                    id="revoke-reason"
+                    placeholder="e.g., Approval was a mistake, documentation was invalid..."
+                    value={revokeReason}
+                    onChange={(e) => setRevokeReason(e.target.value)}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => { setIsRevokeDialogOpen(false); setRecordToRevoke(null); }}>Cancel</Button>
+                <Button variant="destructive" onClick={handleRevokeApproval} disabled={isSavingRevoke || !revokeReason}>
+                    {isSavingRevoke ? "Saving..." : "Confirm Revoke"}
                 </Button>
             </DialogFooter>
         </DialogContent>
