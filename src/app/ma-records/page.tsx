@@ -90,52 +90,63 @@ export default function MaRecordsPage() {
     }
   }, [userProfile, userLoading, isAuthorized, selectedDepartmentId]);
 
+  // Handle department change
+  const handleDepartmentChange = (deptId: string) => {
+    setSelectedDepartmentId(deptId);
+    // Reset selections and data for the new department
+    setSelectedStudentId("");
+    setSelectedSemesterId("");
+    setStudents([]);
+    setSemesters([]);
+    setAttendanceRecords([]);
+  };
+
   useEffect(() => {
-    async function fetchStudents() {
-        if (userProfile?.institutionId && selectedDepartmentId && (userProfile.role === 'admin' || userProfile.role === 'teacher')) {
-            setLoadingStudents(true);
-            try {
-                const fetchedStudents = await getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId);
-                setStudents(fetchedStudents);
-            } catch (error) {
-                toast({ title: 'Error', description: 'Could not fetch student list.', variant: 'destructive' });
-            } finally {
-                setLoadingStudents(false);
-            }
+    async function fetchStudentsAndSemesters() {
+      if (!isAuthorized || !selectedDepartmentId || !userProfile?.institutionId) return;
+
+      // Fetch students for teacher/admin
+      if (userProfile.role === 'admin' || userProfile.role === 'teacher') {
+        setLoadingStudents(true);
+        try {
+          const fetchedStudents = await getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId);
+          setStudents(fetchedStudents);
+        } catch (error) {
+          toast({ title: 'Error', description: 'Could not fetch student list.', variant: 'destructive' });
+        } finally {
+          setLoadingStudents(false);
         }
-    }
-    fetchStudents();
-  }, [selectedDepartmentId, userProfile, toast]);
+      }
 
-  useEffect(() => {
-    if (userProfile?.role === 'student' && userProfile.uid) {
-        setSelectedStudentId(userProfile.uid);
-    } else {
-        // For teacher/admin, don't auto-select a student
-        setSelectedStudentId("");
-    }
-  }, [userProfile]);
-
-  useEffect(() => {
-    async function fetchSemesters() {
-      if (userProfile?.institutionId && selectedDepartmentId) {
-        setLoadingSemesters(true);
+      // Fetch semesters
+      setLoadingSemesters(true);
+      try {
         const fetchedSemesters = await getSemesters(userProfile.institutionId, selectedDepartmentId);
         const parsedSemesters = fetchedSemesters.map(parseSemesterDates);
         setSemesters(parsedSemesters);
         if (parsedSemesters.length > 0) {
           const currentSem = parsedSemesters.find(s => isSameDay(s.dateRange.from, new Date()) || (new Date() > s.dateRange.from && new Date() < s.dateRange.to)) || parsedSemesters[0];
           setSelectedSemesterId(currentSem.id);
-        } else {
-          setSelectedSemesterId("");
         }
+      } catch (error) {
+        toast({ title: 'Error', description: 'Could not fetch semesters.', variant: 'destructive' });
+      } finally {
         setLoadingSemesters(false);
       }
     }
-    if (isAuthorized && selectedDepartmentId) {
-      fetchSemesters();
+
+    fetchStudentsAndSemesters();
+  }, [selectedDepartmentId, userProfile, isAuthorized, toast]);
+  
+
+  useEffect(() => {
+    if (userProfile?.role === 'student' && userProfile.uid) {
+        setSelectedStudentId(userProfile.uid);
+    } else if (userProfile?.role !== 'student') {
+        // Clear student selection when role is not student (e.g. initial load for admin/teacher)
+        setSelectedStudentId("");
     }
-  }, [userProfile, selectedDepartmentId, isAuthorized]);
+  }, [userProfile]);
 
   const selectedSemester = useMemo(() => {
     return semesters.find(s => s.id === selectedSemesterId);
@@ -183,8 +194,7 @@ export default function MaRecordsPage() {
         }
     }
     
-    const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
-    const workingDays = totalDaysInRange - weekends - selectedSemester.holidays.length;
+    const workingDays = selectedSemester.workingDays;
 
     let remaining = 0;
     const tomorrow = startOfTomorrow();
@@ -308,7 +318,7 @@ export default function MaRecordsPage() {
                 {loadingDepartments ? (
                   <Skeleton className="h-10 w-full" />
                 ) : (
-                  <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length === 0}>
+                  <Select onValueChange={handleDepartmentChange} value={selectedDepartmentId} disabled={allDepartments.length === 0}>
                     <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
                     <SelectContent>
                       {allDepartments.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
@@ -495,7 +505,5 @@ export default function MaRecordsPage() {
     </>
   );
 }
-
-    
 
     
