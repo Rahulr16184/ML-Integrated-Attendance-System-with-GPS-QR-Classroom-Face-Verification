@@ -142,11 +142,13 @@ export default function MaRecordsPage() {
   useEffect(() => {
     if (userProfile?.role === 'student' && userProfile.uid) {
         setSelectedStudentId(userProfile.uid);
+    } else if (userProfile?.role !== 'student' && students.length > 0) {
+        // Default to the first student in the list for admin/teacher
+        setSelectedStudentId(students[0].uid);
     } else if (userProfile?.role !== 'student') {
-        // Clear student selection when role is not student (e.g. initial load for admin/teacher)
         setSelectedStudentId("");
     }
-  }, [userProfile]);
+  }, [userProfile, students]);
 
   const selectedSemester = useMemo(() => {
     return semesters.find(s => s.id === selectedSemesterId);
@@ -178,23 +180,17 @@ export default function MaRecordsPage() {
     const holidays = new Set(selectedSemester.holidays.map(h => h.toDateString()));
     const attendedDates = new Set([...present, ...approved].map(p => p.toDateString()));
     
-    let weekends = 0;
+    const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
+    const workingDays = totalDaysInRange - selectedSemester.holidays.length;
+
     for (let d = new Date(selectedSemester.dateRange.from); d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
-
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            if (!holidays.has(dateString)) { // Don't double count holidays on weekends
-                weekends++;
-            }
-        }
 
         if (isBefore(d, startOfToday()) && dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !attendedDates.has(dateString)) {
             absent.push(new Date(d));
         }
     }
-    
-    const workingDays = selectedSemester.workingDays;
 
     let remaining = 0;
     const tomorrow = startOfTomorrow();
