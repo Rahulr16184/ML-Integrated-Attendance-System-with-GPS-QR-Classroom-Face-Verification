@@ -5,7 +5,10 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getInstitutions } from "@/services/institution-service";
-import type { Department } from "@/lib/types";
+import { getStudentAttendanceForToday } from "@/services/attendance-service";
+import { getSemesters } from "@/services/working-days-service";
+import type { Department, Semester } from "@/lib/types";
+import { isSameDay, parseISO } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,7 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Camera, UserCheck, QrCode, ArrowRight } from "lucide-react";
+import { MapPin, Camera, UserCheck, QrCode, ArrowRight, CheckCircle, Ban } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 export default function MarkAttendancePage() {
@@ -26,8 +30,12 @@ export default function MarkAttendancePage() {
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
     const [loadingDepartments, setLoadingDepartments] = useState(true);
 
+    const [isAttendanceMarked, setIsAttendanceMarked] = useState(false);
+    const [isHoliday, setIsHoliday] = useState(false);
+    const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+
     useEffect(() => {
-        async function fetchDepartments() {
+        async function fetchInitialData() {
             if (userProfile?.institutionId && userProfile.departmentIds) {
                 setLoadingDepartments(true);
                 try {
@@ -50,9 +58,48 @@ export default function MarkAttendancePage() {
             }
         }
         if (userProfile) {
-            fetchDepartments();
+            fetchInitialData();
         }
     }, [userProfile, userLoading, toast, selectedDepartmentId]);
+    
+    useEffect(() => {
+        async function checkStatus() {
+            if (!selectedDepartmentId || !userProfile?.uid || !userProfile.institutionId) return;
+
+            setIsCheckingStatus(true);
+            setIsAttendanceMarked(false);
+            setIsHoliday(false);
+
+            try {
+                // Check if attendance is already marked
+                const todaysRecord = await getStudentAttendanceForToday(userProfile.uid, selectedDepartmentId);
+                if (todaysRecord) {
+                    setIsAttendanceMarked(true);
+                }
+
+                // Check if today is a holiday
+                const semesters = await getSemesters(userProfile.institutionId, selectedDepartmentId);
+                const today = new Date();
+                const currentSemester = semesters.find(sem => {
+                    const from = parseISO(sem.dateRange.from as unknown as string);
+                    const to = parseISO(sem.dateRange.to as unknown as string);
+                    return today >= from && today <= to;
+                });
+
+                if (currentSemester) {
+                    const holiday = currentSemester.holidays.some(h => isSameDay(parseISO(h as unknown as string), today));
+                    if (holiday) {
+                        setIsHoliday(true);
+                    }
+                }
+            } catch (error) {
+                 toast({ title: "Error", description: "Could not verify attendance status.", variant: "destructive" });
+            } finally {
+                setIsCheckingStatus(false);
+            }
+        }
+        checkStatus();
+    }, [selectedDepartmentId, userProfile, toast]);
 
 
     const selectedDepartment = useMemo(() => {
@@ -61,12 +108,16 @@ export default function MarkAttendancePage() {
     
     const mode1Active = useMemo(() => selectedDepartment?.modes?.mode1?.enabled ?? false, [selectedDepartment]);
     const mode2Active = useMemo(() => selectedDepartment?.modes?.mode2?.enabled ?? false, [selectedDepartment]);
+    
+    const canMarkAttendance = !isAttendanceMarked && !isHoliday;
 
     const handleStartVerification = (mode: number) => {
         if (!selectedDepartmentId) {
             toast({ title: "Error", description: "Please select a department first.", variant: "destructive" });
             return;
         }
+        if (!canMarkAttendance) return;
+        
         if (mode === 1) {
             router.push(`/verify-gps?deptId=${selectedDepartmentId}`);
         } else {
@@ -117,7 +168,22 @@ export default function MarkAttendancePage() {
                 </CardContent>
             </Card>
 
-            {selectedDepartmentId ? (
+            {selectedDepartmentId && isCheckingStatus && <Skeleton className="h-48 w-full" />}
+
+            {selectedDepartmentId && !isCheckingStatus && (
+                <>
+                {!canMarkAttendance && (
+                    <Alert variant={isAttendanceMarked ? "default" : "destructive"} className="bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-300 [&>svg]:text-yellow-500">
+                        {isAttendanceMarked ? <CheckCircle /> : <Ban />}
+                        <AlertTitle>{isAttendanceMarked ? "Attendance Already Marked" : "Today is a Holiday"}</AlertTitle>
+                        <AlertDescription>
+                            {isAttendanceMarked
+                            ? "You have already marked your attendance for today in this department."
+                            : "You cannot mark attendance on a holiday."}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Mode 1 Card */}
                     <Card className={!mode1Active ? 'bg-muted/50' : ''}>
@@ -136,7 +202,7 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                          <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                            <Button size="lg" disabled={!mode1Active} onClick={() => handleStartVerification(1)}>
+                            <Button size="lg" disabled={!mode1Active || !canMarkAttendance} onClick={() => handleStartVerification(1)}>
                                 Start Verification <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                             {!mode1Active && (
@@ -163,7 +229,7 @@ export default function MarkAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center justify-center text-center p-6 min-h-[150px]">
-                            <Button size="lg" disabled={!mode2Active} onClick={() => handleStartVerification(2)}>
+                            <Button size="lg" disabled={!mode2Active || !canMarkAttendance} onClick={() => handleStartVerification(2)}>
                                Scan QR Code <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                             {!mode2Active && (
@@ -174,7 +240,10 @@ export default function MarkAttendancePage() {
                         </CardContent>
                     </Card>
                 </div>
-            ) : (
+                </>
+            )}
+
+            {!selectedDepartmentId && !isCheckingStatus && (
                  <Card className="mt-6">
                     <CardContent className="pt-6 text-center text-muted-foreground">
                         <p>Please select a department to see available attendance modes.</p>

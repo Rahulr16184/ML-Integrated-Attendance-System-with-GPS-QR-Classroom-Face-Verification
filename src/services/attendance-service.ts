@@ -88,3 +88,41 @@ export const getStudentAttendance = async (
         throw new Error("Could not fetch attendance records.");
     }
 };
+
+
+/**
+ * Fetches a student's attendance record for today in a specific department.
+ * @param studentId - The UID of the student.
+ * @param departmentId - The ID of the department to check.
+ * @returns The attendance log if found, otherwise null.
+ */
+export const getStudentAttendanceForToday = async (
+    studentId: string,
+    departmentId: string
+): Promise<AttendanceLog | null> => {
+    try {
+        const todayStart = startOfDay(new Date()).toISOString();
+        const todayEnd = endOfDay(new Date()).toISOString();
+        
+        const attendanceCol = collection(db, `users/${studentId}/attendance`);
+        const q = query(
+            attendanceCol,
+            where('departmentId', '==', departmentId),
+            where('date', '>=', todayStart),
+            where('date', '<=', todayEnd)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return null;
+        }
+
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() } as AttendanceLog;
+
+    } catch (error) {
+        console.error("Error fetching today's attendance record: ", error);
+        throw new Error("Could not fetch today's attendance status.");
+    }
+};
