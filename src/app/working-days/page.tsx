@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -264,7 +265,7 @@ export default function WorkingDaysPage() {
                         {loadingDepartments ? (
                             <Skeleton className="h-10 w-full"/>
                         ) : (
-                            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length <= 1 && userProfile?.role !== 'admin'}>
+                            <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={allDepartments.length === 0}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a department" />
                                 </SelectTrigger>
@@ -394,7 +395,7 @@ export default function WorkingDaysPage() {
         </div>
       <DialogContent>
           <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Are you absolutely sure?</DialogTitle>
+              <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Delete {deleteTarget?.name}?</DialogTitle>
               <DialogDescription>
                   This action cannot be undone. This will permanently delete the semester data.
               </DialogDescription>
@@ -428,5 +429,7 @@ export default function WorkingDaysPage() {
     </Dialog>
   );
 }
+
+    
 
     

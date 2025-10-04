@@ -143,7 +143,7 @@ export default function ViewAttendancePage() {
     const absent: Date[] = [];
     
     const today = startOfToday();
-    const totalDaysInRange = differenceInDays(endOfDay(selectedSemester.dateRange.to), startOfToday(selectedSemester.dateRange.from)) + 1;
+    const totalDaysInRange = differenceInDays(endOfDay(selectedSemester.dateRange.to), selectedSemester.dateRange.from) + 1;
     
     for (let d = new Date(selectedSemester.dateRange.from); d <= today && d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
@@ -432,3 +432,6 @@ export default function ViewAttendancePage() {
     </>
   );
 }
+
+
+    
