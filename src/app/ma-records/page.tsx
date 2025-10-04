@@ -216,9 +216,9 @@ export default function MaRecordsPage() {
   };
 
   const calendarModifiersClassNames = {
-    present: "bg-green-200 dark:bg-green-800 rounded-full",
-    absent: "bg-red-200 dark:bg-red-800 rounded-full",
-    approved: "bg-blue-200 dark:bg-blue-800 rounded-full",
+    present: "bg-green-200 dark:bg-green-800",
+    absent: "bg-red-200 dark:bg-red-800",
+    approved: "bg-blue-200 dark:bg-blue-800",
     holiday: 'text-red-500 line-through',
   };
 
