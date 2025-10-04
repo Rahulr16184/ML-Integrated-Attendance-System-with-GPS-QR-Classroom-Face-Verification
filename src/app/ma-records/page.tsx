@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, ShieldAlert } from "lucide-react";
 
 const parseSemesterDates = (semester: Semester) => ({
   ...semester,
@@ -244,28 +244,16 @@ export default function MaRecordsPage() {
     }
     if (isAfter(day, new Date()) && !isSameDay(day, new Date())) return;
 
-    if (modifiers.present || modifiers.approved || modifiers.conflict) {
-        const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
-        if (record) {
-            setSelectedDateRecord(record);
-            // Open conflict/revert dialogs only for teachers/admins
-            if (userProfile?.role === 'admin' || userProfile?.role === 'teacher') {
-                if (record.status === 'Present') {
-                    setRecordToConflict(record);
-                    setIsConflictDialogOpen(true);
-                } else if (record.status === 'Conflict') {
-                    setRecordToRevert(record);
-                    setIsRevertDialogOpen(true);
-                }
-            }
-        }
+    const record = attendanceRecords.find(r => isSameDay(parseISO(r.date), day));
+    if (record) {
+      setSelectedDateRecord(record);
     } else if (modifiers.absent) {
-        if (userProfile?.role === 'admin' || userProfile?.role === 'teacher') {
-            setDateToApprove(day);
-            setIsApprovalDialogOpen(true);
-        } else {
-            setSelectedDateRecord("absent");
-        }
+      if (userProfile?.role === 'admin' || userProfile?.role === 'teacher') {
+        setDateToApprove(day);
+        setIsApprovalDialogOpen(true);
+      } else {
+        setSelectedDateRecord("absent");
+      }
     }
   };
 
@@ -536,6 +524,7 @@ export default function MaRecordsPage() {
                 </div>
             )}
             {isPresentRecord(selectedDateRecord) && (
+              <>
                 <div className="space-y-4 py-4">
                    {selectedDateRecord.status === 'Approved Present' ? (
                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
@@ -568,14 +557,22 @@ export default function MaRecordsPage() {
                         <div className="font-medium">Location:</div>
                         <div>{selectedDateRecord.location ? `${selectedDateRecord.location.lat.toFixed(5)}, ${selectedDateRecord.location.lng.toFixed(5)}` : '--'}</div>
                     </div>
-                     {(userProfile?.role === 'admin' || userProfile?.role === 'teacher') && selectedDateRecord.status === 'Conflict' && (
-                        <DialogFooter>
+                </div>
+                 {(userProfile?.role === 'admin' || userProfile?.role === 'teacher') && (
+                    <DialogFooter>
+                        {selectedDateRecord.status === 'Present' && (
+                            <Button variant="destructive" onClick={() => { setIsConflictDialogOpen(true); setRecordToConflict(selectedDateRecord); setSelectedDateRecord(null); }}>
+                                <ShieldAlert className="mr-2 h-4 w-4" /> Mark as Absent
+                            </Button>
+                        )}
+                        {selectedDateRecord.status === 'Conflict' && (
                             <Button variant="outline" onClick={() => { setIsRevertDialogOpen(true); setRecordToRevert(selectedDateRecord); setSelectedDateRecord(null); }}>
                                 <RotateCcw className="mr-2 h-4 w-4" /> Revert to Present
                             </Button>
-                        </DialogFooter>
-                    )}
-                </div>
+                        )}
+                    </DialogFooter>
+                )}
+              </>
             )}
         </DialogContent>
       </Dialog>
@@ -654,3 +651,5 @@ export default function MaRecordsPage() {
     </>
   );
 }
+
+    
