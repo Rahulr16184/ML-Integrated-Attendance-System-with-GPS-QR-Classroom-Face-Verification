@@ -208,6 +208,7 @@ export default function MaRecordsPage() {
   
   const presentCount = presentDays.length;
   const absentCount = absentDays.length;
+  const numberOfMonths = selectedSemester ? (selectedSemester.dateRange.to.getFullYear() - selectedSemester.dateRange.from.getFullYear()) * 12 + (selectedSemester.dateRange.to.getMonth() - selectedSemester.dateRange.from.getMonth()) + 1 : 1;
 
   return (
     <>
@@ -362,4 +363,3 @@ export default function MaRecordsPage() {
   );
 }
 
-    
