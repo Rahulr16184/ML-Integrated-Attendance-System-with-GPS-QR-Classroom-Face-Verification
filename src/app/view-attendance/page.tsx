@@ -129,8 +129,8 @@ export default function ViewAttendancePage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  const { presentDays, absentDays, approvedDays, remainingDays, totalWorkingDays, holidaysCount } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalWorkingDays: 0, holidaysCount: 0 };
+  const { presentDays, absentDays, approvedDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
     
     const present = attendanceRecords.filter(r => r.status === 'Present').map(r => parseISO(r.date));
     const approved = attendanceRecords.filter(r => r.status === 'Approved Present').map(r => parseISO(r.date));
@@ -140,30 +140,36 @@ export default function ViewAttendancePage() {
     const attendedDates = new Set([...present, ...approved].map(p => p.toDateString()));
     
     const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
-    const workingDays = totalDaysInRange - selectedSemester.holidays.length;
-
-    for (let d = new Date(selectedSemester.dateRange.from); d <= selectedSemester.dateRange.to; d.setDate(d.getDate() + 1)) {
+    
+    const today = startOfToday();
+    
+    for (let d = new Date(selectedSemester.dateRange.from); d < today; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
 
-        if (isBefore(d, startOfToday()) && dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !attendedDates.has(dateString)) {
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString) && !attendedDates.has(dateString)) {
             absent.push(new Date(d));
         }
     }
+    
+    const passedWorkingDays = present.length + approved.length + absent.length;
+    const percentage = passedWorkingDays > 0 ? ((present.length + approved.length) / passedWorkingDays) * 100 : 0;
+    
+    const remainingCalendarDays = isAfter(today, selectedSemester.dateRange.to)
+        ? 0
+        : differenceInDays(selectedSemester.dateRange.to, today) + 1;
 
-    let remaining = 0;
-    const tomorrow = startOfTomorrow();
-    if (isAfter(selectedSemester.dateRange.to, tomorrow)) {
-        for (let d = new Date(tomorrow); isBefore(d, endOfDay(selectedSemester.dateRange.to)); d.setDate(d.getDate() + 1)) {
-            const dayOfWeek = d.getDay();
-            const dateString = d.toDateString();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString)) {
-                remaining++;
-            }
-        }
-    }
-    return { presentDays: present, absentDays: absent, approvedDays: approved, remainingDays: remaining, totalWorkingDays: workingDays, holidaysCount: selectedSemester.holidays.length };
-  }, [attendanceRecords, selectedSemester]);
+
+    return { 
+        presentDays: present, 
+        absentDays: absent, 
+        approvedDays: approved, 
+        remainingDays: remainingCalendarDays,
+        totalDays: totalDaysInRange, 
+        holidaysCount: selectedSemester.holidays.length,
+        attendancePercentage: percentage
+    };
+}, [attendanceRecords, selectedSemester]);
   
   const calendarModifiers = {
     present: presentDays,
@@ -288,10 +294,10 @@ export default function ViewAttendancePage() {
                 <CardHeader>
                     <CardTitle>Attendance Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Total Days</p>
-                        <p className="text-2xl font-bold">{totalWorkingDays}</p>
+                        <p className="text-2xl font-bold">{totalDays}</p>
                     </div>
                      <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
                         <p className="text-sm text-yellow-600 dark:text-yellow-400">Holidays</p>
@@ -312,6 +318,16 @@ export default function ViewAttendancePage() {
                     <div className="p-4 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
                         <p className="text-2xl font-bold">{remainingDays}</p>
+                    </div>
+                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+                        <p className="text-sm text-indigo-600 dark:text-indigo-400">Attendance %</p>
+                        <p className="text-2xl font-bold">{attendancePercentage.toFixed(1)}%</p>
+                    </div>
+                     <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Semester Dates</p>
+                        <p className="text-sm font-bold mt-2">
+                            {format(selectedSemester.dateRange.from, 'MMM dd')} - {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
+                        </p>
                     </div>
                 </CardContent>
             </Card>

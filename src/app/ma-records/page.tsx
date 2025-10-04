@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -89,7 +88,7 @@ export default function MaRecordsPage() {
     if (isAuthorized && !userLoading) {
       fetchDepartments();
     }
-  }, [userProfile, userLoading, isAuthorized, selectedDepartmentId]);
+  }, [userProfile, userLoading, isAuthorized]);
 
   // Handle department change
   const handleDepartmentChange = (deptId: string) => {
@@ -144,7 +143,7 @@ export default function MaRecordsPage() {
     }
 
     fetchStudentsAndSemesters();
-  }, [selectedDepartmentId, userProfile, isAuthorized, toast, selectedStudentId]);
+  }, [selectedDepartmentId, userProfile, isAuthorized, toast]);
   
 
   const selectedSemester = useMemo(() => {
@@ -167,8 +166,8 @@ export default function MaRecordsPage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  const { presentDays, absentDays, approvedDays, remainingDays, totalDays, holidaysCount } = useMemo(() => {
-    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0 };
+ const { presentDays, absentDays, approvedDays, remainingDays, totalDays, holidaysCount, attendancePercentage } = useMemo(() => {
+    if (!selectedSemester) return { presentDays: [], absentDays: [], approvedDays: [], remainingDays: 0, totalDays: 0, holidaysCount: 0, attendancePercentage: 0 };
     
     const present = attendanceRecords.filter(r => r.status === 'Present').map(r => parseISO(r.date));
     const approved = attendanceRecords.filter(r => r.status === 'Approved Present').map(r => parseISO(r.date));
@@ -179,14 +178,8 @@ export default function MaRecordsPage() {
     
     const totalDaysInRange = differenceInDays(selectedSemester.dateRange.to, selectedSemester.dateRange.from) + 1;
     
-    let daysPassed = 0;
     const today = startOfToday();
-    if (isAfter(today, selectedSemester.dateRange.from)) {
-        daysPassed = differenceInDays(today, selectedSemester.dateRange.from) + 1;
-        if(daysPassed > totalDaysInRange) daysPassed = totalDaysInRange;
-    }
-    const remainingCalendarDays = totalDaysInRange - daysPassed;
-
+    
     for (let d = new Date(selectedSemester.dateRange.from); d < today; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateString = d.toDateString();
@@ -195,17 +188,25 @@ export default function MaRecordsPage() {
             absent.push(new Date(d));
         }
     }
+    
+    const passedWorkingDays = present.length + approved.length + absent.length;
+    const percentage = passedWorkingDays > 0 ? ((present.length + approved.length) / passedWorkingDays) * 100 : 0;
+    
+    const remainingCalendarDays = isAfter(today, selectedSemester.dateRange.to)
+        ? 0
+        : differenceInDays(selectedSemester.dateRange.to, today) + 1;
+
 
     return { 
         presentDays: present, 
         absentDays: absent, 
         approvedDays: approved, 
-        remainingDays: remainingCalendarDays, 
+        remainingDays: remainingCalendarDays,
         totalDays: totalDaysInRange, 
-        holidaysCount: selectedSemester.holidays.length 
+        holidaysCount: selectedSemester.holidays.length,
+        attendancePercentage: percentage
     };
 }, [attendanceRecords, selectedSemester]);
-
   
   const calendarModifiers = {
     present: presentDays,
@@ -390,7 +391,7 @@ export default function MaRecordsPage() {
                 <CardHeader>
                     <CardTitle>Attendance Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 text-center">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Total Days</p>
                         <p className="text-2xl font-bold">{totalDays}</p>
@@ -414,6 +415,16 @@ export default function MaRecordsPage() {
                     <div className="p-4 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
                         <p className="text-2xl font-bold">{remainingDays}</p>
+                    </div>
+                    <div className="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+                        <p className="text-sm text-indigo-600 dark:text-indigo-400">Attendance %</p>
+                        <p className="text-2xl font-bold">{attendancePercentage.toFixed(1)}%</p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Semester Dates</p>
+                        <p className="text-sm font-bold mt-2">
+                            {format(selectedSemester.dateRange.from, 'MMM dd')} - {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
+                        </p>
                     </div>
                 </CardContent>
             </Card>
@@ -502,5 +513,3 @@ export default function MaRecordsPage() {
     </>
   );
 }
-
-    
