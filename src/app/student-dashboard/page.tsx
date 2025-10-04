@@ -100,9 +100,9 @@ export default function StudentDashboardPage() {
                     </Link>
                 </Button>
                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
-                    <Link href="/ma-records">
+                    <Link href="/view-attendance">
                         <ClipboardCheck className="h-8 w-8" />
-                        <span className="text-sm font-semibold">MA RECORDS</span>
+                        <span className="text-sm font-semibold">VIEW ATTENDANCE</span>
                     </Link>
                 </Button>
             </CardContent>
