@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from 'react';
@@ -51,7 +50,6 @@ export default function VerifyFacePage() {
     const [similarity, setSimilarity] = useState<number | null>(null);
     const [countdown, setCountdown] = useState(5);
     const [finalCapture, setFinalCapture] = useState<string | null>(null);
-    const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
     
     const statusRef = useRef(status);
     useEffect(() => {
@@ -112,6 +110,19 @@ export default function VerifyFacePage() {
 
     const handlePostCapture = useCallback(async (dataUri: string) => {
         if (!userProfile || !department) return;
+
+        // 1. Get location silently
+        let userLocation: {lat: number, lng: number} | null = null;
+        try {
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+                 navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+            });
+            userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        } catch (e) {
+            console.warn("Could not get location:", e);
+        }
+
+        // 2. Upload image and save record
         try {
             const imageUrl = await uploadImage(dataUri);
             const record: Omit<AttendanceLog, 'id'> = {
@@ -139,7 +150,7 @@ export default function VerifyFacePage() {
             });
             setStatus('failed');
         }
-    }, [userProfile, department, mode, userLocation, toast]);
+    }, [userProfile, department, mode, toast]);
     
     const captureFinalImage = useCallback(() => {
         if (videoRef.current) {
@@ -154,9 +165,10 @@ export default function VerifyFacePage() {
                 context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
                 
                 const dataUri = canvas.toDataURL("image/jpeg");
-                setFinalCapture(dataUri);
-                setStatus('success');
+                
                 stopCamera();
+                setStatus('success');
+                setFinalCapture(dataUri);
                 
                 // Perform async actions after UI update
                 handlePostCapture(dataUri);
@@ -168,11 +180,6 @@ export default function VerifyFacePage() {
         let countdownInterval: NodeJS.Timeout | null = null;
         if (status === 'positioning') {
             stopDetection();
-
-            // Get location once before the timer starts
-            navigator.geolocation.getCurrentPosition((pos) => {
-                setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            });
             
             countdownInterval = setInterval(() => {
                 setCountdown(prev => {
