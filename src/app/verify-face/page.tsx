@@ -27,6 +27,7 @@ import type { AttendanceLog } from '@/lib/types';
 
 const SIMILARITY_THRESHOLD = 0.55;
 const SMILE_THRESHOLD = 0.8;
+const DETECTION_INTERVAL = 1000;
 
 export default function VerifyFacePage() {
     const router = useRouter();
@@ -109,8 +110,39 @@ export default function VerifyFacePage() {
         setIsCameraLive(false);
     }, [stopDetection]);
 
+    const handlePostCapture = useCallback(async (dataUri: string) => {
+        if (!userProfile || !department) return;
+        try {
+            const imageUrl = await uploadImage(dataUri);
+            const record: Omit<AttendanceLog, 'id'> = {
+                studentId: userProfile.uid,
+                studentName: userProfile.name,
+                date: new Date().toISOString(),
+                departmentId: department.id,
+                mode: mode,
+                status: 'Present',
+                verificationPhotoUrl: imageUrl,
+                markedBy: 'student',
+                location: userLocation,
+            };
+            await addAttendanceRecord(userProfile.uid, record);
+            toast({
+                title: "Attendance Logged!",
+                description: "Your attendance has been recorded with a verification photo.",
+            });
+            // The status is already 'success' on the UI, this just handles the backend.
+        } catch (e) {
+            toast({
+                title: "Save Failed",
+                description: "Could not save your attendance record. Please try again.",
+                variant: 'destructive'
+            });
+            setStatus('failed');
+        }
+    }, [userProfile, department, mode, userLocation, toast]);
+    
     const captureFinalImage = useCallback(() => {
-        if (videoRef.current && userProfile && department) {
+        if (videoRef.current) {
             const canvas = document.createElement("canvas");
             canvas.width = videoRef.current.videoWidth;
             canvas.height = videoRef.current.videoHeight;
@@ -123,61 +155,34 @@ export default function VerifyFacePage() {
                 
                 const dataUri = canvas.toDataURL("image/jpeg");
                 setFinalCapture(dataUri);
-
+                setStatus('success');
                 stopCamera();
-
-                (async () => {
-                    try {
-                        const imageUrl = await uploadImage(dataUri);
-                        const record: Omit<AttendanceLog, 'id'> = {
-                            studentId: userProfile.uid,
-                            studentName: userProfile.name,
-                            date: new Date().toISOString(),
-                            departmentId: department.id,
-                            mode: mode,
-                            status: 'Present',
-                            verificationPhotoUrl: imageUrl,
-                            markedBy: 'student',
-                            location: userLocation,
-                        };
-                        await addAttendanceRecord(userProfile.uid, record);
-                        toast({
-                            title: "Attendance Logged!",
-                            description: "Your attendance has been recorded with a verification photo.",
-                        });
-                        setStatus('success');
-                    } catch (e) {
-                         toast({
-                            title: "Save Failed",
-                            description: "Could not save your attendance record. Please try again.",
-                            variant: 'destructive'
-                        });
-                        setStatus('failed');
-                    }
-                })();
+                
+                // Perform async actions after UI update
+                handlePostCapture(dataUri);
             }
         }
-    }, [stopCamera, toast, userProfile, department, mode, userLocation]);
+    }, [stopCamera, handlePostCapture]);
     
      useEffect(() => {
         let countdownInterval: NodeJS.Timeout | null = null;
         if (status === 'positioning') {
             stopDetection();
 
-            // Get location just once before starting the timer
+            // Get location once before the timer starts
             navigator.geolocation.getCurrentPosition((pos) => {
                 setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
             });
-
-            // Start the timer
+            
             countdownInterval = setInterval(() => {
                 setCountdown(prev => {
-                    if (prev <= 1) {
+                    const newCount = prev - 1;
+                    if (newCount <= 0) {
                         clearInterval(countdownInterval!);
                         captureFinalImage();
                         return 0;
                     }
-                    return prev - 1;
+                    return newCount;
                 });
             }, 1000);
         }
@@ -241,7 +246,7 @@ export default function VerifyFacePage() {
                         setIsCameraLive(true);
                         setFeedbackMessage('Center your face in the frame.');
                         if (!detectionIntervalRef.current) {
-                            detectionIntervalRef.current = setInterval(detectFace, 1000);
+                            detectionIntervalRef.current = setInterval(detectFace, DETECTION_INTERVAL);
                         }
                     }
                 }
