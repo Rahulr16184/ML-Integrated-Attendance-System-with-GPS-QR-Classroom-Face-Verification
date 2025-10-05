@@ -162,14 +162,14 @@ export default function VerifyFacePage() {
      useEffect(() => {
         let countdownInterval: NodeJS.Timeout | null = null;
         if (status === 'positioning') {
-            // Stop ML models to prevent lag
             stopDetection();
 
-            // Get location while countdown is running
+            // Get location just once before starting the timer
             navigator.geolocation.getCurrentPosition((pos) => {
                 setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
             });
 
+            // Start the timer
             countdownInterval = setInterval(() => {
                 setCountdown(prev => {
                     if (prev <= 1) {
