@@ -127,7 +127,7 @@ export default function WorkingDaysPage() {
   const disabledDates = useMemo(() => {
     if (!editingMode) return [];
     const otherSemesters = semesters.filter(semester => semester.id !== editingMode);
-    return otherSemesters.map(s => s.dateRange);
+    return otherSemesters.map(s => s.dateRange).filter(dr => dr.from && dr.to) as { from: Date, to: Date }[];
   }, [semesters, editingMode]);
 
   const handleStartAddNew = () => {
@@ -157,7 +157,6 @@ export default function WorkingDaysPage() {
     }
     const totalDays = differenceInCalendarDays(dateRange.to, dateRange.from) + 1;
     
-    // Filter holidays to only include those within the selected date range
     const holidaysInRange = holidays.filter(holiday => 
         isWithinInterval(holiday, { start: dateRange.from!, end: dateRange.to! })
     );
@@ -355,7 +354,7 @@ export default function WorkingDaysPage() {
                                                 initialFocus
                                                 mode="single"
                                                 selected={dateRange?.from}
-                                                onSelect={(day) => setDateRange(prev => ({ from: day, to: prev?.to }))}
+                                                onSelect={(day) => setDateRange(prev => ({ from: day, to: undefined }))}
                                                 disabled={disabledDates}
                                             />
                                         </PopoverContent>
@@ -376,7 +375,8 @@ export default function WorkingDaysPage() {
                                                 mode="single"
                                                 selected={dateRange?.to}
                                                 onSelect={(day) => setDateRange(prev => ({ from: prev?.from, to: day }))}
-                                                disabled={(day) => (dateRange?.from && day < dateRange.from) || disabledDates.some(d => (d instanceof Date && d.getTime() === day.getTime()) || (d as { from: Date; to: Date; }).from)}
+                                                disabled={disabledDates}
+                                                fromDate={dateRange?.from}
                                             />
                                         </PopoverContent>
                                     </Popover>
