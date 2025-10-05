@@ -5,7 +5,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
-import { differenceInDays, format, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -159,18 +159,23 @@ export default function WorkingDaysPage() {
       setTotalWorkingDays(null);
       return 0;
     }
+
     let count = 0;
-    const curDate = new Date(dateRange.from.getTime());
-    while (curDate <= dateRange.to) {
-        const dayOfWeek = curDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not a weekend
-            count++;
-        }
-        curDate.setDate(curDate.getDate() + 1);
+    const holidaySet = new Set(holidays.map(h => h.toDateString()));
+    const currentDate = new Date(dateRange.from);
+
+    while (currentDate <= dateRange.to) {
+      const dayOfWeek = currentDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isHoliday = holidaySet.has(currentDate.toDateString());
+
+      if (!isWeekend && !isHoliday) {
+        count++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
     }
-    const workingDays = count - holidays.length;
-    setTotalWorkingDays(workingDays);
-    return workingDays;
+    setTotalWorkingDays(count);
+    return count;
   };
   
   const handleSaveSemester = async () => {
@@ -372,7 +377,7 @@ export default function WorkingDaysPage() {
                             <div className="grid gap-2">
                                 <Label>Mark Holidays</Label>
                                 <Card className="p-2">
-                                    <Calendar mode="multiple" selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
+                                    <Calendar mode="multiple" min={0} selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
                                 </Card>
                             </div>
                         </div>
@@ -433,3 +438,4 @@ export default function WorkingDaysPage() {
     
 
     
+
