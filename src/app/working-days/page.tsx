@@ -5,7 +5,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
-import { format, parseISO, differenceInCalendarDays } from "date-fns";
+import { format, parseISO, differenceInCalendarDays, isWithinInterval } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -152,13 +152,17 @@ export default function WorkingDaysPage() {
 
   const calculateWorkingDays = () => {
     if (!dateRange || !dateRange.from || !dateRange.to) {
-        setTotalWorkingDays(0);
-        return 0;
+      setTotalWorkingDays(0);
+      return 0;
     }
-
     const totalDays = differenceInCalendarDays(dateRange.to, dateRange.from) + 1;
-    const holidayCount = holidays.length;
+    
+    // Filter holidays to only include those within the selected date range
+    const holidaysInRange = holidays.filter(holiday => 
+        isWithinInterval(holiday, { start: dateRange.from!, end: dateRange.to! })
+    );
 
+    const holidayCount = holidaysInRange.length;
     const calculatedDays = totalDays - holidayCount;
 
     setTotalWorkingDays(calculatedDays);
@@ -382,7 +386,7 @@ export default function WorkingDaysPage() {
                                 <Alert>
                                     <AlertTitle>Calculation Result</AlertTitle>
                                     <AlertDescription className="space-y-2 mt-2">
-                                        <p><strong>Total Holidays Selected:</strong> {holidays.length} days</p>
+                                        <p><strong>Total Holidays Selected:</strong> {holidays.filter(h => dateRange?.from && dateRange.to && isWithinInterval(h, {start: dateRange.from, end: dateRange.to})).length} days</p>
                                         <p className="font-bold text-lg"><strong>Total Working Days:</strong> {totalWorkingDays} days</p>
                                     </AlertDescription>
                                 </Alert>
@@ -392,7 +396,7 @@ export default function WorkingDaysPage() {
                             <div className="grid gap-2">
                                 <Label>Mark Holidays</Label>
                                 <Card className="p-2">
-                                    <Calendar mode="multiple" selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
+                                    <Calendar mode="multiple" selected={holidays} onSelect={(days) => setHolidays(days || [])} />
                                 </Card>
                             </div>
                         </div>
@@ -415,7 +419,7 @@ export default function WorkingDaysPage() {
         </div>
       <DialogContent>
           <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Delete {deleteTarget?.name}?</DialogTitle>
+              <DialogTitle className="flex items-center gap-2"><ShieldAlert/>Delete {semesters.find(s => s.id === deleteTarget)?.name}?</DialogTitle>
               <DialogDescription>
                   This action cannot be undone. This will permanently delete the semester data.
               </DialogDescription>
@@ -449,10 +453,3 @@ export default function WorkingDaysPage() {
     </Dialog>
   );
 }
-
-    
-
-    
-
-
-
