@@ -127,11 +127,7 @@ export default function WorkingDaysPage() {
   const disabledDates = useMemo(() => {
     if (!editingMode) return [];
     const otherSemesters = semesters.filter(semester => semester.id !== editingMode);
-    
-    // Add weekends (Saturday and Sunday) to disabled dates
-    const weekends = { dayOfWeek: [0, 6] };
-    
-    return [weekends, ...otherSemesters.map(s => s.dateRange)];
+    return otherSemesters.map(s => s.dateRange);
   }, [semesters, editingMode]);
 
   const handleStartAddNew = () => {
@@ -160,22 +156,13 @@ export default function WorkingDaysPage() {
         return 0;
     }
 
-    let count = 0;
-    const holidaySet = new Set(holidays.map(h => h.toDateString()));
-    const currentDate = new Date(dateRange.from);
+    const totalDays = differenceInCalendarDays(dateRange.to, dateRange.from) + 1;
+    const holidayCount = holidays.length;
 
-    while (currentDate <= dateRange.to) {
-        const dayOfWeek = currentDate.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        const isHoliday = holidaySet.has(currentDate.toDateString());
+    const calculatedDays = totalDays - holidayCount;
 
-        if (!isWeekend && !isHoliday) {
-            count++;
-        }
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    setTotalWorkingDays(count);
-    return count;
+    setTotalWorkingDays(calculatedDays);
+    return calculatedDays;
   };
   
   const handleSaveSemester = async () => {
@@ -466,5 +453,6 @@ export default function WorkingDaysPage() {
     
 
     
+
 
 
