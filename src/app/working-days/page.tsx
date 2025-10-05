@@ -159,16 +159,16 @@ export default function WorkingDaysPage() {
       setTotalWorkingDays(null);
       return 0;
     }
-    const totalDays = differenceInDays(dateRange.to, dateRange.from) + 1;
-    let weekends = 0;
-    for (let d = new Date(dateRange.from); d <= dateRange.to; d.setDate(d.getDate() + 1)) {
-        const dayOfWeek = d.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            weekends++;
+    let count = 0;
+    const curDate = new Date(dateRange.from.getTime());
+    while (curDate <= dateRange.to) {
+        const dayOfWeek = curDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not a weekend
+            count++;
         }
+        curDate.setDate(curDate.getDate() + 1);
     }
-
-    const workingDays = totalDays - weekends - holidays.length;
+    const workingDays = count - holidays.length;
     setTotalWorkingDays(workingDays);
     return workingDays;
   };
@@ -372,7 +372,7 @@ export default function WorkingDaysPage() {
                             <div className="grid gap-2">
                                 <Label>Mark Holidays</Label>
                                 <Card className="p-2">
-                                    <Calendar mode="multiple" min={1} selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
+                                    <Calendar mode="multiple" selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
                                 </Card>
                             </div>
                         </div>
