@@ -5,7 +5,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -156,8 +156,8 @@ export default function WorkingDaysPage() {
 
   const calculateWorkingDays = () => {
     if (!dateRange || !dateRange.from || !dateRange.to) {
-      setTotalWorkingDays(null);
-      return 0;
+        setTotalWorkingDays(0);
+        return 0;
     }
 
     let count = 0;
@@ -165,14 +165,14 @@ export default function WorkingDaysPage() {
     const currentDate = new Date(dateRange.from);
 
     while (currentDate <= dateRange.to) {
-      const dayOfWeek = currentDate.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const isHoliday = holidaySet.has(currentDate.toDateString());
+        const dayOfWeek = currentDate.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isHoliday = holidaySet.has(currentDate.toDateString());
 
-      if (!isWeekend && !isHoliday) {
-        count++;
-      }
-      currentDate.setDate(currentDate.getDate() + 1);
+        if (!isWeekend && !isHoliday) {
+            count++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
     }
     setTotalWorkingDays(count);
     return count;
@@ -349,19 +349,47 @@ export default function WorkingDaysPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="grid gap-2">
-                                <Label>Semester Duration (From - To)</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
-                                    </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} disabled={disabledDates} />
-                                    </PopoverContent>
-                                </Popover>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label>From</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange?.from && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {dateRange?.from ? format(dateRange.from, "LLL dd, y") : <span>Pick a date</span>}
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                initialFocus
+                                                mode="single"
+                                                selected={dateRange?.from}
+                                                onSelect={(day) => setDateRange(prev => ({ from: day, to: prev?.to }))}
+                                                disabled={disabledDates}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>To</Label>
+                                     <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange?.to && "text-muted-foreground")} disabled={!dateRange?.from}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {dateRange?.to ? format(dateRange.to, "LLL dd, y") : <span>Pick a date</span>}
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                initialFocus
+                                                mode="single"
+                                                selected={dateRange?.to}
+                                                onSelect={(day) => setDateRange(prev => ({ from: prev?.from, to: day }))}
+                                                disabled={(day) => (dateRange?.from && day < dateRange.from) || disabledDates.some(d => (d instanceof Date && d.getTime() === day.getTime()) || (d as { from: Date; to: Date; }).from)}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
                             </div>
                             {totalWorkingDays !== null && (
                                 <Alert>
@@ -377,7 +405,7 @@ export default function WorkingDaysPage() {
                             <div className="grid gap-2">
                                 <Label>Mark Holidays</Label>
                                 <Card className="p-2">
-                                    <Calendar mode="multiple" min={0} selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
+                                    <Calendar mode="multiple" selected={holidays} onSelect={(days) => setHolidays(days || [])} disabled={!dateRange?.from} fromDate={dateRange?.from} toDate={dateRange?.to} />
                                 </Card>
                             </div>
                         </div>
@@ -387,7 +415,7 @@ export default function WorkingDaysPage() {
                             <Button onClick={handleSaveSemester} className="w-full sm:w-auto" disabled={!dateRange || !selectedRoman}>
                                 <Save className="mr-2 h-4 w-4" /> Save Semester
                             </Button>
-                             <Button onClick={calculateWorkingDays} variant="secondary" className="w-full sm:w-auto" disabled={!dateRange}>
+                             <Button onClick={calculateWorkingDays} variant="secondary" className="w-full sm:w-auto" disabled={!dateRange?.from || !dateRange?.to}>
                                 <Calculator className="mr-2 h-4 w-4" /> Calculate Days
                             </Button>
                             <Button onClick={handleCancel} variant="outline" className="w-full sm:w-auto">
@@ -438,4 +466,5 @@ export default function WorkingDaysPage() {
     
 
     
+
 
