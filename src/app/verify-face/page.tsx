@@ -239,7 +239,7 @@ export default function VerifyFacePage() {
                         setIsCameraLive(true);
                         setFeedbackMessage('Center your face in the frame.');
                         if (!detectionIntervalRef.current) {
-                            detectionIntervalRef.current = setInterval(detectFace, 500);
+                            detectionIntervalRef.current = setInterval(detectFace, 1000);
                         }
                     }
                 }
