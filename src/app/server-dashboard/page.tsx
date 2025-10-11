@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building, Users } from "lucide-react";
+import { Building, Users, Palette } from "lucide-react";
 import Link from "next/link";
 
 export default function ServerDashboardPage() {
@@ -14,7 +14,7 @@ export default function ServerDashboardPage() {
           <CardHeader>
             <CardTitle>Management</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Button asChild size="lg" className="h-16 text-base sm:h-20 sm:text-lg">
               <Link href="/server-manage-institution">
                 <Building className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
@@ -25,6 +25,12 @@ export default function ServerDashboardPage() {
               <Link href="/server-manage-user">
                 <Users className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
                 Manage Users
+              </Link>
+            </Button>
+             <Button asChild size="lg" className="h-16 text-base sm:h-20 sm:text-lg">
+              <Link href="/server-manage-theme">
+                <Palette className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
+                Manage Theme
               </Link>
             </Button>
           </CardContent>
