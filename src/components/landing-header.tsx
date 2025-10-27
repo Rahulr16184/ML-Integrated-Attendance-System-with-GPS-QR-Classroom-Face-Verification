@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, University } from "lucide-react";
 
 export function LandingHeader() {
@@ -33,6 +33,9 @@ export function LandingHeader() {
             </Button>
           </SheetTrigger>
           <SheetContent side="right">
+            <SheetHeader>
+                <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+            </SheetHeader>
             <nav className="grid gap-6 text-lg font-medium mt-12">
               <Link href="#" className="flex items-center gap-2 text-lg font-semibold">
                 <University className="h-6 w-6" />
