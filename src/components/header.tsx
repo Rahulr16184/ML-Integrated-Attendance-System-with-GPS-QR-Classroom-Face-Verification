@@ -34,7 +34,8 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-       <SidebarTrigger asChild>
+       <div className="flex items-center gap-4">
+        <SidebarTrigger>
             <Button variant="outline" size="icon">
                 <Menu className="h-[1.2rem] w-[1.2rem]" />
                 <span className="sr-only">Toggle Menu</span>
@@ -49,6 +50,7 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
             <span className="text-xs capitalize text-muted-foreground">{userRole}</span>
         </div>
         )}
+       </div>
       <div className="flex-1" />
       <div className="flex items-center gap-4">
          {userRole !== 'server' && (
