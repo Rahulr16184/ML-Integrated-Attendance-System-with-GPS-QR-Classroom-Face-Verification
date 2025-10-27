@@ -2,11 +2,11 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function LandingHeader() {
   return (
-    <header className="px-4 lg:px-6 h-16 flex items-center shadow-sm sticky top-0 z-50 bg-background/95 backdrop-blur-sm">
+    <header className="px-4 lg:px-6 h-16 flex items-center shadow-sm sticky top-0 z-50 bg-background/95 backdrop-blur-sm animate-shine">
       <div className="flex-1 flex justify-start">
         {/* Empty div for spacing, keeps the title centered */}
       </div>
@@ -16,7 +16,7 @@ export function LandingHeader() {
         </Link>
       </div>
       <nav className="flex-1 flex justify-end gap-2 sm:gap-4">
-        {/* Login and Signup buttons removed as per request */}
+        <ThemeToggle />
       </nav>
     </header>
   );

@@ -7,22 +7,22 @@ import { LandingHeader } from '@/components/landing-header';
 
 const features = [
   {
-    icon: <UserCheck className="w-8 h-8 text-primary" />,
+    icon: <UserCheck className="w-8 h-8 text-primary animate-blink-soft" />,
     title: 'Facial Recognition',
     description: 'Log attendance seamlessly with our cutting-edge facial recognition technology. Fast, secure, and touch-free.',
   },
   {
-    icon: <MapPin className="w-8 h-8 text-primary" />,
+    icon: <MapPin className="w-8 h-8 text-primary animate-blink-soft [animation-delay:0.2s]" />,
     title: 'GPS Geofencing',
     description: 'Ensure attendance is marked only within designated areas like your campus or office using precise GPS geofencing.',
   },
   {
-    icon: <QrCode className="w-8 h-8 text-primary" />,
+    icon: <QrCode className="w-8 h-8 text-primary animate-blink-soft [animation-delay:0.4s]" />,
     title: 'QR Code Scanning',
     description: 'A quick and reliable backup for attendance verification. Generate dynamic QR codes for secure check-ins.',
   },
   {
-    icon: <CheckCircle className="w-8 h-8 text-primary" />,
+    icon: <CheckCircle className="w-8 h-8 text-primary animate-blink-soft [animation-delay:0.6s]" />,
     title: 'Automated Records',
     description: 'All attendance data is automatically logged and organized, making reporting and management effortless for administrators.',
   },
