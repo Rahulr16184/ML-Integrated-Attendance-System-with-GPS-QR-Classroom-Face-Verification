@@ -3,7 +3,7 @@
 
 import type { Metadata } from "next";
 import { Header } from "@/components/header";
-import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarFooter } from "@/components/ui/sidebar";
 import { StudentNav } from "@/components/student-nav";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -30,12 +30,10 @@ export default function AppLayout({
                 <StudentNav />
             </SidebarContent>
         </Sidebar>
-        <div className="flex flex-col min-h-screen">
-          <SidebarInset>
+        <SidebarInset>
             <Header userRole="student" />
             <main className="flex-1 overflow-y-auto">{children}</main>
-          </SidebarInset>
-        </div>
+        </SidebarInset>
     </SidebarProvider>
   );
 }
