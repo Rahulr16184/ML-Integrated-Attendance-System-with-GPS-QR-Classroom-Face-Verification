@@ -76,12 +76,12 @@ export function StudentNav() {
   return (
     <>
       <SidebarMenu className="flex-1">
-          <SidebarMenuItem>
-             <SidebarMenuButton onClick={toggleTheme} tooltip="Switch Theme">
-                {theme === 'light' ? <Moon /> : <Sun />}
-                <span>Switch Mode</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <div className="p-2">
+            <Button onClick={toggleTheme} className="w-full justify-start text-base p-2 h-auto">
+              {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
+              Switch Mode
+            </Button>
+          </div>
         
           <SidebarSeparator />
 
