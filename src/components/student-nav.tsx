@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
   SidebarMenu,
@@ -27,11 +28,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
 import { CheckSquare, ClipboardCheck, School, Home, LogOut, ShieldAlert, Sun, Moon } from "lucide-react";
-import { ThemeToggle } from "./theme-toggle";
 
 export function StudentNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = () => {
     localStorage.removeItem("userRole");
@@ -68,10 +69,24 @@ export function StudentNav() {
     },
   ];
 
+  const toggleTheme = () => {
+    setTheme(theme === "light" ? "dark" : "light");
+  };
+
   return (
     <>
       <SidebarMenu className="flex-1">
+          <SidebarMenuItem>
+             <SidebarMenuButton onClick={toggleTheme} tooltip="Switch Theme">
+                {theme === 'light' ? <Moon /> : <Sun />}
+                <span>Switch Mode</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        
+          <SidebarSeparator />
+
           <SidebarGroup>
+              <SidebarGroupLabel>Main</SidebarGroupLabel>
               {menuItems.filter(item => item.group === 'main').map((item) => (
                   <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -133,30 +148,25 @@ export function StudentNav() {
       </SidebarMenu>
       
       <SidebarFooter>
-        <div className="flex justify-center items-center w-full">
-            <div className="flex justify-center items-center rounded-md border border-border p-1">
-                <ThemeToggle />
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:bg-white dark:hover:bg-black">
-                            <LogOut className="h-4 w-4" />
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Are you sure you want to log out? Any unsaved changes may be lost.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
-        </div>
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full justify-start text-base p-2 h-auto">
+                    <LogOut className="mr-2 h-4 w-4 text-white" /> Logout
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to log out? Any unsaved changes may be lost.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </SidebarFooter>
     </>
   );
