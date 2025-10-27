@@ -75,14 +75,14 @@ export function StudentNav() {
   return (
     <>
       <SidebarMenu className="flex-1">
-          <div className="p-2 flex flex-col gap-2">
-            <Button onClick={toggleTheme} className="w-full justify-start">
+          <div className="p-2 flex flex-row gap-2">
+            <Button onClick={toggleTheme} className="flex-1 justify-center">
               {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
-               <span>Switch Mode</span>
+               <span>Mode</span>
             </Button>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full justify-start">
+                    <Button variant="destructive" className="flex-1 justify-center">
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Logout</span>
                     </Button>
