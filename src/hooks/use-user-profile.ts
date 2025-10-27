@@ -14,8 +14,8 @@ export function useUserProfile() {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
-            if (user && user.email) {
-                const data = await getUserData(user.email);
+            if (user) {
+                const data = await getUserData(user.uid);
                 setUserProfile(data);
 
                 if (data?.profileImage) {

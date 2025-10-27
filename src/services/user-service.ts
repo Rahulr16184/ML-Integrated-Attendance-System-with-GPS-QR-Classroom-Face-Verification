@@ -70,18 +70,16 @@ export const registerUser = async (userData: UserRegistrationData): Promise<void
     }
 };
 
-export const getUserData = async (email: string): Promise<UserProfile | null> => {
+export const getUserData = async (uid: string): Promise<UserProfile | null> => {
     try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where("email", "==", email));
-        const querySnapshot = await getDocs(q);
+        const userDocRef = doc(db, 'users', uid);
+        const userDoc = await getDoc(userDocRef);
 
-        if (querySnapshot.empty) {
-            console.log('No matching user found.');
+        if (!userDoc.exists()) {
+            console.log('No matching user found for UID:', uid);
             return null;
         }
 
-        const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
         
         let institutionName = 'N/A';
