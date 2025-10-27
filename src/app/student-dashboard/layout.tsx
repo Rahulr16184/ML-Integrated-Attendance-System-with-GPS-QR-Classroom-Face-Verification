@@ -31,8 +31,8 @@ export default function AppLayout({
             </SidebarContent>
         </Sidebar>
         <div className="flex flex-col min-h-screen">
-          <Header userRole="student" />
           <SidebarInset>
+            <Header userRole="student" />
             <main className="flex-1 overflow-y-auto">{children}</main>
           </SidebarInset>
         </div>

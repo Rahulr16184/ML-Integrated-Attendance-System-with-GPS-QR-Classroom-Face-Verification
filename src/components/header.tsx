@@ -83,7 +83,7 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
                 </Link>
             </Button>
          )}
-        <ThemeToggle />
+        {userRole !== 'student' && <ThemeToggle />}
         <AlertDialog>
             <AlertDialogTrigger asChild>
                 <Button variant="outline" size="icon">

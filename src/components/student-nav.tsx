@@ -13,7 +13,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { CheckSquare, ClipboardCheck, School, Home } from "lucide-react";
-import { useSidebar } from "./ui/sidebar";
+import { ThemeToggle } from "./theme-toggle";
 
 export function StudentNav() {
   const pathname = usePathname();
@@ -45,12 +45,12 @@ export function StudentNav() {
     },
   ];
 
-  const { state } = useSidebar();
-
   return (
     <SidebarMenu>
         <SidebarGroup>
-            <SidebarGroupLabel>Main</SidebarGroupLabel>
+            <div className="flex justify-end p-2 pb-0">
+                <ThemeToggle />
+            </div>
             {menuItems.filter(item => item.group === 'main').map((item) => (
                 <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
