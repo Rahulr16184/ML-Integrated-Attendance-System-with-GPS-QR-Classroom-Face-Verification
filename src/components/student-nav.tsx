@@ -13,7 +13,6 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarSeparator,
-  SidebarFooter,
 } from "@/components/ui/sidebar";
 import {
   AlertDialog,
@@ -76,11 +75,31 @@ export function StudentNav() {
   return (
     <>
       <SidebarMenu className="flex-1">
-          <div className="p-2">
-            <Button onClick={toggleTheme} className="w-full justify-start text-base p-2 h-auto">
-              {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
-              Switch Mode
+          <div className="p-2 flex justify-center gap-2">
+            <Button onClick={toggleTheme} className="flex-1" variant="outline" size="icon">
+              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+               <span className="sr-only">Switch Mode</span>
             </Button>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="flex-1" size="icon">
+                        <LogOut className="h-4 w-4" />
+                        <span className="sr-only">Logout</span>
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to log out? Any unsaved changes may be lost.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
           </div>
         
           <SidebarSeparator />
@@ -145,28 +164,6 @@ export function StudentNav() {
               ))}
           </SidebarGroup>
       </SidebarMenu>
-      
-      <SidebarFooter>
-        <AlertDialog>
-            <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full justify-start text-base p-2 h-auto">
-                    <LogOut className="mr-2 h-4 w-4 text-white" /> Logout
-                </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Are you sure you want to log out? Any unsaved changes may be lost.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-      </SidebarFooter>
     </>
   );
 }
