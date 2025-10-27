@@ -4,6 +4,7 @@ require('dotenv').config({ path: './.env.local' });
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: 'export',
   appDir: 'src',
   typescript: {
     ignoreBuildErrors: true,
@@ -12,6 +13,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
