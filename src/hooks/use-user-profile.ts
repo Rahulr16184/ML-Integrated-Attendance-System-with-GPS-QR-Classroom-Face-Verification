@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { auth } from '@/lib/conf';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { getUserData } from '@/services/user-service';
 import type { UserProfile } from '@/services/user-service';
 import { updateProfileDescriptorCache } from '@/services/system-cache-service';
@@ -11,22 +13,22 @@ export function useUserProfile() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchUserData() {
-            setLoading(true);
-            const userEmail = localStorage.getItem("userEmail") || sessionStorage.getItem("userEmail");
-            if (userEmail) {
-                const data = await getUserData(userEmail);
+        const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+            if (user && user.email) {
+                const data = await getUserData(user.email);
                 setUserProfile(data);
 
-                // Pre-process and cache the user's profile image descriptor
                 if (data?.profileImage) {
                     await updateProfileDescriptorCache(data);
                 }
+            } else {
+                setUserProfile(null);
             }
             setLoading(false);
-        }
+        });
 
-        fetchUserData();
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
     }, []);
 
     return { userProfile, loading, setUserProfile };
