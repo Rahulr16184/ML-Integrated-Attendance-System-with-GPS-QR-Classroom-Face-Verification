@@ -4,7 +4,6 @@ require('dotenv').config({ path: './.env.local' });
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'export',
   appDir: 'src',
   typescript: {
     ignoreBuildErrors: true,
