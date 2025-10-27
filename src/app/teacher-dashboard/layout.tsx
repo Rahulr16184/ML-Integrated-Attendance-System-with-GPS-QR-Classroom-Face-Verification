@@ -1,21 +1,35 @@
 
-import type { Metadata } from "next";
-import { Header } from "@/components/header";
+"use client";
 
-export const metadata: Metadata = {
-  title: "TRACEIN - Teacher",
-  description: "ML integrated attendance system",
-};
+import { Header } from "@/components/header";
+import { SidebarProvider, Sidebar, SidebarContent } from "@/components/ui/sidebar";
+import { TeacherNav } from "@/components/teacher-nav";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+// Metadata can't be used in a client component, but we can keep it for static analysis
+// export const metadata: Metadata = {
+//   title: "TRACEIN - Teacher",
+//   description: "ML integrated attendance system",
+// };
 
 export default function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header dashboardUrl="/teacher-dashboard" userRole="teacher" />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
+    <SidebarProvider defaultOpen={!isMobile}>
+        <Sidebar>
+            <SidebarContent>
+                <TeacherNav />
+            </SidebarContent>
+        </Sidebar>
+        <div className="sm:ml-[var(--sidebar-width-icon)] transition-[margin-left] duration-300 ease-in-out">
+            <Header userRole="teacher" />
+            <main className="flex-1 overflow-y-auto">{children}</main>
+        </div>
+    </SidebarProvider>
   );
 }

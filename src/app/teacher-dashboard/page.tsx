@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Info, CreditCard, DatabaseZap, CalendarDays, Settings, School, MapPin, ClipboardCheck, Camera, QrCode, ToggleRight, Hash } from "lucide-react";
+import { Info, CreditCard } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -76,77 +76,6 @@ export default function TeacherDashboardPage() {
                  )}
             </CardContent>
         </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <DatabaseZap className="h-6 w-6" />
-                    MANAGE MASTER ATTENDANCE
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-4">
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
-                    <Link href="/working-days">
-                        <CalendarDays className="h-8 w-8" />
-                        <span className="text-sm font-semibold">WORKING DAYS</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
-                    <Link href="/gps">
-                        <MapPin className="h-8 w-8" />
-                        <span className="text-sm font-semibold">GPS SET-UP</span>
-                    </Link>
-                </Button>
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
-                    <Link href="/ma-records">
-                        <ClipboardCheck className="h-8 w-8" />
-                        <span className="text-sm font-semibold">MA RECORDS</span>
-                    </Link>
-                </Button>
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
-                    <Link href="/classroom-photo-config">
-                        <Camera className="h-8 w-8" />
-                        <span className="text-sm font-semibold">CLASSROOM PHOTO CONF</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
-                    <Link href="/qr-generator">
-                        <QrCode className="h-8 w-8" />
-                        <span className="text-sm font-semibold">QR GENERATOR</span>
-                    </Link>
-                </Button>
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
-                    <Link href="/ma-modes">
-                        <ToggleRight className="h-8 w-8" />
-                        <span className="text-sm font-semibold">MA MODES ENABLE/DISABLE</span>
-                    </Link>
-                </Button>
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
-                    <Link href="/classroom-code-generator">
-                        <Hash className="h-8 w-8" />
-                        <span className="text-sm font-semibold">CLASSROOM CODE</span>
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-6 w-6" />
-                    SETTINGS
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal">
-                    <Link href="/add-department">
-                        <School className="h-8 w-8" />
-                        <span className="text-sm font-semibold text-center">ADD A DEPARTMENT</span>
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
-
       </main>
     </div>
   );
