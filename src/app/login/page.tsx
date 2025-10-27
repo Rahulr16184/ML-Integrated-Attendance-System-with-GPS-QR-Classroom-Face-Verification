@@ -15,7 +15,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mail, Lock, Eye, EyeOff } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, Home } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from 'lucide-react'
@@ -147,8 +147,14 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-sm relative">
+        <Link href="/" passHref>
+          <Button variant="ghost" size="icon" className="absolute top-4 right-4">
+            <Home className="h-5 w-5" />
+            <span className="sr-only">Home</span>
+          </Button>
+        </Link>
+        <CardHeader className="text-center pr-12">
           <CardTitle className="text-2xl sm:text-3xl font-bold">Welcome Back!</CardTitle>
           <CardDescription className="uppercase pt-2 font-semibold text-muted-foreground">
             Login with Credentials

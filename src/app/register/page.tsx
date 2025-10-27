@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { User, Mail, Lock, Eye, EyeOff, KeyRound, CheckCircle } from "lucide-react"
+import { User, Mail, Lock, Eye, EyeOff, KeyRound, CheckCircle, Home } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
@@ -168,7 +168,13 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md relative">
+        <Link href="/" passHref>
+          <Button variant="ghost" size="icon" className="absolute top-4 right-4">
+            <Home className="h-5 w-5" />
+            <span className="sr-only">Home</span>
+          </Button>
+        </Link>
         <CardHeader>
             <CardTitle className="text-2xl sm:text-3xl">Create Your Account</CardTitle>
             <CardDescription>
