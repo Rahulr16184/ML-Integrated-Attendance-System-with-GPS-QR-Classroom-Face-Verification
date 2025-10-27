@@ -13,8 +13,9 @@ export function LandingHeader() {
         <ThemeToggle />
       </div>
       <div className="flex-1 flex justify-center">
-        <Link href="/" className="font-bold text-xl tracking-wider">
-          TRACEIN
+        <Link href="/" className="flex items-center font-serif text-2xl font-bold tracking-wider">
+          <span>TRACE</span>
+          <span className="bg-foreground text-background rounded-md px-1 ml-0.5">IN</span>
         </Link>
       </div>
       <nav className="flex-1 flex justify-end gap-2 sm:gap-4">
