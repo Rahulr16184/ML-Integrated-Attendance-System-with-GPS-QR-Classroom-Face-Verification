@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -40,10 +41,6 @@ const SidebarContext = React.createContext<SidebarContext | null>(null)
 
 function useSidebar() {
   const context = React.useContext(SidebarContext)
-  if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider.")
-  }
-
   return context
 }
 
@@ -175,7 +172,13 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const sidebar = useSidebar()
+
+    if (!sidebar) {
+      return null
+    }
+
+    const { isMobile, state, openMobile, setOpenMobile } = sidebar
 
     if (collapsible === "none") {
       return (
@@ -264,7 +267,7 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar } = useSidebar()!
 
   return (
     <Button
@@ -290,7 +293,7 @@ const SidebarRail = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button">
 >(({ className, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar } = useSidebar()!
 
   return (
     <button
@@ -555,7 +558,11 @@ const SidebarMenuButton = React.forwardRef<
     ref
   ) => {
     const Comp = asChild ? Slot : "button"
-    const { isMobile, state } = useSidebar()
+    const sidebar = useSidebar()
+
+    if (!sidebar) return null
+
+    const { isMobile, state } = sidebar
 
     const button = (
       <Comp

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { SidebarTrigger } from "./ui/sidebar";
+import { SidebarTrigger, useSidebar } from "./ui/sidebar";
 
 type HeaderProps = {
     userRole?: string;
@@ -13,6 +13,7 @@ type HeaderProps = {
 
 export function Header({ userRole: initialUserRole }: HeaderProps) {
   const [userRole, setUserRole] = useState(initialUserRole);
+  const sidebar = useSidebar(); // This will be null if not in a provider
 
   useEffect(() => {
     if (!initialUserRole) {
@@ -35,12 +36,14 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
        <div className="flex items-center gap-4">
-        <SidebarTrigger>
-            <Button variant="outline" size="icon">
-                <Menu className="h-[1.2rem] w-[1.2rem]" />
-                <span className="sr-only">Toggle Menu</span>
-            </Button>
-        </SidebarTrigger>
+        {sidebar && ( // Conditionally render the trigger
+            <SidebarTrigger>
+                <Button variant="outline" size="icon">
+                    <Menu className="h-[1.2rem] w-[1.2rem]" />
+                    <span className="sr-only">Toggle Menu</span>
+                </Button>
+            </SidebarTrigger>
+        )}
         {userRole && (
         <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
