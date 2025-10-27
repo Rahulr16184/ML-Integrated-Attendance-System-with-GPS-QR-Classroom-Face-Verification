@@ -39,7 +39,7 @@ export function TeacherNav() {
     localStorage.removeItem("userEmail");
     sessionStorage.removeItem("userRole");
     sessionStorage.removeItem("userEmail");
-    router.push("/login");
+    router.push("/");
   };
 
   const menuItems = [

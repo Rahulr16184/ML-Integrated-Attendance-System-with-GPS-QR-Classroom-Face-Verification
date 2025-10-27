@@ -16,12 +16,7 @@ export function LandingHeader() {
         </Link>
       </div>
       <nav className="flex-1 flex justify-end gap-2 sm:gap-4">
-        <Button asChild variant="outline">
-            <Link href="/login">Login</Link>
-        </Button>
-        <Button asChild>
-            <Link href="/register">Sign Up</Link>
-        </Button>
+        {/* Login and Signup buttons removed as per request */}
       </nav>
     </header>
   );
