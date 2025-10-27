@@ -86,7 +86,6 @@ export function StudentNav() {
           <SidebarSeparator />
 
           <SidebarGroup>
-              <SidebarGroupLabel>Main</SidebarGroupLabel>
               {menuItems.filter(item => item.group === 'main').map((item) => (
                   <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
