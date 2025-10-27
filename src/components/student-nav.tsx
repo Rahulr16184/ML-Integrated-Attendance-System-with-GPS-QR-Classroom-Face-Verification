@@ -72,14 +72,6 @@ export function StudentNav() {
     <>
       <SidebarMenu className="flex-1">
           <SidebarGroup>
-            <SidebarMenuItem>
-              <ThemeToggle />
-            </SidebarMenuItem>
-          </SidebarGroup>
-
-          <SidebarSeparator />
-
-          <SidebarGroup>
               {menuItems.filter(item => item.group === 'main').map((item) => (
                   <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -141,26 +133,30 @@ export function StudentNav() {
       </SidebarMenu>
       
       <SidebarFooter>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-              </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
-              <AlertDialogDescription>
-                  Are you sure you want to log out? Any unsaved changes may be lost.
-              </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex justify-center items-center w-full">
+            <div className="flex justify-center items-center rounded-md border border-border p-1">
+                <ThemeToggle />
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:bg-white dark:hover:bg-black">
+                            <LogOut className="h-4 w-4" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Are you sure you want to log out? Any unsaved changes may be lost.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
+        </div>
       </SidebarFooter>
     </>
   );
