@@ -13,6 +13,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarSeparator,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import {
   AlertDialog,
@@ -75,35 +76,6 @@ export function StudentNav() {
   return (
     <>
       <SidebarMenu className="flex-1">
-          <div className="p-2 flex flex-row gap-2">
-            <Button onClick={toggleTheme} className="flex-1 justify-center">
-              {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
-               <span>Mode</span>
-            </Button>
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="flex-1 justify-center">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Logout</span>
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to log out? Any unsaved changes may be lost.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        
-          <SidebarSeparator />
-
           <SidebarGroup>
               {menuItems.filter(item => item.group === 'main').map((item) => (
                   <SidebarMenuItem key={item.href}>
@@ -164,6 +136,34 @@ export function StudentNav() {
               ))}
           </SidebarGroup>
       </SidebarMenu>
+      <SidebarFooter>
+        <div className="p-2 flex flex-row gap-2">
+            <Button onClick={toggleTheme} className="flex-1 justify-center">
+              {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
+               <span>Mode</span>
+            </Button>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="flex-1 justify-center">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Logout</span>
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to log out? Any unsaved changes may be lost.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+          </div>
+      </SidebarFooter>
     </>
   );
 }
