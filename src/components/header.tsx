@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { User, Home, LogOut, ShieldAlert } from "lucide-react";
+import { User, LogOut, ShieldAlert, Menu } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -18,13 +18,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useState, useEffect } from "react";
+import { SidebarTrigger } from "./ui/sidebar";
 
 type HeaderProps = {
-    dashboardUrl?: string;
     userRole?: string;
 }
 
-export function Header({ dashboardUrl: defaultDashboardUrl, userRole: initialUserRole }: HeaderProps) {
+export function Header({ userRole: initialUserRole }: HeaderProps) {
   const router = useRouter();
   const [userRole, setUserRole] = useState(initialUserRole);
 
@@ -45,17 +45,6 @@ export function Header({ dashboardUrl: defaultDashboardUrl, userRole: initialUse
     router.push("/login");
   };
 
-  const getDashboardUrl = () => {
-    if (defaultDashboardUrl) return defaultDashboardUrl;
-    switch (userRole) {
-      case "admin": return "/admin-dashboard";
-      case "teacher": return "/teacher-dashboard";
-      case "student": return "/student-dashboard";
-      case "server": return "/server-dashboard";
-      default: return "/";
-    }
-  };
-
   const getProfileUrl = () => {
     switch (userRole) {
       case "admin": return "/admin-profile";
@@ -68,12 +57,12 @@ export function Header({ dashboardUrl: defaultDashboardUrl, userRole: initialUse
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
-          <Link href={getDashboardUrl()}>
-            <Home className="h-[1.2rem] w-[1.2rem]" />
-            <span className="sr-only">Dashboard</span>
-          </Link>
-        </Button>
+        <SidebarTrigger asChild>
+            <Button variant="outline" size="icon">
+                <Menu className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Toggle Menu</span>
+            </Button>
+        </SidebarTrigger>
         {userRole && (
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">

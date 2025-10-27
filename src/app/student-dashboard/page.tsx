@@ -1,10 +1,10 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpen, CheckSquare, Info, CreditCard, Settings, School, DatabaseZap, ClipboardCheck } from "lucide-react";
+import { Info, CreditCard } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -85,46 +85,6 @@ export default function StudentDashboardPage() {
             </CardContent>
         </Card>
         
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <DatabaseZap className="h-6 w-6" />
-                    MASTER ATTENDANCE ACCESS
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-4">
-                <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal text-center">
-                    <Link href="/mark-attendance">
-                        <CheckSquare className="h-8 w-8" />
-                        <span className="text-sm font-semibold">MARK MASTER ATTENDANCE</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2">
-                    <Link href="/view-attendance">
-                        <ClipboardCheck className="h-8 w-8" />
-                        <span className="text-sm font-semibold">VIEW ATTENDANCE</span>
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-6 w-6" />
-                    SETTINGS
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                 <Button asChild variant="secondary" className="h-24 w-28 flex-col gap-2 whitespace-normal">
-                    <Link href="/add-department">
-                        <School className="h-8 w-8" />
-                        <span className="text-sm font-semibold text-center">ADD A DEPARTMENT</span>
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
-
       </main>
     </div>
   );
