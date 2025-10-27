@@ -60,16 +60,16 @@ export function AdminNav() {
   return (
     <>
       <SidebarMenu className="flex-1">
-          <div className="p-2 flex justify-center gap-2">
-            <Button onClick={toggleTheme} className="flex-1" variant="outline" size="icon">
-              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-               <span className="sr-only">Switch Mode</span>
+          <div className="p-2 flex flex-col gap-2">
+            <Button onClick={toggleTheme} className="w-full justify-start">
+              {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
+               <span>Switch Mode</span>
             </Button>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="flex-1" size="icon">
-                        <LogOut className="h-4 w-4" />
-                        <span className="sr-only">Logout</span>
+                    <Button variant="destructive" className="w-full justify-start">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Logout</span>
                     </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
