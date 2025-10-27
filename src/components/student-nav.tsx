@@ -26,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
-import { CheckSquare, ClipboardCheck, School, Home, LogOut, ShieldAlert } from "lucide-react";
+import { CheckSquare, ClipboardCheck, School, Home, LogOut, ShieldAlert, Sun, Moon } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 
 export function StudentNav() {
@@ -71,6 +71,14 @@ export function StudentNav() {
   return (
     <>
       <SidebarMenu className="flex-1">
+          <SidebarGroup>
+            <SidebarMenuItem>
+              <ThemeToggle />
+            </SidebarMenuItem>
+          </SidebarGroup>
+
+          <SidebarSeparator />
+
           <SidebarGroup>
               {menuItems.filter(item => item.group === 'main').map((item) => (
                   <SidebarMenuItem key={item.href}>
@@ -133,29 +141,26 @@ export function StudentNav() {
       </SidebarMenu>
       
       <SidebarFooter>
-        <div className="flex items-center justify-between p-2 rounded-md bg-muted/50 border gap-2">
-            <ThemeToggle />
-             <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                        <LogOut className="h-[1.2rem] w-[1.2rem]" />
-                        <span className="sr-only">Logout</span>
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Are you sure you want to log out? Any unsaved changes may be lost.
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+              <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+              </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
+              <AlertDialogDescription>
+                  Are you sure you want to log out? Any unsaved changes may be lost.
+              </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarFooter>
     </>
   );
