@@ -56,7 +56,7 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-      <SidebarTrigger asChild>
+      <SidebarTrigger>
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon">
               <Menu className="h-[1.2rem] w-[1.2rem]" />
