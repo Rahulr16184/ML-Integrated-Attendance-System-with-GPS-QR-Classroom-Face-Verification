@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, Home, LogIn, UserPlus } from "lucide-react";
 
 export function LandingHeader() {
@@ -29,6 +29,9 @@ export function LandingHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent>
+              <SheetHeader>
+                <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              </SheetHeader>
               <nav className="flex flex-col gap-4 text-lg font-medium mt-8">
                 <Link href="/" className="flex items-center gap-2 rounded-md p-2 hover:bg-muted">
                   <Home className="h-5 w-5" />
