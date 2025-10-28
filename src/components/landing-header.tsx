@@ -8,7 +8,7 @@ import { LogIn } from "lucide-react";
 
 export function LandingHeader() {
   return (
-    <header className="sticky top-0 z-50 h-16 w-full border-b bg-background/95 backdrop-blur-sm animate-shine">
+    <header className="sticky top-0 z-50 h-16 w-full border-b bg-background/95 backdrop-blur-sm">
       <div className="container flex h-full items-center">
         <Link href="/" className="mr-6 flex items-center font-serif text-2xl font-bold tracking-wider">
           <span>TRACE</span>
