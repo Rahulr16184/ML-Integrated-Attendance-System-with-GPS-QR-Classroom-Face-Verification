@@ -34,9 +34,8 @@ export default function LandingPage() {
       <LandingHeader />
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="py-12 md:py-24 lg:py-32 xl:py-48 bg-muted/20">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center space-y-4 text-center">
+        <section className="container py-12 md:py-24 lg:py-32 xl:py-48 bg-muted/20 text-center">
+            <div className="flex flex-col items-center space-y-4">
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
                   Intelligent Attendance, Simplified.
@@ -54,12 +53,10 @@ export default function LandingPage() {
                 </Button>
               </div>
             </div>
-          </div>
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-12 md:py-24 lg:py-32">
-          <div className="container px-4 md:px-6">
+        <section id="features" className="container py-12 md:py-24 lg:py-32">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
                 <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
@@ -82,12 +79,11 @@ export default function LandingPage() {
                 </Card>
               ))}
             </div>
-          </div>
         </section>
         
         {/* CTA Section */}
-        <section className="py-12 md:py-24 lg:py-32 bg-muted/20">
-          <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
+        <section className="bg-muted/20">
+          <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6 py-12 md:py-24 lg:py-32">
             <div className="space-y-3">
               <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">
                 Ready to Modernize Your Attendance System?
@@ -108,16 +104,18 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} TRACEIN. All rights reserved.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link href="#" className="text-xs hover:underline underline-offset-4">
-            Terms of Service
-          </Link>
-          <Link href="#" className="text-xs hover:underline underline-offset-4">
-            Privacy
-          </Link>
-        </nav>
+      <footer className="border-t">
+        <div className="container flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6">
+          <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} TRACEIN. All rights reserved.</p>
+          <nav className="sm:ml-auto flex gap-4 sm:gap-6">
+            <Link href="#" className="text-xs hover:underline underline-offset-4">
+              Terms of Service
+            </Link>
+            <Link href="#" className="text-xs hover:underline underline-offset-4">
+              Privacy
+            </Link>
+          </nav>
+        </div>
       </footer>
     </div>
   );
