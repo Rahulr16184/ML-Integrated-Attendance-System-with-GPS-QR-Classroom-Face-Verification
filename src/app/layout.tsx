@@ -31,9 +31,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SidebarProvider>
-            {children}
-          </SidebarProvider>
+          {children}
           <Toaster />
         </ThemeProvider>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
