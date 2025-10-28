@@ -20,7 +20,7 @@ export default function AppLayout({
   const isMobile = useIsMobile();
 
   return (
-    <SidebarProvider defaultOpen={!isMobile}>
+    <>
         <Sidebar>
             <SidebarContent>
                 <StudentNav />
@@ -30,6 +30,6 @@ export default function AppLayout({
             <Header userRole="student" />
             <main className="flex-1 overflow-y-auto">{children}</main>
         </SidebarInset>
-    </SidebarProvider>
+    </>
   );
 }
