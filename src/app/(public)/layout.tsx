@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import "../globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -12,7 +11,7 @@ export const metadata: Metadata = {
   description: "ML integrated attendance system",
 };
 
-export default function RootLayout({
+export default function PublicLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -31,9 +30,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SidebarProvider>
-            {children}
-          </SidebarProvider>
+          {children}
           <Toaster />
         </ThemeProvider>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
