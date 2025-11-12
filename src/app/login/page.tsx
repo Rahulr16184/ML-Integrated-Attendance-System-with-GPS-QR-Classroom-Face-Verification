@@ -15,13 +15,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mail, Lock, Eye, EyeOff, Home } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, Home, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from 'lucide-react'
 import { auth, db } from "@/lib/conf"
-import { signInWithEmailAndPassword } from "firebase/auth"
-import { doc, getDoc } from "firebase/firestore"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { doc, getDoc, setDoc } from "firebase/firestore"
 import { loadModels } from "@/lib/face-api"
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -45,6 +45,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter()
   const { toast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
@@ -93,13 +94,14 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setError("")
+    setIsLoggingIn(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       if (!user.emailVerified) {
         setError("Please verify your email before logging in. A new verification link has been sent.");
-        // Consider re-sending verification email here if needed
+        setIsLoggingIn(false);
         return;
       }
       
@@ -119,7 +121,7 @@ export default function LoginPage() {
         }
         toast({
           title: "Login Successful",
-          description: `Welcome, ${userRole}!`,
+          description: `Welcome, ${userData.name}!`,
         })
         redirectToDashboard(userRole);
       } else {
@@ -138,9 +140,57 @@ export default function LoginPage() {
           setError("An unexpected error occurred. Please try again.");
           break;
       }
+    } finally {
+        setIsLoggingIn(false);
     }
   }
   
+  const handleGoogleLogin = async () => {
+    setError("");
+    setIsLoggingIn(true);
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+            // User exists, log them in
+            const userData = userDoc.data();
+            const userRole = userData.role;
+            
+            if (rememberMe) {
+                localStorage.setItem("userRole", userRole);
+                localStorage.setItem("userEmail", user.email!);
+            } else {
+                sessionStorage.setItem("userRole", userRole);
+                sessionStorage.setItem("userEmail", user.email!);
+            }
+            
+            toast({
+                title: "Login Successful",
+                description: `Welcome back, ${userData.name}!`,
+            });
+            redirectToDashboard(userRole);
+        } else {
+            // This is a new user via Google, but they are on the login page.
+            // We can't know their role here. They must register first.
+            setError("No account found for this Google user. Please register first.");
+            // Optionally, sign them out again if you don't want them half-logged-in
+            await auth.signOut();
+        }
+    } catch (error: any) {
+        if (error.code !== 'auth/popup-closed-by-user') {
+            setError("Failed to log in with Google. Please try again.");
+            console.error("Google login error:", error);
+        }
+    } finally {
+        setIsLoggingIn(false);
+    }
+  };
+
   if (!isMounted) {
     return null;
   }
@@ -148,12 +198,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm relative">
-        <Link href="/" passHref>
-          <Button variant="ghost" size="icon" className="absolute top-4 right-4">
-            <Home className="h-5 w-5" />
-            <span className="sr-only">Home</span>
-          </Button>
-        </Link>
+        <LandingHeader />
         <CardHeader className="text-center pr-12">
           <CardTitle className="text-2xl sm:text-3xl font-bold">Welcome Back!</CardTitle>
           <CardDescription className="uppercase pt-2 font-semibold text-muted-foreground">
@@ -180,6 +225,7 @@ export default function LoginPage() {
                 className="pl-10" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoggingIn}
               />
             </div>
           </div>
@@ -194,11 +240,13 @@ export default function LoginPage() {
                 className="pl-10 pr-10" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoggingIn}
               />
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 flex items-center pr-3"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoggingIn}
               >
                 {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                 <span className="sr-only">
@@ -213,6 +261,7 @@ export default function LoginPage() {
                 id="remember-me" 
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                disabled={isLoggingIn}
               />
               <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
             </div>
@@ -220,8 +269,9 @@ export default function LoginPage() {
                 Forgot your password?
             </Link>
           </div>
-          <Button onClick={handleLogin} className="w-full">
-            Login
+          <Button onClick={handleLogin} className="w-full" disabled={isLoggingIn}>
+            {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoggingIn ? "Logging in..." : "Login"}
           </Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -233,8 +283,12 @@ export default function LoginPage() {
                 </span>
             </div>
           </div>
-          <Button variant="outline" className="w-full">
-            <GoogleIcon className="mr-2 h-4 w-4" />
+          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoggingIn}>
+             {isLoggingIn ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+             ) : (
+                <GoogleIcon className="mr-2 h-4 w-4" />
+             )}
             Login with Google
           </Button>
         </CardContent>

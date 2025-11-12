@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { User, Mail, Lock, Eye, EyeOff, KeyRound, CheckCircle, Home } from "lucide-react"
+import { User, Mail, Lock, Eye, EyeOff, KeyRound, CheckCircle, Home, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
@@ -22,6 +22,7 @@ import type { Institution, Department } from "@/lib/types"
 import { getInstitutions } from "@/services/institution-service"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { registerUser } from "@/services/user-service"
+import { LandingHeader } from "@/components/landing-header"
 
 const PasswordStrengthIndicator = ({ password }: { password?: string }) => {
   const getStrength = () => {
@@ -169,12 +170,7 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md relative">
-        <Link href="/" passHref>
-          <Button variant="ghost" size="icon" className="absolute top-4 right-4">
-            <Home className="h-5 w-5" />
-            <span className="sr-only">Home</span>
-          </Button>
-        </Link>
+        <LandingHeader />
         <CardHeader>
             <CardTitle className="text-2xl sm:text-3xl">Create Your Account</CardTitle>
             <CardDescription>
@@ -186,22 +182,22 @@ export default function RegisterPage() {
                 <Label htmlFor="name">Name</Label>
                 <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="name" placeholder="John Doe" required className="pl-10" value={name} onChange={e => setName(e.target.value)} />
+                    <Input id="name" placeholder="John Doe" required className="pl-10" value={name} onChange={e => setName(e.target.value)} disabled={isLoading} />
                 </div>
             </div>
             <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="m@example.com" required className="pl-10" value={email} onChange={e => setEmail(e.target.value)} />
+                    <Input id="email" type="email" placeholder="m@example.com" required className="pl-10" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} />
                 </div>
             </div>
             <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="password" type={showPassword ? "text" : "password"} required className="pl-10 pr-10" value={password} onChange={e => setPassword(e.target.value)} />
-                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setShowPassword(!showPassword)}>
+                    <Input id="password" type={showPassword ? "text" : "password"} required className="pl-10 pr-10" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} />
+                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setShowPassword(!showPassword)} disabled={isLoading}>
                        {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                     </button>
                 </div>
@@ -210,7 +206,7 @@ export default function RegisterPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="grid gap-2">
                     <Label htmlFor="institution">Institution</Label>
-                    <Select onValueChange={setSelectedInstitution} value={selectedInstitution || undefined}>
+                    <Select onValueChange={setSelectedInstitution} value={selectedInstitution || undefined} disabled={isLoading}>
                         <SelectTrigger id="institution">
                             <SelectValue placeholder="Select institution" />
                         </SelectTrigger>
@@ -223,7 +219,7 @@ export default function RegisterPage() {
                 </div>
                 <div className="grid gap-2">
                     <Label htmlFor="department">Department</Label>
-                    <Select onValueChange={setSelectedDepartment} value={selectedDepartment || undefined} disabled={!selectedInstitution}>
+                    <Select onValueChange={setSelectedDepartment} value={selectedDepartment || undefined} disabled={!selectedInstitution || isLoading}>
                         <SelectTrigger id="department">
                             <SelectValue placeholder="Select department" />
                         </SelectTrigger>
@@ -239,10 +235,11 @@ export default function RegisterPage() {
                 <Label htmlFor="secret-code">Secret Code</Label>
                 <div className="relative">
                     <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="secret-code" placeholder="Enter your role's secret code" required className="pl-10" value={secretCode} onChange={e => setSecretCode(e.target.value)} />
+                    <Input id="secret-code" placeholder="Enter your role's secret code" required className="pl-10" value={secretCode} onChange={e => setSecretCode(e.target.value)} disabled={isLoading} />
                 </div>
             </div>
             <Button onClick={handleRegister} disabled={isLoading} className="w-full">
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? 'Registering...' : 'Register'}
             </Button>
         </CardContent>
