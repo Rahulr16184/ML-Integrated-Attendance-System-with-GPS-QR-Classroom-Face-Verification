@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { User, Menu } from "lucide-react";
+import { User, Menu, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { SidebarTrigger, useSidebar } from "./ui/sidebar";
@@ -23,6 +23,16 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
       }
     }
   }, [initialUserRole]);
+
+  const getDashboardUrl = () => {
+    switch (userRole) {
+        case "admin": return "/admin-dashboard";
+        case "teacher": return "/teacher-dashboard";
+        case "student": return "/student-dashboard";
+        case "server": return "/server-dashboard";
+        default: return "/";
+    }
+  };
 
   const getProfileUrl = () => {
     switch (userRole) {
@@ -57,12 +67,20 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
       <div className="flex-1" />
       <div className="flex items-center gap-4">
          {userRole !== 'server' && (
-            <Button variant="outline" size="icon" asChild>
-                <Link href={getProfileUrl()}>
-                    <User className="h-[1.2rem] w-[1.2rem]" />
-                    <span className="sr-only">Profile</span>
-                </Link>
-            </Button>
+            <>
+                <Button variant="outline" size="icon" asChild>
+                    <Link href={getDashboardUrl()}>
+                        <Home className="h-[1.2rem] w-[1.2rem]" />
+                        <span className="sr-only">Dashboard</span>
+                    </Link>
+                </Button>
+                <Button variant="outline" size="icon" asChild>
+                    <Link href={getProfileUrl()}>
+                        <User className="h-[1.2rem] w-[1.2rem]" />
+                        <span className="sr-only">Profile</span>
+                    </Link>
+                </Button>
+            </>
          )}
       </div>
     </header>
