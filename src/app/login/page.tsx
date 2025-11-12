@@ -23,6 +23,7 @@ import { auth, db } from "@/lib/conf"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import { loadModels } from "@/lib/face-api"
+import { LandingHeader } from "@/components/landing-header"
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
