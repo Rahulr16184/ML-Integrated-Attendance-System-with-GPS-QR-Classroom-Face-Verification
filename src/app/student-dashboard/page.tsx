@@ -36,6 +36,7 @@ import {
   startOfToday,
   differenceInDays,
   endOfDay,
+  format,
 } from "date-fns";
 import {
   ChartConfig,
@@ -166,6 +167,7 @@ function AttendanceReportCard() {
     workingDaysPassed,
     holidaysCount,
     attendancePercentage,
+    remainingDays,
   } = useMemo(() => {
     if (!selectedSemester)
       return {
@@ -178,6 +180,7 @@ function AttendanceReportCard() {
         workingDaysPassed: 0,
         holidaysCount: 0,
         attendancePercentage: 0,
+        remainingDays: 0,
       };
 
     const present = attendanceRecords.filter(
@@ -230,6 +233,10 @@ function AttendanceReportCard() {
         ? ((present + approved) / passedWorkingDays) * 100
         : 0;
 
+    const remainingCalendarDays = isAfter(today, selectedSemester.dateRange.to)
+      ? 0
+      : differenceInDays(selectedSemester.dateRange.to, today);
+
     return {
       presentDays: present,
       absentDays: absent,
@@ -240,6 +247,7 @@ function AttendanceReportCard() {
       workingDaysPassed: daysPassed,
       holidaysCount: selectedSemester.holidays.length,
       attendancePercentage: percentage,
+      remainingDays: remainingCalendarDays,
     };
   }, [attendanceRecords, selectedSemester]);
 
@@ -396,6 +404,16 @@ function AttendanceReportCard() {
                 <p className="text-2xl font-bold">
                   {attendancePercentage.toFixed(1)}%
                 </p>
+              </div>
+              <div className="p-3 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
+                  <p className="text-2xl font-bold">{remainingDays}</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Semester Dates</p>
+                  <p className="text-sm font-bold mt-2">
+                      {format(selectedSemester.dateRange.from, 'MMM dd')} - {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
+                  </p>
               </div>
             </div>
             <div className="flex flex-col items-center">
