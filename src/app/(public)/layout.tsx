@@ -20,8 +20,7 @@ export default function PublicLayout({
     <>
       <ThemeProvider
         attribute="class"
-        defaultTheme="system"
-        enableSystem
+        defaultTheme="light"
         disableTransitionOnChange
       >
         {children}
