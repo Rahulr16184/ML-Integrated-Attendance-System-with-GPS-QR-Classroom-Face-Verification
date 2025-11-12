@@ -163,6 +163,7 @@ function AttendanceReportCard() {
     conflictDays,
     revokedDays,
     totalWorkingDays,
+    workingDaysPassed,
     holidaysCount,
     attendancePercentage,
   } = useMemo(() => {
@@ -174,6 +175,7 @@ function AttendanceReportCard() {
         conflictDays: 0,
         revokedDays: 0,
         totalWorkingDays: 0,
+        workingDaysPassed: 0,
         holidaysCount: 0,
         attendancePercentage: 0,
       };
@@ -198,13 +200,9 @@ function AttendanceReportCard() {
       attendanceRecords.map((p) => parseISO(p.date).toDateString())
     );
     let absent = 0;
+    let daysPassed = 0;
 
     const today = startOfToday();
-    const totalDaysInSemester =
-      differenceInDays(
-        endOfDay(selectedSemester.dateRange.to),
-        selectedSemester.dateRange.from
-      ) + 1;
     let workingDays = 0;
 
     for (
@@ -217,12 +215,15 @@ function AttendanceReportCard() {
 
       if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(dateString)) {
         workingDays++;
-        if (d <= today && !attendedDates.has(dateString)) {
-          absent++;
+        if (d <= today) {
+            daysPassed++;
+            if (!attendedDates.has(dateString)) {
+                absent++;
+            }
         }
       }
     }
-
+    
     const passedWorkingDays = present + approved + absent + conflict + revoked;
     const percentage =
       passedWorkingDays > 0
@@ -236,6 +237,7 @@ function AttendanceReportCard() {
       conflictDays: conflict,
       revokedDays: revoked,
       totalWorkingDays: selectedSemester.workingDays || workingDays,
+      workingDaysPassed: daysPassed,
       holidaysCount: selectedSemester.holidays.length,
       attendancePercentage: percentage,
     };
@@ -350,8 +352,12 @@ function AttendanceReportCard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
             <div className="grid grid-cols-2 gap-4 text-center">
               <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Working Days</p>
+                <p className="text-sm text-muted-foreground">Total Working Days</p>
                 <p className="text-xl font-bold">{totalWorkingDays}</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Working Days Passed</p>
+                <p className="text-xl font-bold">{workingDaysPassed}</p>
               </div>
               <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
                 <p className="text-sm text-green-600 dark:text-green-400">
@@ -383,7 +389,7 @@ function AttendanceReportCard() {
                 </p>
                 <p className="text-xl font-bold">{holidaysCount}</p>
               </div>
-              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg col-span-2">
+              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
                 <p className="text-sm text-indigo-600 dark:text-indigo-400">
                   Attendance %
                 </p>
