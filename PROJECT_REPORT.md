@@ -5,12 +5,38 @@
 
 **TRACEIN** is a modern, intelligent attendance management system designed for educational institutions. It moves beyond traditional methods by integrating a multi-modal verification system to ensure accuracy, security, and ease of use.
 
-The platform is built on a robust and modern technology stack, including:
-- **Frontend**: Next.js, React, TypeScript
-- **Backend & Database**: Firebase (Authentication, Firestore, Storage for images)
-- **UI/UX**: Tailwind CSS with ShadCN UI components
-- **Facial Recognition**: `face-api.js` for client-side ML model execution
-- **Generative AI**: Google's Genkit for server-side AI tasks
+### 1.1. Technology Stack
+
+The platform is built on a robust and modern technology stack:
+- **Frontend**: Next.js, React, TypeScript for a type-safe, performant, and scalable user interface.
+- **UI/UX**: Tailwind CSS with ShadCN UI components for a modern, responsive, and customizable design system.
+- **Backend & Database**: Firebase, including:
+    - **Authentication**: For secure user login (email/password and Google).
+    - **Firestore**: As the NoSQL database for storing all application data like user profiles, institution structures, and attendance records.
+    - **Cloudinary**: Used for optimized cloud-based image storage (profile pictures, verification photos).
+- **Facial Recognition (Client-Side)**: `face-api.js` for executing lightweight ML models directly in the browser, ensuring fast and private face descriptor generation and comparison.
+- **Generative AI (Server-Side)**: Google's Genkit for advanced server-side AI tasks, such as analyzing image quality for profile pictures.
+
+### 1.2. Folder Structure
+
+The project follows a standard Next.js App Router structure with some key organizational choices:
+
+```
+src/
+├── app/                  # Main application routes (App Router)
+│   ├── (public)/         # Routes accessible to unauthenticated users (e.g., landing page)
+│   ├── [role]-dashboard/ # Dashboard layouts and pages for each user role
+│   ├── [role]-profile/   # Profile management pages for each user
+│   └── api/              # API routes (if any)
+├── components/           # Reusable React components
+│   └── ui/               # Unmodified ShadCN UI components
+├── services/             # Backend logic (Firebase interactions, data services)
+├── hooks/                # Custom React hooks (e.g., useUserProfile)
+├── lib/                  # Core utilities, Firebase config, types, and ML model loaders
+└── ai/                   # Genkit flows and AI-related logic
+```
+
+---
 
 ## 2. Role-Based Access Control (RBAC)
 
@@ -197,5 +223,21 @@ export const verifyClassroomCode = async (institutionId: string, departmentId: s
     - A new dialog appears, asking for a reason (e.g., "Student was not present during a spot check at 11 AM").
     - After confirming, the record's status in Firestore is updated to **"Conflict"**, and the reason is stored in the `notes` field.
     - On the calendar, the date now appears yellow ("Conflict"), serving as a record of the discrepancy for future auditing.
+
+### 4.1. Calendar Overview & Statistics
+
+Both students and staff have access to a powerful attendance overview that provides at-a-glance statistics for a selected semester. This feature is crucial for tracking progress and identifying issues.
+
+The following metrics are calculated and displayed:
+- **Total Working Days**: The total number of working days in the selected semester, excluding weekends and predefined holidays.
+- **Working Days Passed**: The number of working days that have occurred from the start of the semester up to the current date.
+- **Present**: The total count of days the student was marked "Present."
+- **Absent**: The count of working days that have passed where the student has no attendance record.
+- **Approved**: The count of days the student was manually marked as "Approved Present" by a teacher or admin, typically for valid reasons like medical leave.
+- **Conflict**: The count of days where a student's "Present" record was later overridden and marked as absent by a staff member.
+- **Revoked**: The count of days where a previously "Approved" status was revoked by a staff member.
+- **Holidays**: The total number of holidays defined for the semester.
+- **Remaining Days**: The number of calendar days left until the end of the semester.
+- **Attendance %**: The percentage of attendance, calculated as `(Present + Approved) / (Working Days Passed)`.
 
 This combination of automated verification and manual oversight creates a flexible yet powerful attendance system.
