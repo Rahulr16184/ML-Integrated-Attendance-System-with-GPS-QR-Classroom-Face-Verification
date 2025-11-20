@@ -8,7 +8,7 @@ import { getInstitutions } from "@/services/institution-service";
 import { getDepartmentAttendanceByDate } from "@/services/attendance-service";
 import { getStudentsByDepartment } from "@/services/user-service";
 import type { Department, AttendanceLog, Student } from "@/lib/types";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { ClipboardList, User, Calendar, Filter, Frown, Loader2 } from "lucide-react";
+import { ClipboardList, Frown, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 type ReportRecord = AttendanceLog & { studentName: string; profileImage?: string };
 
@@ -32,7 +34,7 @@ export default function ViewTodayClassReportPage() {
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [loadingDepartments, setLoadingDepartments] = useState(true);
 
-  const [dateFilter, setDateFilter] = useState("today");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -74,14 +76,8 @@ export default function ViewTodayClassReportPage() {
       const students = await getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId);
       setAllStudents(students);
 
-      // Determine date
-      let targetDate = new Date();
-      if (dateFilter === "yesterday") {
-        targetDate = subDays(targetDate, 1);
-      }
-
       // Fetch attendance records for that date
-      const records = await getDepartmentAttendanceByDate(selectedDepartmentId, targetDate);
+      const records = await getDepartmentAttendanceByDate(selectedDepartmentId, selectedDate);
       setAttendanceRecords(records);
 
     } catch (error) {
@@ -89,7 +85,7 @@ export default function ViewTodayClassReportPage() {
     } finally {
       setIsLoadingReport(false);
     }
-  }, [selectedDepartmentId, dateFilter, userProfile, toast]);
+  }, [selectedDepartmentId, selectedDate, userProfile, toast]);
   
   useEffect(() => {
     fetchReportData();
@@ -110,7 +106,7 @@ export default function ViewTodayClassReportPage() {
           studentName: student.name,
           profileImage: student.profileImage,
           departmentId: selectedDepartmentId,
-          date: dateFilter === "today" ? new Date().toISOString() : subDays(new Date(), 1).toISOString(),
+          date: selectedDate.toISOString(),
           status: "Absent",
         } as ReportRecord;
       }
@@ -121,7 +117,7 @@ export default function ViewTodayClassReportPage() {
     if (statusFilter === 'absent') return allReportRecords.filter(r => r.status === 'Absent');
 
     return [];
-  }, [attendanceRecords, allStudents, statusFilter, selectedDepartmentId, dateFilter]);
+  }, [attendanceRecords, allStudents, statusFilter, selectedDepartmentId, selectedDate]);
   
   const getStatusBadgeVariant = (status: AttendanceLog['status']) => {
     switch(status) {
@@ -157,13 +153,30 @@ export default function ViewTodayClassReportPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="date-filter">Date</Label>
-              <Select value={dateFilter} onValueChange={setDateFilter} disabled={isLoadingReport}>
-                <SelectTrigger id="date-filter"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="yesterday">Yesterday</SelectItem>
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                    disabled={isLoadingReport}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => setSelectedDate(date || new Date())}
+                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label htmlFor="status-filter">Status</Label>
