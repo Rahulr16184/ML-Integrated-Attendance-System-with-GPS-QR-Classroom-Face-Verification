@@ -2,8 +2,20 @@
 "use client";
 
 import Link from "next/link";
-import { User, Menu, Home } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { User, Menu, Home, LogOut, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { useState, useEffect } from "react";
 import { SidebarTrigger, useSidebar } from "./ui/sidebar";
 
@@ -13,6 +25,7 @@ type HeaderProps = {
 
 export function Header({ userRole: initialUserRole }: HeaderProps) {
   const [userRole, setUserRole] = useState(initialUserRole);
+  const router = useRouter();
   const sidebar = useSidebar(); // This will be null if not in a provider
 
   useEffect(() => {
@@ -42,6 +55,15 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
       default: return "/";
     }
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    sessionStorage.removeItem("userRole");
+    sessionStorage.removeItem("userEmail");
+    router.push("/");
+  };
+
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
@@ -81,6 +103,36 @@ export function Header({ userRole: initialUserRole }: HeaderProps) {
                     </Link>
                 </Button>
             </>
+         )}
+         {userRole === 'server' && (
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" asChild>
+                    <Link href={getDashboardUrl()}>
+                        <Home className="h-[1.2rem] w-[1.2rem]" />
+                        <span className="sr-only">Dashboard</span>
+                    </Link>
+                </Button>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon">
+                            <LogOut className="h-[1.2rem] w-[1.2rem]" />
+                            <span className="sr-only">Logout</span>
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert />Confirm Logout</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Are you sure you want to log out?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
          )}
       </div>
     </header>
