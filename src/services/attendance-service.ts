@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { db } from '@/lib/conf';
@@ -129,11 +130,12 @@ export const getStudentAttendanceForToday = async (
 
 /**
  * Fetches all attendance records for a given department on a specific date.
- * This is an efficient query on a single top-level collection.
- * @param institutionId - The ID of the institution.
- * @param departmentId - The ID of the department.
+ * This function is refactored to avoid Firestore indexing errors by fetching
+ * all records for a day and then filtering by department on the server.
+ * @param institutionId - The ID of the institution (currently unused but kept for API consistency).
+ * @param departmentId - The ID of the department to filter by.
  * @param date - The date to fetch records for.
- * @returns An array of attendance logs.
+ * @returns An array of attendance logs for the specified department and date.
  */
 export const getDepartmentAttendanceByDate = async (institutionId: string, departmentId: string, date: Date): Promise<AttendanceLog[]> => {
     try {
@@ -141,9 +143,10 @@ export const getDepartmentAttendanceByDate = async (institutionId: string, depar
         const dateEnd = endOfDay(date).toISOString();
 
         const attendanceCol = collection(db, 'attendance');
+        
+        // Query only by date to avoid needing a composite index.
         const attendanceQuery = query(
             attendanceCol,
-            where('departmentId', '==', departmentId),
             where('date', '>=', dateStart),
             where('date', '<=', dateEnd)
         );
@@ -154,10 +157,16 @@ export const getDepartmentAttendanceByDate = async (institutionId: string, depar
             return [];
         }
 
-        return attendanceSnapshot.docs.map(recordDoc => ({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog));
+        // Map and then filter the results in code.
+        const allRecordsForDay = attendanceSnapshot.docs.map(recordDoc => ({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog));
+        
+        const departmentRecords = allRecordsForDay.filter(record => record.departmentId === departmentId);
+
+        return departmentRecords;
 
     } catch (error) {
         console.error("Error fetching department attendance by date:", error);
         throw new Error("Could not fetch department attendance records.");
     }
 };
+
