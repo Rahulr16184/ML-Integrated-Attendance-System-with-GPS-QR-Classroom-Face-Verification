@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building, Users, Palette, School, Users2 } from "lucide-react";
@@ -11,6 +12,7 @@ export default async function ServerDashboardPage() {
   const institutions = await getInstitutions();
 
   const totalUsers = users.length;
+  const totalInstitutions = institutions.length;
 
   const institutionStats = institutions.map(inst => {
     const usersInInstitution = users.filter(u => u.institutionId === inst.id);
@@ -87,11 +89,20 @@ export default async function ServerDashboardPage() {
                 <CardDescription>An overview of all users and institutions in the system.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
-                    <Users2 className="h-8 w-8 text-primary" />
-                    <div>
-                        <p className="text-sm text-muted-foreground">Total Users in System</p>
-                        <p className="text-2xl font-bold">{totalUsers}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
+                        <Users2 className="h-8 w-8 text-primary" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Total Users in System</p>
+                            <p className="text-2xl font-bold">{totalUsers}</p>
+                        </div>
+                    </div>
+                     <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
+                        <Building className="h-8 w-8 text-primary" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Total Institutions</p>
+                            <p className="text-2xl font-bold">{totalInstitutions}</p>
+                        </div>
                     </div>
                 </div>
 
