@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { ClipboardList, Frown, Loader2, Calendar as CalendarIcon, Briefcase, Coffee } from "lucide-react";
+import { ClipboardList, Frown, Loader2, Calendar as CalendarIcon, Coffee } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -90,7 +90,7 @@ export default function ViewTodayClassReportPage() {
     try {
       const [fetchedStudents, fetchedRecords, fetchedSemesters] = await Promise.all([
         getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId),
-        getDepartmentAttendanceByDate(selectedDepartmentId, selectedDate),
+        getDepartmentAttendanceByDate(userProfile.institutionId, selectedDepartmentId, selectedDate),
         getSemesters(userProfile.institutionId, selectedDepartmentId)
       ]);
       
@@ -99,6 +99,7 @@ export default function ViewTodayClassReportPage() {
       setSemesters(fetchedSemesters.map(parseSemesterDates));
 
     } catch (error) {
+      console.error("Failed to fetch class report data:", error);
       toast({ title: "Error", description: "Failed to fetch class report.", variant: "destructive" });
       setAllStudents([]);
       setAttendanceRecords([]);
@@ -187,7 +188,7 @@ export default function ViewTodayClassReportPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              <div className="space-y-2">
                 <Label>Department</Label>
-                {loadingDepartments ? <Skeleton className="h-10 w-full" /> : (
+                {userLoading || loadingDepartments ? <Skeleton className="h-10 w-full" /> : (
                     <Select onValueChange={setSelectedDepartmentId} value={selectedDepartmentId} disabled={departments.length === 0}>
                         <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
                         <SelectContent>

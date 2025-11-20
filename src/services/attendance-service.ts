@@ -129,14 +129,19 @@ export const getStudentAttendanceForToday = async (
 
 /**
  * Fetches all attendance records for a given department on a specific date.
+ * @param institutionId - The ID of the institution.
  * @param departmentId - The ID of the department.
  * @param date - The date to fetch records for.
  * @returns An array of attendance logs.
  */
-export const getDepartmentAttendanceByDate = async (departmentId: string, date: Date): Promise<AttendanceLog[]> => {
+export const getDepartmentAttendanceByDate = async (institutionId: string, departmentId: string, date: Date): Promise<AttendanceLog[]> => {
     try {
         const usersCol = collection(db, 'users');
-        const usersQuery = query(usersCol, where('departmentIds', 'array-contains', departmentId));
+        const usersQuery = query(usersCol, 
+            where('institutionId', '==', institutionId),
+            where('departmentIds', 'array-contains', departmentId),
+            where('role', '==', 'student')
+        );
         const usersSnapshot = await getDocs(usersQuery);
 
         if (usersSnapshot.empty) {
