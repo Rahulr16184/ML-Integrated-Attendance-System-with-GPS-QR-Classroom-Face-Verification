@@ -5,7 +5,7 @@
 import { db } from '@/lib/conf';
 import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import type { AttendanceLog } from '@/lib/types';
-import { startOfDay, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
 
 /**
  * Adds a new attendance record to the top-level attendance collection.
@@ -49,6 +49,8 @@ export const updateAttendanceRecord = async (
 
 /**
  * Fetches all attendance records for a specific student within a given semester date range.
+ * This function now fetches all records for a student and filters by date in-memory
+ * to avoid complex Firestore queries that require a composite index.
  * @param studentId - The UID of the student.
  * @param from - The start date of the range.
  * @param to - The end date of the range.
@@ -62,11 +64,10 @@ export const getStudentAttendance = async (
     try {
         const attendanceCol = collection(db, 'attendance');
         
+        // Query only by studentId to keep the query simple and avoid index errors.
         const q = query(
             attendanceCol,
-            where('studentId', '==', studentId),
-            where('date', '>=', from.toISOString()),
-            where('date', '<=', endOfDay(to).toISOString())
+            where('studentId', '==', studentId)
         );
 
         const querySnapshot = await getDocs(q);
@@ -75,15 +76,21 @@ export const getStudentAttendance = async (
             return [];
         }
 
-        const records = querySnapshot.docs.map(doc => ({
+        const allRecords = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         } as AttendanceLog));
-        
-        // Sort in-memory to avoid needing a composite index
-        records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        return records;
+        // Filter the records by date in the application code.
+        const filteredRecords = allRecords.filter(record => {
+            const recordDate = parseISO(record.date);
+            return isWithinInterval(recordDate, { start: startOfDay(from), end: endOfDay(to) });
+        });
+        
+        // Sort in-memory.
+        filteredRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return filteredRecords;
 
     } catch (error) {
         console.error("Error fetching student attendance: ", error);
