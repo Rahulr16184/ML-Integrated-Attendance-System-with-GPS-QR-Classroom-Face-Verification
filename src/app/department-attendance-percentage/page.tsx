@@ -383,7 +383,7 @@ setLoadingAttendance(false);
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-center font-mono text-base sm:text-lg px-2 sm:px-4">
-                                    {student.present + student.approved} / {student.absent}
+                                    {student.present + student.approved} / {student.absent + student.conflict}
                                 </TableCell>
                                 <TableCell
                                 className={cn(
