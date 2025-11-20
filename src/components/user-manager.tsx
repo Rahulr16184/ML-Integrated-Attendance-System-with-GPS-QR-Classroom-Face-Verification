@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ArrowUpDown, ShieldAlert, UserCog } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface UserManagerProps {
   initialUsers: UserProfile[];
@@ -117,6 +118,16 @@ export function UserManager({ initialUsers, initialInstitutions }: UserManagerPr
     }
   };
 
+  const getRoleBorderColor = (role: string) => {
+    switch (role) {
+      case 'student': return 'border-blue-500';
+      case 'admin': return 'border-green-500';
+      case 'teacher': return 'border-red-500';
+      case 'server': return 'border-purple-500';
+      default: return 'border-transparent';
+    }
+  };
+
 
   return (
     <>
@@ -171,7 +182,7 @@ export function UserManager({ initialUsers, initialInstitutions }: UserManagerPr
             {filteredUsers.map((user) => (
               <TableRow key={user.uid}>
                 <TableCell>
-                  <Avatar>
+                  <Avatar className={cn("border-2", getRoleBorderColor(user.role))}>
                     <AvatarImage src={user.profileImage} alt={user.name} data-ai-hint="profile picture" />
                     <AvatarFallback>{user.name?.[0]}</AvatarFallback>
                   </Avatar>
