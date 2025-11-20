@@ -350,7 +350,7 @@ setLoadingAttendance(false);
                         <TableHeader>
                             <TableRow>
                             <TableHead className="px-2 sm:px-4">Student</TableHead>
-                            <TableHead className="text-center px-2 sm:px-4 whitespace-nowrap">Present / Absent</TableHead>
+                            <TableHead className="text-center px-2 sm:px-4">Attendance</TableHead>
                             <TableHead className="text-center px-2 sm:px-4">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -367,7 +367,7 @@ setLoadingAttendance(false);
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-center font-mono text-base sm:text-lg px-2 sm:px-4">
-                                    {student.present + student.approved} / {student.workingDaysPassed - (student.present + student.approved)}
+                                    {student.present + student.approved}
                                 </TableCell>
                                 <TableCell
                                 className={cn(
@@ -403,5 +403,4 @@ setLoadingAttendance(false);
   );
 }
 
-
-
+    
