@@ -58,7 +58,6 @@ type StudentAttendanceSummary = {
   approved: number;
   conflict: number;
   revoked: number;
-  totalWorkingDays: number;
   workingDaysPassed: number;
   percentage: number;
 };
@@ -198,7 +197,7 @@ setLoadingAttendance(false);
     const holidays = new Set(
       selectedSemester.holidays.map((h) => h.toDateString())
     );
-    let totalWorkingDays = 0;
+    
     let workingDaysPassed = 0;
 
     for (
@@ -208,7 +207,6 @@ setLoadingAttendance(false);
     ) {
       const dayOfWeek = d.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(d.toDateString())) {
-        totalWorkingDays++;
         if (d <= today) {
           workingDaysPassed++;
         }
@@ -251,7 +249,6 @@ setLoadingAttendance(false);
         approved,
         conflict,
         revoked,
-        totalWorkingDays,
         workingDaysPassed,
         percentage,
       };
@@ -367,11 +364,11 @@ setLoadingAttendance(false);
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead className="whitespace-nowrap">Photo</TableHead>
-                            <TableHead className="whitespace-nowrap">Name</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">Present</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">Absent</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">Percentage</TableHead>
+                            <TableHead>Photo</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead className="text-center">Present</TableHead>
+                            <TableHead className="text-center">Absent</TableHead>
+                            <TableHead className="text-center">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
