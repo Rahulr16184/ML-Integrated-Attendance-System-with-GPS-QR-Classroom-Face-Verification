@@ -4,7 +4,6 @@ require('dotenv').config({ path: './.env.local' });
 
 const nextConfig: NextConfig = {
   /* config options here */
-  appDir: 'src',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -27,7 +26,8 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https'
+        ,
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
