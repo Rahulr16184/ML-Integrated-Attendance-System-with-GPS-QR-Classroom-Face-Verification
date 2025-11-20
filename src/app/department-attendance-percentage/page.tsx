@@ -347,7 +347,7 @@ setLoadingAttendance(false);
                     </div>
                 </CardContent>
                 {selectedSemester && (
-                    <CardFooter className="justify-center">
+                    <CardFooter className="justify-center pt-4 border-t">
                         <p className="text-sm text-muted-foreground">
                             Working days from {format(selectedSemester.dateRange.from, 'MMM dd, yyyy')} to {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
                         </p>
