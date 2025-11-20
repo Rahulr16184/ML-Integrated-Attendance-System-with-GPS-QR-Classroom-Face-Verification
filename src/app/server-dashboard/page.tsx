@@ -1,12 +1,10 @@
-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building, Users, Palette, BarChart, School, Users2 } from "lucide-react";
+import { Building, Users, Palette, School, Users2 } from "lucide-react";
 import Link from "next/link";
 import { getAllUsers } from "@/services/user-service";
 import { getInstitutions } from "@/services/institution-service";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import { InstitutionStatsChart } from "@/components/institution-stats-chart";
 
 export default async function ServerDashboardPage() {
   const users = await getAllUsers();
@@ -117,25 +115,7 @@ export default async function ServerDashboardPage() {
                                     </div>
                                </div>
                             </div>
-                            <ChartContainer config={chartConfig} className="w-full h-[200px]">
-                                <RechartsBarChart data={stat.chartData} layout="vertical" margin={{ left: 10 }}>
-                                    <CartesianGrid horizontal={false} />
-                                    <YAxis 
-                                        dataKey="role" 
-                                        type="category" 
-                                        tickLine={false} 
-                                        axisLine={false} 
-                                        tickMargin={10}
-                                        width={80}
-                                    />
-                                    <XAxis type="number" hide />
-                                    <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent hideLabel />}
-                                    />
-                                    <Bar dataKey="count" radius={5} />
-                                </RechartsBarChart>
-                            </ChartContainer>
+                            <InstitutionStatsChart chartConfig={chartConfig} chartData={stat.chartData} />
                         </div>
                     ))}
                 </div>
