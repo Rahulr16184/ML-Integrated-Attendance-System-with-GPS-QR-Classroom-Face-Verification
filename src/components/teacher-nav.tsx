@@ -27,7 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
-import { Home, LogOut, ShieldAlert, Sun, Moon, DatabaseZap, CalendarDays, MapPin, ClipboardCheck, Camera, QrCode, ToggleRight, Hash, Settings, School, BarChart } from "lucide-react";
+import { Home, LogOut, ShieldAlert, Sun, Moon, DatabaseZap, CalendarDays, MapPin, ClipboardCheck, Camera, QrCode, ToggleRight, Hash, Settings, School, BarChart, ClipboardList } from "lucide-react";
 
 export function TeacherNav() {
   const pathname = usePathname();
@@ -47,6 +47,7 @@ export function TeacherNav() {
     { href: "/working-days", label: "Working Days", icon: CalendarDays, group: "attendance" },
     { href: "/gps", label: "GPS Set-up", icon: MapPin, group: "attendance" },
     { href: "/ma-records", label: "MA Records", icon: ClipboardCheck, group: "attendance" },
+    { href: "/view-today-class-report", label: "Today's Report", icon: ClipboardList, group: "attendance" },
     { href: "/department-attendance-percentage", label: "Dept. Attendance %", icon: BarChart, group: "attendance" },
     { href: "/classroom-photo-config", label: "Classroom Photo Conf", icon: Camera, group: "attendance" },
     { href: "/qr-generator", label: "QR Generator", icon: QrCode, group: "attendance" },

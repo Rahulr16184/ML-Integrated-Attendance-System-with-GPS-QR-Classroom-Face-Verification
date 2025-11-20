@@ -126,3 +126,67 @@ export const getStudentAttendanceForToday = async (
         throw new Error("Could not fetch today's attendance status.");
     }
 };
+
+/**
+ * Fetches all attendance records for a given department on a specific date.
+ * @param departmentId - The ID of the department.
+ * @param date - The date to fetch records for.
+ * @returns An array of attendance logs.
+ */
+export const getDepartmentAttendanceByDate = async (departmentId: string, date: Date): Promise<AttendanceLog[]> => {
+    try {
+        const usersCol = collection(db, 'users');
+        // Find users in the department. This is inefficient but necessary for Firestore's data model.
+        // A better approach would be a root-level `attendance` collection with `departmentId`.
+        const usersQuery = query(usersCol, where('departmentIds', 'array-contains', departmentId));
+        const usersSnapshot = await getDocs(usersQuery);
+
+        if (usersSnapshot.empty) {
+            return [];
+        }
+
+        const dateStart = startOfDay(date).toISOString();
+        const dateEnd = endOfDay(date).toISOString();
+
+        let allRecords: AttendanceLog[] = [];
+
+        // For each user, query their attendance subcollection for the given date.
+        for (const userDoc of usersSnapshot.docs) {
+            const attendanceCol = collection(userDoc.ref, 'attendance');
+            const attendanceQuery = query(
+                attendanceCol,
+                where('date', '>=', dateStart),
+                where('date', '<=', dateEnd),
+                where('departmentId', '==', departmentId)
+            );
+            
+            const attendanceSnapshot = await getDocs(attendanceQuery);
+            attendanceSnapshot.forEach(recordDoc => {
+                allRecords.push({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog);
+            });
+        }
+        
+        // Also fetch any 'Approved Present' records manually added for absent students
+        const absentStudents = usersSnapshot.docs.filter(userDoc => !allRecords.some(rec => rec.studentId === userDoc.id));
+        for (const userDoc of absentStudents) {
+             const attendanceCol = collection(userDoc.ref, 'attendance');
+             const approvedQuery = query(
+                attendanceCol,
+                where('date', '>=', dateStart),
+                where('date', '<=', dateEnd),
+                where('departmentId', '==', departmentId),
+                where('status', '==', 'Approved Present')
+            );
+            const approvedSnapshot = await getDocs(approvedQuery);
+            approvedSnapshot.forEach(recordDoc => {
+                allRecords.push({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog);
+            });
+        }
+
+
+        return allRecords;
+    } catch (error) {
+        console.error("Error fetching department attendance by date:", error);
+        throw new Error("Could not fetch department attendance records.");
+    }
+};
