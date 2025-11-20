@@ -1,11 +1,11 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Institution, Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ interface InstitutionManagerProps {
 export function InstitutionManager({ initialInstitutions }: InstitutionManagerProps) {
   const [institutions, setInstitutions] = useState<Institution[]>(initialInstitutions);
   const [newInstitutionName, setNewInstitutionName] = useState('');
-  const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<string | null>(initialInstitutions.length > 0 ? initialInstitutions[0].id : null);
   const [newDepartmentName, setNewDepartmentName] = useState('');
   
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
@@ -34,14 +34,11 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
 
   const { toast } = useToast();
   
+  const selectedInstitution = institutions.find(inst => inst.id === selectedInstitutionId) || null;
+
   const refreshData = async () => {
     const updatedInstitutions = await getInstitutions();
     setInstitutions(updatedInstitutions);
-
-    if (selectedInstitution) {
-        const updatedSelection = updatedInstitutions.find(inst => inst.id === selectedInstitution.id);
-        setSelectedInstitution(updatedSelection || null);
-    }
   };
 
   const handleCreateInstitution = async () => {
@@ -58,9 +55,9 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   };
 
   const handleCreateDepartment = async () => {
-    if (newDepartmentName.trim() && selectedInstitution) {
+    if (newDepartmentName.trim() && selectedInstitutionId) {
       try {
-        await createDepartment(selectedInstitution.id, newDepartmentName.trim());
+        await createDepartment(selectedInstitutionId, newDepartmentName.trim());
         await refreshData();
         setNewDepartmentName('');
         toast({ title: 'Success', description: 'Department created successfully.' });
@@ -81,9 +78,9 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   };
 
   const handleUpdateSecretCodes = async () => {
-    if (editingDepartment && selectedInstitution) {
+    if (editingDepartment && selectedInstitutionId) {
         try {
-            await updateDepartmentSecretCodes(selectedInstitution.id, editingDepartment.id, secretCodes);
+            await updateDepartmentSecretCodes(selectedInstitutionId, editingDepartment.id, secretCodes);
             await refreshData();
             setEditingDepartment(null);
             toast({ title: 'Success', description: 'Secret codes updated.' });
@@ -122,8 +119,8 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     try {
         if (type === 'institution') {
             await updateInstitutionName(id, editingName.trim());
-        } else if (selectedInstitution) {
-            await updateDepartmentName(selectedInstitution.id, id, editingName.trim());
+        } else if (selectedInstitutionId) {
+            await updateDepartmentName(selectedInstitutionId, id, editingName.trim());
         }
         cancelEditing();
         await refreshData();
@@ -143,8 +140,8 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     try {
         if (deleteTarget.type === 'institution') {
             await deleteInstitution(deleteTarget.id);
-        } else if (deleteTarget.type === 'department' && selectedInstitution) {
-            await deleteDepartment(selectedInstitution.id, deleteTarget.id);
+        } else if (deleteTarget.type === 'department' && selectedInstitutionId) {
+            await deleteDepartment(selectedInstitutionId, deleteTarget.id);
         }
         await refreshData();
         toast({ title: 'Success', description: `${deleteTarget.name} deleted.` });
@@ -183,7 +180,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
           </CardHeader>
           <CardContent>
             {institutions.length > 0 ? (
-              <Accordion type="single" collapsible className="w-full" value={selectedInstitution?.id} onValueChange={(value) => setSelectedInstitution(institutions.find(inst => inst.id === value) || null)}>
+              <Accordion type="single" collapsible className="w-full" value={selectedInstitutionId || ""} onValueChange={setSelectedInstitutionId}>
                 {institutions.map((inst) => (
                   <AccordionItem key={inst.id} value={inst.id}>
                     <div className="flex items-center w-full">
@@ -222,7 +219,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
                             value={newDepartmentName}
                             onChange={(e) => setNewDepartmentName(e.target.value)}
                           />
-                          <Button onClick={handleCreateDepartment} variant="secondary" disabled={!selectedInstitution} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
+                          <Button onClick={handleCreateDepartment} variant="secondary" disabled={!selectedInstitutionId} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
                         </div>
                       </div>
                       <div>
