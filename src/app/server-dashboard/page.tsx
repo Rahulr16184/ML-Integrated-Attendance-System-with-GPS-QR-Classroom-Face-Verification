@@ -61,23 +61,23 @@ export default async function ServerDashboardPage() {
           <CardHeader>
             <CardTitle>Management</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Button asChild size="lg" className="h-16 text-base sm:h-20 sm:text-lg">
+          <CardContent className="grid grid-cols-3 gap-4">
+            <Button asChild variant="outline" className="h-auto aspect-square flex-col gap-2 p-4 text-center">
               <Link href="/server-manage-institution">
-                <Building className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
-                Manage Institutions
+                <Building className="h-6 w-6 sm:h-8 sm:w-8" />
+                <span className="text-xs sm:text-sm">Manage Institutions</span>
               </Link>
             </Button>
-            <Button asChild size="lg" className="h-16 text-base sm:h-20 sm:text-lg">
+            <Button asChild variant="outline" className="h-auto aspect-square flex-col gap-2 p-4 text-center">
               <Link href="/server-manage-user">
-                <Users className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
-                Manage Users
+                <Users className="h-6 w-6 sm:h-8 sm:w-8" />
+                <span className="text-xs sm:text-sm">Manage Users</span>
               </Link>
             </Button>
-             <Button asChild size="lg" className="h-16 text-base sm:h-20 sm:text-lg">
+             <Button asChild variant="outline" className="h-auto aspect-square flex-col gap-2 p-4 text-center">
               <Link href="/server-manage-theme">
-                <Palette className="mr-2 sm:mr-4 h-5 w-5 sm:h-6 sm:w-6" />
-                Manage Theme
+                <Palette className="h-6 w-6 sm:h-8 sm:w-8" />
+                <span className="text-xs sm:text-sm">Manage Theme</span>
               </Link>
             </Button>
           </CardContent>
