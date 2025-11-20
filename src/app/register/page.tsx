@@ -100,12 +100,20 @@ export default function RegisterPage() {
         const institution = institutions.find(inst => inst.id === selectedInstitution);
         const department = institution?.departments.find(dept => dept.id === selectedDepartment);
         
-        let role = "";
-        if (department) {
-            if (department.secretCodes.student === secretCode) role = "student";
-            else if (department.secretCodes.teacher === secretCode) role = "teacher";
-            else if (department.secretCodes.admin === secretCode) role = "admin";
+        if (!department) {
+            toast({
+                title: "Invalid Selection",
+                description: "The selected department could not be found.",
+                variant: "destructive"
+            });
+            setIsLoading(false);
+            return;
         }
+
+        let role = "";
+        if (department.secretCodes.student === secretCode) role = "student";
+        else if (department.secretCodes.teacher === secretCode) role = "teacher";
+        else if (department.secretCodes.admin === secretCode) role = "admin";
         
         if (!role) {
              toast({

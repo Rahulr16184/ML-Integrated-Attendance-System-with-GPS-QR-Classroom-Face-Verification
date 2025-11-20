@@ -34,30 +34,21 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
 
   const { toast } = useToast();
   
-  useEffect(() => {
-    setInstitutions(initialInstitutions);
-    if (selectedInstitution) {
-        const currentSelected = initialInstitutions.find(inst => inst.id === selectedInstitution.id);
-        setSelectedInstitution(currentSelected || null);
-    } else {
-        setSelectedInstitution(null);
-    }
-  }, [initialInstitutions, selectedInstitution?.id]);
+  const refreshData = async () => {
+    const updatedInstitutions = await getInstitutions();
+    setInstitutions(updatedInstitutions);
 
-  const refreshState = (newInstitutions: Institution[]) => {
-      setInstitutions(newInstitutions);
-      if (selectedInstitution) {
-          const updatedSelection = newInstitutions.find(inst => inst.id === selectedInstitution.id);
-          setSelectedInstitution(updatedSelection || null);
-      }
-  }
+    if (selectedInstitution) {
+        const updatedSelection = updatedInstitutions.find(inst => inst.id === selectedInstitution.id);
+        setSelectedInstitution(updatedSelection || null);
+    }
+  };
 
   const handleCreateInstitution = async () => {
     if (newInstitutionName.trim()) {
       try {
         await createInstitution(newInstitutionName.trim());
-        const updatedInstitutions = await getInstitutions();
-        refreshState(updatedInstitutions);
+        await refreshData();
         setNewInstitutionName('');
         toast({ title: 'Success', description: 'Institution created successfully.' });
       } catch (error) {
@@ -70,8 +61,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     if (newDepartmentName.trim() && selectedInstitution) {
       try {
         await createDepartment(selectedInstitution.id, newDepartmentName.trim());
-        const updatedInstitutions = await getInstitutions();
-        refreshState(updatedInstitutions);
+        await refreshData();
         setNewDepartmentName('');
         toast({ title: 'Success', description: 'Department created successfully.' });
       } catch (error) {
@@ -82,7 +72,6 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
   
   const handleOpenEditModal = (department: Department) => {
     setEditingDepartment(department);
-    // Ensure all keys are present to avoid uncontrolled to controlled input warning
     setSecretCodes({
       student: department.secretCodes?.student || '',
       teacher: department.secretCodes?.teacher || '',
@@ -95,8 +84,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
     if (editingDepartment && selectedInstitution) {
         try {
             await updateDepartmentSecretCodes(selectedInstitution.id, editingDepartment.id, secretCodes);
-            const updatedInstitutions = await getInstitutions();
-            refreshState(updatedInstitutions);
+            await refreshData();
             setEditingDepartment(null);
             toast({ title: 'Success', description: 'Secret codes updated.' });
         } catch (error) {
@@ -138,8 +126,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
             await updateDepartmentName(selectedInstitution.id, id, editingName.trim());
         }
         cancelEditing();
-        const updatedInstitutions = await getInstitutions();
-        refreshState(updatedInstitutions);
+        await refreshData();
         toast({ title: 'Success', description: `${type === 'institution' ? 'Institution' : 'Department'} name updated.` });
     } catch (error) {
         toast({ title: 'Error', description: `Failed to update ${type} name.`, variant: 'destructive' });
@@ -159,8 +146,7 @@ export function InstitutionManager({ initialInstitutions }: InstitutionManagerPr
         } else if (deleteTarget.type === 'department' && selectedInstitution) {
             await deleteDepartment(selectedInstitution.id, deleteTarget.id);
         }
-        const updatedInstitutions = await getInstitutions();
-        refreshState(updatedInstitutions);
+        await refreshData();
         toast({ title: 'Success', description: `${deleteTarget.name} deleted.` });
     } catch (error) {
         toast({ title: 'Error', description: `Failed to delete ${deleteTarget.name}.`, variant: 'destructive' });
