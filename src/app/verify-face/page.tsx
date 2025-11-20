@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -136,7 +137,7 @@ export default function VerifyFacePage() {
                 markedBy: 'student',
                 location: userLocation,
             };
-            await addAttendanceRecord(userProfile.uid, record);
+            await addAttendanceRecord(record);
             toast({
                 title: "Attendance Logged!",
                 description: "Your attendance has been recorded with a verification photo.",

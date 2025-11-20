@@ -286,7 +286,7 @@ export default function MaRecordsPage() {
             markedBy: userProfile.role as 'teacher' | 'admin',
         };
 
-        await addAttendanceRecord(studentToApprove.uid, newRecord);
+        await addAttendanceRecord(newRecord);
         toast({ title: 'Success', description: 'Absence has been marked as approved present.' });
         
         await fetchAttendance(); // Refetch data
@@ -310,7 +310,7 @@ export default function MaRecordsPage() {
       }
       setIsSavingConflict(true);
       try {
-          await updateAttendanceRecord(selectedStudentId, recordToConflict.id, {
+          await updateAttendanceRecord(recordToConflict.id, {
               status: 'Conflict',
               notes: conflictReason,
           });
@@ -334,7 +334,7 @@ export default function MaRecordsPage() {
     }
     setIsSavingRevert(true);
     try {
-        await updateAttendanceRecord(selectedStudentId, recordToRevert.id, {
+        await updateAttendanceRecord(recordToRevert.id, {
             status: 'Present',
             notes: `Reverted by ${userProfile?.name} on ${new Date().toLocaleDateString()}: ${revertReason}`,
         });
@@ -358,7 +358,7 @@ export default function MaRecordsPage() {
     }
     setIsSavingRevoke(true);
     try {
-        await updateAttendanceRecord(selectedStudentId, recordToRevoke.id, {
+        await updateAttendanceRecord(recordToRevoke.id, {
             status: 'Revoked',
             notes: revokeReason,
         });

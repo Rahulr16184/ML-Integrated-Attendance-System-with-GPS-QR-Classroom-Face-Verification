@@ -2,22 +2,23 @@
 'use server';
 
 import { db } from '@/lib/conf';
-import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import type { AttendanceLog } from '@/lib/types';
 import { startOfDay, endOfDay } from 'date-fns';
 
 /**
- * Adds a new attendance record to a specific student's subcollection.
- * @param studentId - The UID of the student.
- * @param attendanceData - The data for the new attendance record.
+ * Adds a new attendance record to the top-level attendance collection.
+ * @param attendanceData - The data for the new attendance record, must include studentId.
  * @returns The ID of the newly created document.
  */
 export const addAttendanceRecord = async (
-    studentId: string,
     attendanceData: Omit<AttendanceLog, 'id'>
 ): Promise<string> => {
+    if (!attendanceData.studentId) {
+        throw new Error("studentId is required to add an attendance record.");
+    }
     try {
-        const attendanceCol = collection(db, `users/${studentId}/attendance`);
+        const attendanceCol = collection(db, `attendance`);
         const newDocRef = await addDoc(attendanceCol, attendanceData);
         return newDocRef.id;
     } catch (error) {
@@ -27,18 +28,16 @@ export const addAttendanceRecord = async (
 };
 
 /**
- * Updates an existing attendance record.
- * @param studentId - The UID of the student whose record is being updated.
+ * Updates an existing attendance record in the top-level collection.
  * @param recordId - The ID of the attendance document to update.
  * @param updateData - The data to update.
  */
 export const updateAttendanceRecord = async (
-    studentId: string,
     recordId: string,
     updateData: Partial<AttendanceLog>
 ): Promise<void> => {
     try {
-        const recordDocRef = doc(db, `users/${studentId}/attendance`, recordId);
+        const recordDocRef = doc(db, `attendance`, recordId);
         await updateDoc(recordDocRef, updateData);
     } catch (error) {
         console.error("Error updating attendance record: ", error);
@@ -60,11 +59,11 @@ export const getStudentAttendance = async (
     to: Date
 ): Promise<AttendanceLog[]> => {
     try {
-        const attendanceCol = collection(db, `users/${studentId}/attendance`);
+        const attendanceCol = collection(db, 'attendance');
         
-        // Firestore queries require ISO strings for date comparisons
         const q = query(
             attendanceCol,
+            where('studentId', '==', studentId),
             where('date', '>=', from.toISOString()),
             where('date', '<=', endOfDay(to).toISOString()),
             orderBy('date', 'desc')
@@ -104,9 +103,10 @@ export const getStudentAttendanceForToday = async (
         const todayStart = startOfDay(new Date()).toISOString();
         const todayEnd = endOfDay(new Date()).toISOString();
         
-        const attendanceCol = collection(db, `users/${studentId}/attendance`);
+        const attendanceCol = collection(db, 'attendance');
         const q = query(
             attendanceCol,
+            where('studentId', '==', studentId),
             where('departmentId', '==', departmentId),
             where('date', '>=', todayStart),
             where('date', '<=', todayEnd)
@@ -129,6 +129,7 @@ export const getStudentAttendanceForToday = async (
 
 /**
  * Fetches all attendance records for a given department on a specific date.
+ * This is now much more efficient.
  * @param institutionId - The ID of the institution.
  * @param departmentId - The ID of the department.
  * @param date - The date to fetch records for.
@@ -136,8 +137,9 @@ export const getStudentAttendanceForToday = async (
  */
 export const getDepartmentAttendanceByDate = async (institutionId: string, departmentId: string, date: Date): Promise<AttendanceLog[]> => {
     try {
+        // First, get all student UIDs in the department.
         const usersCol = collection(db, 'users');
-        const usersQuery = query(usersCol, 
+        const usersQuery = query(usersCol,
             where('institutionId', '==', institutionId),
             where('departmentIds', 'array-contains', departmentId),
             where('role', '==', 'student')
@@ -145,28 +147,37 @@ export const getDepartmentAttendanceByDate = async (institutionId: string, depar
         const usersSnapshot = await getDocs(usersQuery);
 
         if (usersSnapshot.empty) {
-            return [];
+            return []; // No students in this department, so no records.
+        }
+
+        const studentIds = usersSnapshot.docs.map(doc => doc.id);
+
+        // Firestore 'in' queries are limited to 30 items. If there are more students, we must batch.
+        const batchSize = 30;
+        const batches: string[][] = [];
+        for (let i = 0; i < studentIds.length; i += batchSize) {
+            batches.push(studentIds.slice(i, i + batchSize));
         }
 
         const dateStart = startOfDay(date).toISOString();
         const dateEnd = endOfDay(date).toISOString();
 
-        // Use Promise.all to fetch attendance for all users concurrently
-        const allRecordsPromises = usersSnapshot.docs.map(async (userDoc) => {
-            const attendanceCol = collection(userDoc.ref, 'attendance');
+        const allRecords: AttendanceLog[] = [];
+
+        // Execute a query for each batch of students.
+        for (const batch of batches) {
+            const attendanceCol = collection(db, 'attendance');
             const attendanceQuery = query(
                 attendanceCol,
+                where('studentId', 'in', batch),
                 where('date', '>=', dateStart),
                 where('date', '<=', dateEnd),
                 where('departmentId', '==', departmentId)
             );
-            
             const attendanceSnapshot = await getDocs(attendanceQuery);
-            return attendanceSnapshot.docs.map(recordDoc => ({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog));
-        });
-
-        const nestedRecords = await Promise.all(allRecordsPromises);
-        const allRecords = nestedRecords.flat();
+            const batchRecords = attendanceSnapshot.docs.map(recordDoc => ({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog));
+            allRecords.push(...batchRecords);
+        }
 
         return allRecords;
     } catch (error) {
