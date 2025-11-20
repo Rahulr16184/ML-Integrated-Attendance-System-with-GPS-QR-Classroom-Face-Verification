@@ -252,10 +252,10 @@ function AttendanceReportCard() {
   }, [attendanceRecords, selectedSemester]);
 
   const chartData = [
-    { type: "Present", value: presentDays, fill: "var(--color-present)" },
-    { type: "Absent", value: absentDays, fill: "var(--color-absent)" },
-    { type: "Approved", value: approvedDays, fill: "var(--color-approved)" },
-    { type: "Conflict", value: conflictDays, fill: "var(--color-conflict)" },
+    { type: "present", value: presentDays, fill: "var(--color-present)" },
+    { type: "absent", value: absentDays, fill: "var(--color-absent)" },
+    { type: "approved", value: approvedDays, fill: "var(--color-approved)" },
+    { type: "conflict", value: conflictDays, fill: "var(--color-conflict)" },
   ];
 
   const chartConfig = {
