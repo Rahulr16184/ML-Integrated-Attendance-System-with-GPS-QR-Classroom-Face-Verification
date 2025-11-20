@@ -66,8 +66,7 @@ export const getStudentAttendance = async (
             attendanceCol,
             where('studentId', '==', studentId),
             where('date', '>=', from.toISOString()),
-            where('date', '<=', endOfDay(to).toISOString()),
-            orderBy('date', 'desc')
+            where('date', '<=', endOfDay(to).toISOString())
         );
 
         const querySnapshot = await getDocs(q);
@@ -80,6 +79,9 @@ export const getStudentAttendance = async (
             id: doc.id,
             ...doc.data()
         } as AttendanceLog));
+        
+        // Sort in-memory to avoid needing a composite index
+        records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         return records;
 
@@ -169,4 +171,3 @@ export const getDepartmentAttendanceByDate = async (institutionId: string, depar
         throw new Error("Could not fetch department attendance records.");
     }
 };
-
