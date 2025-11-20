@@ -61,20 +61,20 @@ export default async function ServerDashboardPage() {
           <CardHeader>
             <CardTitle>Management</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4">
-            <Button asChild variant="outline" className="flex-col h-24 sm:h-28">
+          <CardContent className="flex flex-wrap gap-4 justify-center">
+            <Button asChild variant="outline" className="flex-col h-24 flex-1 basis-24">
               <Link href="/server-manage-institution">
                 <Building className="h-6 w-6 mb-2" />
                 <span className="text-xs text-center">Manage Institutions</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="flex-col h-24 sm:h-28">
+            <Button asChild variant="outline" className="flex-col h-24 flex-1 basis-24">
               <Link href="/server-manage-user">
                 <Users className="h-6 w-6 mb-2" />
                 <span className="text-xs text-center">Manage Users</span>
               </Link>
             </Button>
-             <Button asChild variant="outline" className="flex-col h-24 sm:h-28">
+             <Button asChild variant="outline" className="flex-col h-24 flex-1 basis-24">
               <Link href="/server-manage-theme">
                 <Palette className="h-6 w-6 mb-2" />
                 <span className="text-xs text-center">Manage Theme</span>
