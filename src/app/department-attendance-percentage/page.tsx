@@ -366,14 +366,14 @@ setLoadingAttendance(false);
                         <TableHeader>
                             <TableRow>
                             <TableHead>Student</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">Present / Absent</TableHead>
+                            <TableHead className="text-center">Present / Absent</TableHead>
                             <TableHead className="text-center">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {attendanceSummary.map((student) => (
                             <TableRow key={student.uid}>
-                                <TableCell>
+                                <TableCell className="px-2 sm:px-4">
                                     <div className="flex flex-col items-center text-center gap-2">
                                         <Avatar>
                                             <AvatarImage src={student.profileImage} />
@@ -382,12 +382,12 @@ setLoadingAttendance(false);
                                         <span className="font-medium text-xs sm:text-sm">{student.name}</span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-center font-mono text-lg">
+                                <TableCell className="text-center font-mono text-base sm:text-lg px-2 sm:px-4">
                                     {student.present + student.approved} / {student.absent}
                                 </TableCell>
                                 <TableCell
                                 className={cn(
-                                    "text-center font-bold text-lg",
+                                    "text-center font-bold text-base sm:text-lg px-2 sm:px-4",
                                     student.percentage >= 75
                                     ? "text-green-600"
                                     : "text-red-600"
