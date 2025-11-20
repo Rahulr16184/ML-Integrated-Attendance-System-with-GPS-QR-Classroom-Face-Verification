@@ -236,9 +236,10 @@ export default function DepartmentAttendancePage() {
           }
       }
 
-      const passed = present + approved + absent + conflict + revoked;
-
-      const percentage = passed > 0 ? ((present + approved) / passed) * 100 : 0;
+      const percentage =
+        workingDaysPassed > 0
+          ? ((present + approved) / workingDaysPassed) * 100
+          : 0;
       
       return {
         uid: student.uid,
@@ -250,7 +251,7 @@ export default function DepartmentAttendancePage() {
         conflict,
         revoked,
         totalWorkingDays,
-        workingDaysPassed: passed,
+        workingDaysPassed,
         percentage,
       };
     });
