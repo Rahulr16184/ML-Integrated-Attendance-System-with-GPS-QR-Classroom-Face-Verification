@@ -8,7 +8,7 @@ import { getSemesters } from "@/services/working-days-service";
 import { getStudentsByDepartment } from "@/services/user-service";
 import { getStudentAttendance } from "@/services/attendance-service";
 import type { Department, Semester, AttendanceLog, Student } from "@/lib/types";
-import { parseISO, startOfToday, isSameDay } from "date-fns";
+import { parseISO, startOfToday, isSameDay, format } from "date-fns";
 
 import {
   Card,
@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,7 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { BarChart, Users } from "lucide-react";
+import { BarChart, Users, UserCheck, UserX } from "lucide-react";
 
 const parseSemesterDates = (semester: Semester) => ({
   ...semester,
@@ -184,14 +185,14 @@ export default function DepartmentAttendancePage() {
         })
       );
       setAttendanceData(allData);
-      setLoadingAttendance(false);
+setLoadingAttendance(false);
     }
 
     fetchAllAttendance();
   }, [students, selectedSemester, selectedDepartmentId]);
 
-  const attendanceSummary = useMemo((): StudentAttendanceSummary[] => {
-    if (!selectedSemester || students.length === 0) return [];
+  const { attendanceSummary, eligibleStudents, nonEligibleStudents } = useMemo(() => {
+    if (!selectedSemester || students.length === 0) return { attendanceSummary: [], eligibleStudents: 0, nonEligibleStudents: 0 };
 
     const today = startOfToday();
     const holidays = new Set(
@@ -214,7 +215,7 @@ export default function DepartmentAttendancePage() {
       }
     }
 
-    return students.map((student) => {
+    const summary = students.map((student) => {
       const records = attendanceData[student.uid] || [];
       const present = records.filter((r) => r.status === "Present").length;
       const approved = records.filter(
@@ -255,6 +256,15 @@ export default function DepartmentAttendancePage() {
         percentage,
       };
     });
+
+    const eligible = summary.filter(s => s.percentage >= 75).length;
+    const nonEligible = summary.length - eligible;
+
+    return {
+      attendanceSummary: summary,
+      eligibleStudents: eligible,
+      nonEligibleStudents: nonEligible,
+    }
   }, [selectedSemester, students, attendanceData]);
   
   const isLoading = userLoading || loadingDepartments || loadingSemesters || loadingStudents || loadingAttendance;
@@ -317,61 +327,90 @@ export default function DepartmentAttendancePage() {
       {isLoading ? (
         <Skeleton className="h-96 w-full" />
       ) : selectedDepartmentId && selectedSemesterId ? (
-         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users /> Student Overview</CardTitle>
-                <CardDescription>
-                    {students.length} student(s) found in this department.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="border rounded-lg overflow-x-auto">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="w-[60px]">Photo</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead className="text-center">Present</TableHead>
-                        <TableHead className="text-center">Absent</TableHead>
-                        <TableHead className="text-center">Total</TableHead>
-                        <TableHead className="text-center">Percentage</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {attendanceSummary.map((student) => (
-                        <TableRow key={student.uid}>
-                            <TableCell>
-                            <Avatar>
-                                <AvatarImage src={student.profileImage} />
-                                <AvatarFallback>{student.name?.[0]}</AvatarFallback>
-                            </Avatar>
-                            </TableCell>
-                            <TableCell className="font-medium">{student.name}</TableCell>
-                            <TableCell className="text-center">{student.present + student.approved}</TableCell>
-                            <TableCell className="text-center">{student.absent}</TableCell>
-                            <TableCell className="text-center">{student.workingDaysPassed}</TableCell>
-                            <TableCell
-                            className={cn(
-                                "text-center font-bold",
-                                student.percentage >= 75
-                                ? "text-green-600"
-                                : "text-red-600"
-                            )}
-                            >
-                            {student.percentage.toFixed(2)}%
-                            </TableCell>
-                        </TableRow>
-                        ))}
-                    </TableBody>
-                    </Table>
-                </div>
-                 {students.length === 0 && (
-                    <div className="text-center text-muted-foreground p-8">
-                        No students found in this department.
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attendance Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground flex items-center justify-center gap-2"><Users className="h-4 w-4" /> Total Students</p>
+                        <p className="text-2xl font-bold">{students.length}</p>
                     </div>
+                    <div className="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                        <p className="text-sm text-green-600 dark:text-green-400 flex items-center justify-center gap-2"><UserCheck className="h-4 w-4" /> Eligible (>=75%)</p>
+                        <p className="text-2xl font-bold">{eligibleStudents}</p>
+                    </div>
+                    <div className="p-4 bg-red-100 dark:bg-red-900/50 rounded-lg">
+                        <p className="text-sm text-red-600 dark:text-red-400 flex items-center justify-center gap-2"><UserX className="h-4 w-4" /> Not Eligible (&lt;75%)</p>
+                        <p className="text-2xl font-bold">{nonEligibleStudents}</p>
+                    </div>
+                </CardContent>
+                {selectedSemester && (
+                    <CardFooter className="justify-center">
+                        <p className="text-sm text-muted-foreground">
+                            Working days from {format(selectedSemester.dateRange.from, 'MMM dd, yyyy')} to {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
+                        </p>
+                    </CardFooter>
                 )}
-            </CardContent>
-        </Card>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Users /> Student Overview</CardTitle>
+                    <CardDescription>
+                        {students.length} student(s) found in this department.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg overflow-x-auto">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead className="w-[60px]">Photo</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead className="text-center">Present</TableHead>
+                            <TableHead className="text-center">Absent</TableHead>
+                            <TableHead className="text-center">Total</TableHead>
+                            <TableHead className="text-center">Percentage</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {attendanceSummary.map((student) => (
+                            <TableRow key={student.uid}>
+                                <TableCell>
+                                <Avatar>
+                                    <AvatarImage src={student.profileImage} />
+                                    <AvatarFallback>{student.name?.[0]}</AvatarFallback>
+                                </Avatar>
+                                </TableCell>
+                                <TableCell className="font-medium">{student.name}</TableCell>
+                                <TableCell className="text-center">{student.present + student.approved}</TableCell>
+                                <TableCell className="text-center">{student.absent}</TableCell>
+                                <TableCell className="text-center">{student.workingDaysPassed}</TableCell>
+                                <TableCell
+                                className={cn(
+                                    "text-center font-bold",
+                                    student.percentage >= 75
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                )}
+                                >
+                                {student.percentage.toFixed(2)}%
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
+                    {students.length === 0 && (
+                        <div className="text-center text-muted-foreground p-8">
+                            No students found in this department.
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </>
       ) : (
           <Card>
               <CardContent className="pt-6 text-center text-muted-foreground">
