@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -364,10 +365,8 @@ setLoadingAttendance(false);
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead>Photo</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead className="text-center">Present</TableHead>
-                            <TableHead className="text-center">Absent</TableHead>
+                            <TableHead>Student</TableHead>
+                            <TableHead className="text-center">Attendance</TableHead>
                             <TableHead className="text-center">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -375,17 +374,20 @@ setLoadingAttendance(false);
                             {attendanceSummary.map((student) => (
                             <TableRow key={student.uid}>
                                 <TableCell>
-                                <Avatar>
-                                    <AvatarImage src={student.profileImage} />
-                                    <AvatarFallback>{student.name?.[0]}</AvatarFallback>
-                                </Avatar>
+                                    <div className="flex flex-col items-center text-center gap-2">
+                                        <Avatar>
+                                            <AvatarImage src={student.profileImage} />
+                                            <AvatarFallback>{student.name?.[0]}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="font-medium text-xs">{student.name}</span>
+                                    </div>
                                 </TableCell>
-                                <TableCell className="font-medium">{student.name}</TableCell>
-                                <TableCell className="text-center">{student.present + student.approved}</TableCell>
-                                <TableCell className="text-center">{student.absent}</TableCell>
+                                <TableCell className="text-center font-mono text-lg">
+                                    {student.present + student.approved}/{student.workingDaysPassed}
+                                </TableCell>
                                 <TableCell
                                 className={cn(
-                                    "text-center font-bold",
+                                    "text-center font-bold text-lg",
                                     student.percentage >= 75
                                     ? "text-green-600"
                                     : "text-red-600"
