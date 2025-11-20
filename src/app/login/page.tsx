@@ -15,15 +15,25 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mail, Lock, Eye, EyeOff, Home, Loader2 } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from 'lucide-react'
 import { auth, db } from "@/lib/conf"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
-import { doc, getDoc, setDoc } from "firebase/firestore"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail } from "firebase/auth"
+import { doc, getDoc } from "firebase/firestore"
 import { loadModels } from "@/lib/face-api"
 import { LandingHeader } from "@/components/landing-header"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -51,10 +61,13 @@ export default function LoginPage() {
   const { toast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [isMounted, setIsMounted] = useState(false);
+  
+  const [resetEmail, setResetEmail] = useState("")
+  const [isSendingReset, setIsSendingReset] = useState(false)
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
 
   useEffect(() => {
     setIsMounted(true);
-    // Pre-load ML models
     loadModels().then(() => {
         console.log("ML models pre-loaded and cached.");
     });
@@ -158,7 +171,6 @@ export default function LoginPage() {
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
-            // User exists, log them in
             const userData = userDoc.data();
             const userRole = userData.role;
             
@@ -176,10 +188,7 @@ export default function LoginPage() {
             });
             redirectToDashboard(userRole);
         } else {
-            // This is a new user via Google, but they are on the login page.
-            // We can't know their role here. They must register first.
             setError("No account found for this Google user. Please register first.");
-            // Optionally, sign them out again if you don't want them half-logged-in
             await auth.signOut();
         }
     } catch (error: any) {
@@ -189,6 +198,44 @@ export default function LoginPage() {
         }
     } finally {
         setIsLoggingIn(false);
+    }
+  };
+
+  const handleSendResetLink = async () => {
+    if (!resetEmail) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSendingReset(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast({
+        title: "Reset Link Sent",
+        description: "Please check your email to reset your password.",
+      });
+      setIsResetDialogOpen(false);
+      setResetEmail("");
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        toast({
+            title: "User Not Found",
+            description: "No account found with that email address.",
+            variant: "destructive"
+        });
+      } else {
+        toast({
+            title: "Error",
+            description: "Failed to send reset link. Please try again.",
+            variant: "destructive"
+        });
+      }
+      console.error("Password reset error:", error);
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -266,9 +313,40 @@ export default function LoginPage() {
               />
               <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
             </div>
-            <Link href="#" className="inline-block text-sm underline">
-                Forgot your password?
-            </Link>
+            <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                <DialogTrigger asChild>
+                    <button className="inline-block text-sm underline">
+                        Forgot your password?
+                    </button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Reset Password</DialogTitle>
+                        <DialogDescription>
+                            Enter your email address and we'll send you a link to reset your password.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2 py-4">
+                        <Label htmlFor="reset-email">Email Address</Label>
+                        <Input 
+                            id="reset-email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={resetEmail}
+                            onChange={(e) => setResetEmail(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={handleSendResetLink} disabled={isSendingReset}>
+                            {isSendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Send Reset Link
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
           </div>
           <Button onClick={handleLogin} className="w-full" disabled={isLoggingIn}>
             {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
