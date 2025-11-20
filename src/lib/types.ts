@@ -77,5 +77,3 @@ export type Student = {
     name: string;
     profileImage?: string;
 };
-
-    

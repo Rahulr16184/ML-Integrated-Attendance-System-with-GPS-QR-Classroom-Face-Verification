@@ -58,6 +58,7 @@ type StudentAttendanceSummary = {
   approved: number;
   conflict: number;
   revoked: number;
+  absent: number;
   workingDaysPassed: number;
   percentage: number;
 };
@@ -219,6 +220,12 @@ setLoadingAttendance(false);
       ).length;
       const conflict = records.filter((r) => r.status === "Conflict").length;
       const revoked = records.filter((r) => r.status === "Revoked").length;
+      const attendedDates = new Set(records.map(rec => new Date(rec.date).toDateString()));
+
+      let absentCount = 0;
+      if (workingDaysPassed > 0) {
+        absentCount = workingDaysPassed - (present + approved + conflict + revoked);
+      }
       
       const percentage =
         workingDaysPassed > 0
@@ -233,6 +240,7 @@ setLoadingAttendance(false);
         approved,
         conflict,
         revoked,
+        absent: absentCount,
         workingDaysPassed,
         percentage,
       };
@@ -349,9 +357,9 @@ setLoadingAttendance(false);
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead className="px-2 sm:px-4">Student</TableHead>
-                            <TableHead className="text-center px-2 sm:px-4">Attendance</TableHead>
-                            <TableHead className="text-center px-2 sm:px-4">Percentage</TableHead>
+                            <TableHead className="px-2 sm:px-4 whitespace-nowrap">Student</TableHead>
+                            <TableHead className="text-center px-2 sm:px-4 whitespace-nowrap">Present / Absent</TableHead>
+                            <TableHead className="text-center px-2 sm:px-4 whitespace-nowrap">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -360,14 +368,14 @@ setLoadingAttendance(false);
                                 <TableCell className="px-2 sm:px-4">
                                     <div className="flex flex-col items-center text-center gap-2">
                                         <Avatar>
-                                            <AvatarImage src={student.profileImage} />
+                                            <AvatarImage src={student.profileImage || `https://picsum.photos/seed/${student.uid}/200/200`} data-ai-hint="profile picture"/>
                                             <AvatarFallback>{student.name?.[0]}</AvatarFallback>
                                         </Avatar>
                                         <span className="font-medium text-xs sm:text-sm">{student.name}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-center font-mono text-base sm:text-lg px-2 sm:px-4">
-                                    {student.present + student.approved}
+                                    {student.present + student.approved} / {student.absent + student.conflict}
                                 </TableCell>
                                 <TableCell
                                 className={cn(
@@ -402,5 +410,3 @@ setLoadingAttendance(false);
     </div>
   );
 }
-
-    

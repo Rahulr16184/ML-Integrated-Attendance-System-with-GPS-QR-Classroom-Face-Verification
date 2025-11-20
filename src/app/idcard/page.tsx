@@ -67,7 +67,7 @@ export default function IdCardPage() {
         <CardContent className="p-6 pt-0 text-center">
             <div className="flex justify-center mb-4">
                 <Image 
-                    src={userProfile.profileImage || "https://picsum.photos/seed/1/200/200"} 
+                    src={userProfile.profileImage || `https://picsum.photos/seed/${userProfile.uid}/200/200`} 
                     alt={userProfile.name || "User"} 
                     width={80} 
                     height={80} 

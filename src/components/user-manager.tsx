@@ -183,7 +183,7 @@ export function UserManager({ initialUsers, initialInstitutions }: UserManagerPr
               <TableRow key={user.uid}>
                 <TableCell>
                   <Avatar className={cn("border-2", getRoleBorderColor(user.role))}>
-                    <AvatarImage src={user.profileImage} alt={user.name} data-ai-hint="profile picture" />
+                    <AvatarImage src={user.profileImage || `https://picsum.photos/seed/${user.uid}/200/200`} alt={user.name} data-ai-hint="profile picture" />
                     <AvatarFallback>{user.name?.[0]}</AvatarFallback>
                   </Avatar>
                 </TableCell>
