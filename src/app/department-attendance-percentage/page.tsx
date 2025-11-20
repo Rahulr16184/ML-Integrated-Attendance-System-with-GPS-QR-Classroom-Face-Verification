@@ -54,12 +54,8 @@ type StudentAttendanceSummary = {
   uid: string;
   name: string;
   profileImage?: string;
-  present: number;
-  approved: number;
-  conflict: number;
-  revoked: number;
-  absent: number;
-  workingDaysPassed: number;
+  attended: number;
+  notAttended: number;
   percentage: number;
 };
 
@@ -129,6 +125,10 @@ export default function DepartmentAttendancePage() {
                 (new Date() > s.dateRange.from && new Date() < s.dateRange.to)
             ) || parsedSemesters[0];
           setSelectedSemesterId(currentSem.id);
+        } else {
+            setSelectedSemesterId("");
+            setStudents([]);
+            setAttendanceData({});
         }
       } catch (error) {
         toast({
@@ -176,16 +176,21 @@ export default function DepartmentAttendancePage() {
       const allData: Record<string, AttendanceLog[]> = {};
       await Promise.all(
         students.map(async (student) => {
-          const records = await getStudentAttendance(
-            student.uid,
-            selectedSemester.dateRange.from,
-            selectedSemester.dateRange.to
-          );
-          allData[student.uid] = records.filter(rec => rec.departmentId === selectedDepartmentId);
+          try {
+            const records = await getStudentAttendance(
+              student.uid,
+              selectedSemester.dateRange.from,
+              selectedSemester.dateRange.to
+            );
+            allData[student.uid] = records.filter(rec => rec.departmentId === selectedDepartmentId);
+          } catch(e){
+            // if one student fails, don't fail all
+            console.error(`Failed to get attendance for ${student.name}`, e)
+          }
         })
       );
       setAttendanceData(allData);
-setLoadingAttendance(false);
+      setLoadingAttendance(false);
     }
 
     fetchAllAttendance();
@@ -212,15 +217,12 @@ setLoadingAttendance(false);
       }
     }
 
-    const summary = students.map((student) => {
+    const summary: StudentAttendanceSummary[] = students.map((student) => {
       const records = attendanceData[student.uid] || [];
       const present = records.filter((r) => r.status === "Present").length;
-      const approved = records.filter(
-        (r) => r.status === "Approved Present"
-      ).length;
+      const approved = records.filter((r) => r.status === "Approved Present").length;
       const conflict = records.filter((r) => r.status === "Conflict").length;
-      const revoked = records.filter((r) => r.status === "Revoked").length;
-      
+
       const attendedCount = present + approved;
       const notAttendedCount = workingDaysPassed - attendedCount;
       
@@ -233,8 +235,8 @@ setLoadingAttendance(false);
         uid: student.uid,
         name: student.name,
         profileImage: student.profileImage,
-        present: attendedCount,
-        absent: notAttendedCount,
+        attended: attendedCount,
+        notAttended: notAttendedCount > 0 ? notAttendedCount : 0, // Ensure non-negative
         percentage,
       };
     });
@@ -359,7 +361,7 @@ setLoadingAttendance(false);
                             {attendanceSummary.map((student) => (
                             <TableRow key={student.uid}>
                                 <TableCell className="px-2 sm:px-4">
-                                    <div className="flex flex-col items-center text-center gap-2">
+                                    <div className="flex items-center gap-2">
                                         <Avatar>
                                             <AvatarImage src={student.profileImage} data-ai-hint="profile picture"/>
                                             <AvatarFallback>{student.name?.[0]}</AvatarFallback>
@@ -368,7 +370,7 @@ setLoadingAttendance(false);
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-center font-mono text-base sm:text-lg px-2 sm:px-4">
-                                    {student.present}
+                                    {student.attended}
                                 </TableCell>
                                 <TableCell
                                 className={cn(

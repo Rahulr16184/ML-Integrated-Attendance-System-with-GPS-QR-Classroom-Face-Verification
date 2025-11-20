@@ -136,8 +136,6 @@ export const getStudentAttendanceForToday = async (
 export const getDepartmentAttendanceByDate = async (departmentId: string, date: Date): Promise<AttendanceLog[]> => {
     try {
         const usersCol = collection(db, 'users');
-        // Find users in the department. This is inefficient but necessary for Firestore's data model.
-        // A better approach would be a root-level `attendance` collection with `departmentId`.
         const usersQuery = query(usersCol, where('departmentIds', 'array-contains', departmentId));
         const usersSnapshot = await getDocs(usersQuery);
 
@@ -148,10 +146,8 @@ export const getDepartmentAttendanceByDate = async (departmentId: string, date: 
         const dateStart = startOfDay(date).toISOString();
         const dateEnd = endOfDay(date).toISOString();
 
-        let allRecords: AttendanceLog[] = [];
-
-        // For each user, query their attendance subcollection for the given date.
-        for (const userDoc of usersSnapshot.docs) {
+        // Use Promise.all to fetch attendance for all users concurrently
+        const allRecordsPromises = usersSnapshot.docs.map(async (userDoc) => {
             const attendanceCol = collection(userDoc.ref, 'attendance');
             const attendanceQuery = query(
                 attendanceCol,
@@ -161,28 +157,11 @@ export const getDepartmentAttendanceByDate = async (departmentId: string, date: 
             );
             
             const attendanceSnapshot = await getDocs(attendanceQuery);
-            attendanceSnapshot.forEach(recordDoc => {
-                allRecords.push({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog);
-            });
-        }
-        
-        // Also fetch any 'Approved Present' records manually added for absent students
-        const absentStudents = usersSnapshot.docs.filter(userDoc => !allRecords.some(rec => rec.studentId === userDoc.id));
-        for (const userDoc of absentStudents) {
-             const attendanceCol = collection(userDoc.ref, 'attendance');
-             const approvedQuery = query(
-                attendanceCol,
-                where('date', '>=', dateStart),
-                where('date', '<=', dateEnd),
-                where('departmentId', '==', departmentId),
-                where('status', '==', 'Approved Present')
-            );
-            const approvedSnapshot = await getDocs(approvedQuery);
-            approvedSnapshot.forEach(recordDoc => {
-                allRecords.push({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog);
-            });
-        }
+            return attendanceSnapshot.docs.map(recordDoc => ({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog));
+        });
 
+        const nestedRecords = await Promise.all(allRecordsPromises);
+        const allRecords = nestedRecords.flat();
 
         return allRecords;
     } catch (error) {
