@@ -129,7 +129,7 @@ export const getStudentAttendanceForToday = async (
 
 /**
  * Fetches all attendance records for a given department on a specific date.
- * This is now much more efficient.
+ * This is an efficient query on a single top-level collection.
  * @param institutionId - The ID of the institution.
  * @param departmentId - The ID of the department.
  * @param date - The date to fetch records for.
@@ -137,49 +137,25 @@ export const getStudentAttendanceForToday = async (
  */
 export const getDepartmentAttendanceByDate = async (institutionId: string, departmentId: string, date: Date): Promise<AttendanceLog[]> => {
     try {
-        // First, get all student UIDs in the department.
-        const usersCol = collection(db, 'users');
-        const usersQuery = query(usersCol,
-            where('institutionId', '==', institutionId),
-            where('departmentIds', 'array-contains', departmentId),
-            where('role', '==', 'student')
-        );
-        const usersSnapshot = await getDocs(usersQuery);
-
-        if (usersSnapshot.empty) {
-            return []; // No students in this department, so no records.
-        }
-
-        const studentIds = usersSnapshot.docs.map(doc => doc.id);
-
-        // Firestore 'in' queries are limited to 30 items. If there are more students, we must batch.
-        const batchSize = 30;
-        const batches: string[][] = [];
-        for (let i = 0; i < studentIds.length; i += batchSize) {
-            batches.push(studentIds.slice(i, i + batchSize));
-        }
-
         const dateStart = startOfDay(date).toISOString();
         const dateEnd = endOfDay(date).toISOString();
 
-        const allRecords: AttendanceLog[] = [];
+        const attendanceCol = collection(db, 'attendance');
+        const attendanceQuery = query(
+            attendanceCol,
+            where('departmentId', '==', departmentId),
+            where('date', '>=', dateStart),
+            where('date', '<=', dateEnd)
+        );
 
-        // Execute a query for each batch of students.
-        for (const batch of batches) {
-            const attendanceCol = collection(db, 'attendance');
-            const attendanceQuery = query(
-                attendanceCol,
-                where('studentId', 'in', batch),
-                where('date', '>=', dateStart),
-                where('date', '<=', dateEnd),
-                where('departmentId', '==', departmentId)
-            );
-            const attendanceSnapshot = await getDocs(attendanceQuery);
-            const batchRecords = attendanceSnapshot.docs.map(recordDoc => ({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog));
-            allRecords.push(...batchRecords);
+        const attendanceSnapshot = await getDocs(attendanceQuery);
+        
+        if (attendanceSnapshot.empty) {
+            return [];
         }
 
-        return allRecords;
+        return attendanceSnapshot.docs.map(recordDoc => ({ id: recordDoc.id, ...recordDoc.data() } as AttendanceLog));
+
     } catch (error) {
         console.error("Error fetching department attendance by date:", error);
         throw new Error("Could not fetch department attendance records.");
