@@ -366,7 +366,7 @@ setLoadingAttendance(false);
                         <TableHeader>
                             <TableRow>
                             <TableHead>Student</TableHead>
-                            <TableHead className="text-center">Attendance</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">Present / Absent</TableHead>
                             <TableHead className="text-center">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -379,11 +379,11 @@ setLoadingAttendance(false);
                                             <AvatarImage src={student.profileImage} />
                                             <AvatarFallback>{student.name?.[0]}</AvatarFallback>
                                         </Avatar>
-                                        <span className="font-medium text-xs">{student.name}</span>
+                                        <span className="font-medium text-xs sm:text-sm">{student.name}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-center font-mono text-lg">
-                                    {student.present + student.approved}/{student.workingDaysPassed}
+                                    {student.present + student.approved} / {student.absent}
                                 </TableCell>
                                 <TableCell
                                 className={cn(
