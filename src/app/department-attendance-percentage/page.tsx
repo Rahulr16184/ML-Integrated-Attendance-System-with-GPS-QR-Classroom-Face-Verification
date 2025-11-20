@@ -371,7 +371,6 @@ setLoadingAttendance(false);
                             <TableHead className="whitespace-nowrap">Name</TableHead>
                             <TableHead className="text-center whitespace-nowrap">Present</TableHead>
                             <TableHead className="text-center whitespace-nowrap">Absent</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">Total</TableHead>
                             <TableHead className="text-center whitespace-nowrap">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -387,7 +386,6 @@ setLoadingAttendance(false);
                                 <TableCell className="font-medium">{student.name}</TableCell>
                                 <TableCell className="text-center">{student.present + student.approved}</TableCell>
                                 <TableCell className="text-center">{student.absent}</TableCell>
-                                <TableCell className="text-center">{student.workingDaysPassed}</TableCell>
                                 <TableCell
                                 className={cn(
                                     "text-center font-bold",
