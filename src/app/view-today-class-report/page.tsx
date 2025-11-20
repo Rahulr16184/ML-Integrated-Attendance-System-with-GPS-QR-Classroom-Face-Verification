@@ -7,8 +7,9 @@ import Image from "next/image";
 import { getInstitutions } from "@/services/institution-service";
 import { getDepartmentAttendanceByDate } from "@/services/attendance-service";
 import { getStudentsByDepartment } from "@/services/user-service";
-import type { Department, AttendanceLog, Student } from "@/lib/types";
-import { format } from "date-fns";
+import { getSemesters } from "@/services/working-days-service";
+import type { Department, AttendanceLog, Student, Semester } from "@/lib/types";
+import { format, isSameDay, parseISO } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { ClipboardList, Frown, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { ClipboardList, Frown, Loader2, Calendar as CalendarIcon, Briefcase, Coffee } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -32,11 +33,19 @@ type ReportRecord = Partial<AttendanceLog> & {
     status: AttendanceLog['status'] | 'Absent';
 };
 
+const parseSemesterDates = (semester: Semester) => ({
+  ...semester,
+  dateRange: {
+    from: parseISO(semester.dateRange.from as unknown as string),
+    to: parseISO(semester.dateRange.to as unknown as string),
+  },
+  holidays: semester.holidays.map(h => parseISO(h as unknown as string)),
+});
+
 export default function ViewTodayClassReportPage() {
   const { userProfile, loading: userLoading } = useUserProfile();
   const { toast } = useToast();
 
-  // State for filters and data
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [loadingDepartments, setLoadingDepartments] = useState(true);
@@ -46,9 +55,10 @@ export default function ViewTodayClassReportPage() {
 
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceLog[]>([]);
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+
   const [isLoadingReport, setIsLoadingReport] = useState(false);
 
-  // Fetch departments user has access to
   useEffect(() => {
     async function fetchDepartments() {
       if (userProfile?.institutionId && userProfile.departmentIds) {
@@ -71,24 +81,28 @@ export default function ViewTodayClassReportPage() {
       }
     }
     if (userProfile) fetchDepartments();
-  }, [userProfile, toast]);
+  }, [userProfile, toast, selectedDepartmentId]);
 
-  // Fetch students and attendance records when filters change
   const fetchReportData = useCallback(async () => {
     if (!selectedDepartmentId || !userProfile?.institutionId) return;
 
     setIsLoadingReport(true);
     try {
-      // Fetch all students for the department
-      const students = await getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId);
-      setAllStudents(students);
-
-      // Fetch attendance records for that date
-      const records = await getDepartmentAttendanceByDate(selectedDepartmentId, selectedDate);
-      setAttendanceRecords(records);
+      const [fetchedStudents, fetchedRecords, fetchedSemesters] = await Promise.all([
+        getStudentsByDepartment(userProfile.institutionId, selectedDepartmentId),
+        getDepartmentAttendanceByDate(selectedDepartmentId, selectedDate),
+        getSemesters(userProfile.institutionId, selectedDepartmentId)
+      ]);
+      
+      setAllStudents(fetchedStudents);
+      setAttendanceRecords(fetchedRecords);
+      setSemesters(fetchedSemesters.map(parseSemesterDates));
 
     } catch (error) {
       toast({ title: "Error", description: "Failed to fetch class report.", variant: "destructive" });
+      setAllStudents([]);
+      setAttendanceRecords([]);
+      setSemesters([]);
     } finally {
       setIsLoadingReport(false);
     }
@@ -100,13 +114,29 @@ export default function ViewTodayClassReportPage() {
     }
   }, [selectedDepartmentId, selectedDate, fetchReportData]);
 
-  const reportData = useMemo(() => {
+  const { reportData, isWorkingDay, dayStatusMessage } = useMemo(() => {
+    const today = selectedDate;
+    const currentSemester = semesters.find(s => today >= s.dateRange.from && today <= s.dateRange.to);
+
+    if (!currentSemester) {
+        return { reportData: [], isWorkingDay: false, dayStatusMessage: "The selected date does not fall within any configured semester." };
+    }
+
+    const dayOfWeek = today.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+        return { reportData: [], isWorkingDay: false, dayStatusMessage: "The selected date is a weekend." };
+    }
+    
+    const isHoliday = currentSemester.holidays.some(h => isSameDay(h, today));
+    if (isHoliday) {
+        return { reportData: [], isWorkingDay: false, dayStatusMessage: "The selected date is a holiday." };
+    }
+
     const allReportRecords: ReportRecord[] = allStudents.map(student => {
       const record = attendanceRecords.find(r => r.studentId === student.uid);
       if (record) {
         return { ...record, studentName: student.name, profileImage: student.profileImage };
       } else {
-        // Synthesize an 'Absent' record
         return {
           id: `absent-${student.uid}`,
           studentId: student.uid,
@@ -119,15 +149,20 @@ export default function ViewTodayClassReportPage() {
       }
     });
     
-    if (statusFilter === 'all') return allReportRecords;
-    if (statusFilter === 'present') return allReportRecords.filter(r => r.status === 'Present');
-    if (statusFilter === 'absent') return allReportRecords.filter(r => r.status === 'Absent');
-    if (statusFilter === 'approved') return allReportRecords.filter(r => r.status === 'Approved Present');
-    if (statusFilter === 'conflict') return allReportRecords.filter(r => r.status === 'Conflict');
-    if (statusFilter === 'revoked') return allReportRecords.filter(r => r.status === 'Revoked');
-
-    return [];
-  }, [attendanceRecords, allStudents, statusFilter, selectedDepartmentId, selectedDate]);
+    let filteredData = allReportRecords;
+    if (statusFilter !== 'all') {
+      const filterMap = {
+        'present': 'Present',
+        'absent': 'Absent',
+        'approved': 'Approved Present',
+        'conflict': 'Conflict',
+        'revoked': 'Revoked'
+      };
+      filteredData = allReportRecords.filter(r => r.status === filterMap[statusFilter as keyof typeof filterMap]);
+    }
+    
+    return { reportData: filteredData, isWorkingDay: true, dayStatusMessage: "" };
+  }, [attendanceRecords, allStudents, statusFilter, selectedDepartmentId, selectedDate, semesters]);
   
   const getStatusBadgeVariant = (status: ReportRecord['status']) => {
     switch(status) {
@@ -145,7 +180,7 @@ export default function ViewTodayClassReportPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ClipboardList/> Today's Class Report</CardTitle>
+          <CardTitle className="flex items-center gap-2"><ClipboardList/> Class Report</CardTitle>
           <CardDescription>View attendance records for students in a department for a specific day.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -182,7 +217,7 @@ export default function ViewTodayClassReportPage() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => setSelectedDate(date || new Date())}
-                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                    disabled={(date) => date > new Date() || date < new Date("2020-01-01")}
                     initialFocus
                   />
                 </PopoverContent>
@@ -213,7 +248,7 @@ export default function ViewTodayClassReportPage() {
         </div>
       )}
 
-      {!isLoadingReport && reportData.length > 0 && (
+      {!isLoadingReport && isWorkingDay && reportData.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {reportData.map(record => (
                 <Card key={record.id} className="overflow-hidden">
@@ -225,7 +260,7 @@ export default function ViewTodayClassReportPage() {
                         <div className="flex-1 space-y-1">
                             <CardTitle className="text-base">{record.studentName}</CardTitle>
                             <div className="flex flex-wrap gap-2">
-                                <Badge variant={getStatusBadgeVariant(record.status)}>{record.status}</Badge>
+                                <Badge variant={getStatusBadgeVariant(record.status)} className="capitalize">{record.status.replace(' Present', '')}</Badge>
                                 {record.status !== 'Absent' && record.mode && (
                                     <Badge variant="outline">
                                         {record.mode === 1 ? "GPS+Face" : "QR+Face"}
@@ -236,9 +271,9 @@ export default function ViewTodayClassReportPage() {
                     </CardHeader>
                     {record.status !== 'Absent' && (
                         <CardContent className="p-4 pt-0 space-y-2 text-sm text-muted-foreground border-t">
-                             {record.verificationPhotoUrl && (record.status === 'Present' || record.status === 'Conflict') && (
+                             {record.verificationPhotoUrl && (record.status === 'Present' || record.status === 'Conflict' || record.status === 'Revoked') && (
                                 <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted">
-                                    <Image src={record.verificationPhotoUrl} alt="Verification" fill className="object-cover" />
+                                    <Image src={record.verificationPhotoUrl} alt="Verification" fill className="object-cover" data-ai-hint="student classroom"/>
                                 </div>
                              )}
                              {record.status === 'Approved Present' && record.verificationPhotoUrl && (
@@ -272,12 +307,20 @@ export default function ViewTodayClassReportPage() {
           </div>
       )}
 
-      {!isLoadingReport && reportData.length === 0 && (
+      {!isLoadingReport && !isWorkingDay && (
+          <Alert>
+              <Coffee className="h-4 w-4" />
+              <AlertTitle>Not a Working Day</AlertTitle>
+              <AlertDescription>{dayStatusMessage}</AlertDescription>
+          </Alert>
+      )}
+
+      {!isLoadingReport && isWorkingDay && reportData.length === 0 && (
           <Alert>
               <Frown className="h-4 w-4" />
               <AlertTitle>No Records Found</AlertTitle>
               <AlertDescription>
-                  There are no attendance records matching your current filter criteria for the selected department and date.
+                  There are no attendance records matching your current filter criteria for this working day.
               </AlertDescription>
           </Alert>
       )}
