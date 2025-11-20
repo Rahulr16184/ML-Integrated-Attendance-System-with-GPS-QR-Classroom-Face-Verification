@@ -367,12 +367,12 @@ setLoadingAttendance(false);
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead className="w-[60px]">Photo</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead className="text-center">Present</TableHead>
-                            <TableHead className="text-center">Absent</TableHead>
-                            <TableHead className="text-center">Total</TableHead>
-                            <TableHead className="text-center">Percentage</TableHead>
+                            <TableHead className="whitespace-nowrap">Photo</TableHead>
+                            <TableHead className="whitespace-nowrap">Name</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">Present</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">Absent</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">Total</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
