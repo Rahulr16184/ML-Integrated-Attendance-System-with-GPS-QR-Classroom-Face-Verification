@@ -47,6 +47,7 @@ export const registerUser = async (userData: UserRegistrationData): Promise<void
         // 3. Save user data to Firestore (without the password)
         // We use the user's UID from Auth as the document ID in Firestore
         await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
             name: userData.name,
             email: userData.email,
             institutionId: userData.institutionId,

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { ClipboardList, Frown, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 type ReportRecord = AttendanceLog & { studentName: string; profileImage?: string };
 
@@ -205,7 +206,10 @@ export default function ViewTodayClassReportPage() {
             {reportData.map(record => (
                 <Card key={record.id} className="overflow-hidden">
                     <CardHeader className="flex flex-row items-start gap-4 p-4">
-                       <Image src={record.profileImage || `https://picsum.photos/seed/${record.studentId}/200/200`} alt={record.studentName} width={64} height={64} className="rounded-lg object-cover border" data-ai-hint="profile picture" />
+                       <Avatar className="h-16 w-16 rounded-lg">
+                          <AvatarImage src={record.profileImage} alt={record.studentName} data-ai-hint="profile picture" />
+                          <AvatarFallback className="rounded-lg">{record.studentName?.[0]}</AvatarFallback>
+                       </Avatar>
                         <div className="flex-1 space-y-1">
                             <CardTitle className="text-base">{record.studentName}</CardTitle>
                             <div className="flex flex-wrap gap-2">
