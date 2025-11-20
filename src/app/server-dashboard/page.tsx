@@ -1,10 +1,57 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building, Users, Palette } from "lucide-react";
+import { Building, Users, Palette, BarChart, School, Users2 } from "lucide-react";
 import Link from "next/link";
+import { getAllUsers } from "@/services/user-service";
+import { getInstitutions } from "@/services/institution-service";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from "recharts";
 
-export default function ServerDashboardPage() {
+export default async function ServerDashboardPage() {
+  const users = await getAllUsers();
+  const institutions = await getInstitutions();
+
+  const totalUsers = users.length;
+
+  const institutionStats = institutions.map(inst => {
+    const usersInInstitution = users.filter(u => u.institutionId === inst.id);
+    const roleCounts = {
+      student: usersInInstitution.filter(u => u.role === 'student').length,
+      teacher: usersInInstitution.filter(u => u.role === 'teacher').length,
+      admin: usersInInstitution.filter(u => u.role === 'admin').length,
+    };
+    return {
+      id: inst.id,
+      name: inst.name,
+      departmentCount: inst.departments.length,
+      totalUsers: usersInInstitution.length,
+      chartData: [
+        { role: "Students", count: roleCounts.student, fill: "var(--color-students)" },
+        { role: "Teachers", count: roleCounts.teacher, fill: "var(--color-teachers)" },
+        { role: "Admins", count: roleCounts.admin, fill: "var(--color-admins)" },
+      ],
+    };
+  });
+
+  const chartConfig = {
+    count: {
+      label: "Users",
+    },
+    students: {
+      label: "Students",
+      color: "hsl(var(--chart-1))",
+    },
+    teachers: {
+      label: "Teachers",
+      color: "hsl(var(--chart-2))",
+    },
+    admins: {
+      label: "Admins",
+      color: "hsl(var(--chart-3))",
+    },
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1 p-4 sm:p-6 space-y-6">
@@ -34,6 +81,65 @@ export default function ServerDashboardPage() {
               </Link>
             </Button>
           </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>System Statistics</CardTitle>
+                <CardDescription>An overview of all users and institutions in the system.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
+                    <Users2 className="h-8 w-8 text-primary" />
+                    <div>
+                        <p className="text-sm text-muted-foreground">Total Users in System</p>
+                        <p className="text-2xl font-bold">{totalUsers}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    {institutionStats.map(stat => (
+                        <div key={stat.id} className="p-4 border rounded-lg">
+                            <h3 className="text-lg font-semibold">{stat.name}</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 mb-4 text-center md:text-left">
+                               <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                    <Users2 className="h-5 w-5 text-muted-foreground"/>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Total Users</p>
+                                        <p className="font-bold">{stat.totalUsers}</p>
+                                    </div>
+                               </div>
+                               <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                    <School className="h-5 w-5 text-muted-foreground"/>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Departments</p>
+                                        <p className="font-bold">{stat.departmentCount}</p>
+                                    </div>
+                               </div>
+                            </div>
+                            <ChartContainer config={chartConfig} className="w-full h-[200px]">
+                                <RechartsBarChart data={stat.chartData} layout="vertical" margin={{ left: 10 }}>
+                                    <CartesianGrid horizontal={false} />
+                                    <YAxis 
+                                        dataKey="role" 
+                                        type="category" 
+                                        tickLine={false} 
+                                        axisLine={false} 
+                                        tickMargin={10}
+                                        width={80}
+                                    />
+                                    <XAxis type="number" hide />
+                                    <ChartTooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent hideLabel />}
+                                    />
+                                    <Bar dataKey="count" radius={5} />
+                                </RechartsBarChart>
+                            </ChartContainer>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
         </Card>
       </main>
     </div>
