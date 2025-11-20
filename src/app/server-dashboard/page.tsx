@@ -62,22 +62,22 @@ export default async function ServerDashboardPage() {
             <CardTitle>Management</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
-            <Button asChild variant="outline" className="h-auto aspect-square flex-col gap-2 p-4 text-center">
+            <Button asChild variant="outline" className="flex-col h-24 sm:h-28">
               <Link href="/server-manage-institution">
-                <Building className="h-6 w-6 sm:h-8 sm:w-8" />
-                <span className="text-xs sm:text-sm">Manage Institutions</span>
+                <Building className="h-6 w-6 mb-2" />
+                <span className="text-xs text-center">Manage Institutions</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-auto aspect-square flex-col gap-2 p-4 text-center">
+            <Button asChild variant="outline" className="flex-col h-24 sm:h-28">
               <Link href="/server-manage-user">
-                <Users className="h-6 w-6 sm:h-8 sm:w-8" />
-                <span className="text-xs sm:text-sm">Manage Users</span>
+                <Users className="h-6 w-6 mb-2" />
+                <span className="text-xs text-center">Manage Users</span>
               </Link>
             </Button>
-             <Button asChild variant="outline" className="h-auto aspect-square flex-col gap-2 p-4 text-center">
+             <Button asChild variant="outline" className="flex-col h-24 sm:h-28">
               <Link href="/server-manage-theme">
-                <Palette className="h-6 w-6 sm:h-8 sm:w-8" />
-                <span className="text-xs sm:text-sm">Manage Theme</span>
+                <Palette className="h-6 w-6 mb-2" />
+                <span className="text-xs text-center">Manage Theme</span>
               </Link>
             </Button>
           </CardContent>
