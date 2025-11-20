@@ -55,7 +55,6 @@ type StudentAttendanceSummary = {
   name: string;
   profileImage?: string;
   present: number;
-  absent: number;
   approved: number;
   conflict: number;
   revoked: number;
@@ -221,9 +220,6 @@ setLoadingAttendance(false);
       const conflict = records.filter((r) => r.status === "Conflict").length;
       const revoked = records.filter((r) => r.status === "Revoked").length;
       
-      const attendedCount = present + approved + conflict + revoked;
-      const absent = workingDaysPassed - attendedCount;
-      
       const percentage =
         workingDaysPassed > 0
           ? ((present + approved) / workingDaysPassed) * 100
@@ -234,7 +230,6 @@ setLoadingAttendance(false);
         name: student.name,
         profileImage: student.profileImage,
         present,
-        absent,
         approved,
         conflict,
         revoked,
@@ -372,7 +367,7 @@ setLoadingAttendance(false);
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-center font-mono text-base sm:text-lg px-2 sm:px-4">
-                                    {student.present + student.approved} / {student.absent + student.conflict}
+                                    {student.present + student.approved} / {student.workingDaysPassed - (student.present + student.approved)}
                                 </TableCell>
                                 <TableCell
                                 className={cn(
@@ -407,5 +402,6 @@ setLoadingAttendance(false);
     </div>
   );
 }
+
 
 
