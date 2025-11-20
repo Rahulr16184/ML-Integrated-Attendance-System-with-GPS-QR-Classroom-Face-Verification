@@ -75,6 +75,7 @@ export type AttendanceLog = {
 export type Student = {
     uid: string;
     name: string;
+    profileImage?: string;
 };
 
     

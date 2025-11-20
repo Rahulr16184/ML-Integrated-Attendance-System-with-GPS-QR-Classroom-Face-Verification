@@ -1,0 +1,383 @@
+
+"use client";
+
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { getInstitutions } from "@/services/institution-service";
+import { getSemesters } from "@/services/working-days-service";
+import { getStudentsByDepartment } from "@/services/user-service";
+import { getStudentAttendance } from "@/services/attendance-service";
+import type { Department, Semester, AttendanceLog, Student } from "@/lib/types";
+import { parseISO, startOfToday, isSameDay } from "date-fns";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+import { BarChart, Users } from "lucide-react";
+
+const parseSemesterDates = (semester: Semester) => ({
+  ...semester,
+  dateRange: {
+    from: parseISO(semester.dateRange.from as unknown as string),
+    to: parseISO(semester.dateRange.to as unknown as string),
+  },
+  holidays: semester.holidays.map((h) => parseISO(h as unknown as string)),
+});
+
+type StudentAttendanceSummary = {
+  uid: string;
+  name: string;
+  profileImage?: string;
+  present: number;
+  absent: number;
+  approved: number;
+  conflict: number;
+  revoked: number;
+  totalWorkingDays: number;
+  workingDaysPassed: number;
+  percentage: number;
+};
+
+export default function DepartmentAttendancePage() {
+  const { userProfile, loading: userLoading } = useUserProfile();
+  const { toast } = useToast();
+
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
+
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
+  const [loadingSemesters, setLoadingSemesters] = useState(false);
+
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  const [attendanceData, setAttendanceData] = useState<
+    Record<string, AttendanceLog[]>
+  >({});
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+
+  useEffect(() => {
+    async function fetchDepartments() {
+      if (userProfile?.institutionId && userProfile.departmentIds) {
+        setLoadingDepartments(true);
+        const institutions = await getInstitutions();
+        const currentInstitution = institutions.find(
+          (inst) => inst.id === userProfile.institutionId
+        );
+        if (currentInstitution) {
+          const userDepartments = currentInstitution.departments.filter((d) =>
+            userProfile.departmentIds?.includes(d.id)
+          );
+          setAllDepartments(userDepartments);
+          if (userDepartments.length > 0 && !selectedDepartmentId) {
+            setSelectedDepartmentId(userDepartments[0].id);
+          }
+        }
+        setLoadingDepartments(false);
+      }
+    }
+    if (!userLoading) {
+      fetchDepartments();
+    }
+  }, [userProfile, userLoading, selectedDepartmentId]);
+
+  useEffect(() => {
+    async function fetchSemestersAndStudents() {
+      if (!selectedDepartmentId || !userProfile?.institutionId) return;
+
+      // Fetch Semesters
+      setLoadingSemesters(true);
+      try {
+        const fetchedSemesters = await getSemesters(
+          userProfile.institutionId,
+          selectedDepartmentId
+        );
+        const parsedSemesters = fetchedSemesters.map(parseSemesterDates);
+        setSemesters(parsedSemesters);
+        if (parsedSemesters.length > 0) {
+          const currentSem =
+            parsedSemesters.find(
+              (s) =>
+                isSameDay(s.dateRange.from, new Date()) ||
+                (new Date() > s.dateRange.from && new Date() < s.dateRange.to)
+            ) || parsedSemesters[0];
+          setSelectedSemesterId(currentSem.id);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Could not fetch semesters.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingSemesters(false);
+      }
+
+      // Fetch Students
+      setLoadingStudents(true);
+      try {
+        const fetchedStudents = await getStudentsByDepartment(
+          userProfile.institutionId,
+          selectedDepartmentId
+        );
+        setStudents(fetchedStudents);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Could not fetch student list.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingStudents(false);
+      }
+    }
+    fetchSemestersAndStudents();
+  }, [selectedDepartmentId, userProfile?.institutionId, toast]);
+
+  const selectedSemester = useMemo(() => {
+    return semesters.find((s) => s.id === selectedSemesterId);
+  }, [semesters, selectedSemesterId]);
+
+  useEffect(() => {
+    async function fetchAllAttendance() {
+      if (students.length === 0 || !selectedSemester) {
+        setAttendanceData({});
+        return;
+      }
+
+      setLoadingAttendance(true);
+      const allData: Record<string, AttendanceLog[]> = {};
+      await Promise.all(
+        students.map(async (student) => {
+          const records = await getStudentAttendance(
+            student.uid,
+            selectedSemester.dateRange.from,
+            selectedSemester.dateRange.to
+          );
+          allData[student.uid] = records.filter(rec => rec.departmentId === selectedDepartmentId);
+        })
+      );
+      setAttendanceData(allData);
+      setLoadingAttendance(false);
+    }
+
+    fetchAllAttendance();
+  }, [students, selectedSemester, selectedDepartmentId]);
+
+  const attendanceSummary = useMemo((): StudentAttendanceSummary[] => {
+    if (!selectedSemester || students.length === 0) return [];
+
+    const today = startOfToday();
+    const holidays = new Set(
+      selectedSemester.holidays.map((h) => h.toDateString())
+    );
+    let totalWorkingDays = 0;
+    let workingDaysPassed = 0;
+
+    for (
+      let d = new Date(selectedSemester.dateRange.from);
+      d <= selectedSemester.dateRange.to;
+      d.setDate(d.getDate() + 1)
+    ) {
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(d.toDateString())) {
+        totalWorkingDays++;
+        if (d <= today) {
+          workingDaysPassed++;
+        }
+      }
+    }
+
+    return students.map((student) => {
+      const records = attendanceData[student.uid] || [];
+      const present = records.filter((r) => r.status === "Present").length;
+      const approved = records.filter(
+        (r) => r.status === "Approved Present"
+      ).length;
+      const conflict = records.filter((r) => r.status === "Conflict").length;
+      const revoked = records.filter((r) => r.status === "Revoked").length;
+      
+      const attendedDates = new Set(records.map(r => parseISO(r.date).toDateString()));
+      let absent = 0;
+      for (
+        let d = new Date(selectedSemester.dateRange.from);
+        d <= today && d <= selectedSemester.dateRange.to;
+        d.setDate(d.getDate() + 1)
+      ) {
+          const dayOfWeek = d.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(d.toDateString()) && !attendedDates.has(d.toDateString())) {
+            absent++;
+          }
+      }
+
+      const passed = present + approved + absent + conflict + revoked;
+
+      const percentage = passed > 0 ? ((present + approved) / passed) * 100 : 0;
+      
+      return {
+        uid: student.uid,
+        name: student.name,
+        profileImage: student.profileImage,
+        present,
+        absent,
+        approved,
+        conflict,
+        revoked,
+        totalWorkingDays,
+        workingDaysPassed: passed,
+        percentage,
+      };
+    });
+  }, [selectedSemester, students, attendanceData]);
+  
+  const isLoading = userLoading || loadingDepartments || loadingSemesters || loadingStudents || loadingAttendance;
+
+  return (
+    <div className="p-4 sm:p-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><BarChart/> Department Attendance Eligibility</CardTitle>
+          <CardDescription>
+            View student attendance percentages for the 75% eligibility criteria.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Department</Label>
+            {userLoading || loadingDepartments ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <Select
+                onValueChange={setSelectedDepartmentId}
+                value={selectedDepartmentId}
+                disabled={allDepartments.length === 0}
+              >
+                <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
+                <SelectContent>
+                  {allDepartments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>Semester</Label>
+            {loadingSemesters ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <Select
+                onValueChange={setSelectedSemesterId}
+                value={selectedSemesterId}
+                disabled={semesters.length === 0}
+              >
+                <SelectTrigger><SelectValue placeholder="Select Semester" /></SelectTrigger>
+                <SelectContent>
+                  {semesters.map((sem) => (
+                    <SelectItem key={sem.id} value={sem.id}>
+                      {sem.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {isLoading ? (
+        <Skeleton className="h-96 w-full" />
+      ) : selectedDepartmentId && selectedSemesterId ? (
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Users /> Student Overview</CardTitle>
+                <CardDescription>
+                    {students.length} student(s) found in this department.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="border rounded-lg overflow-x-auto">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead className="w-[60px]">Photo</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="text-center">Present</TableHead>
+                        <TableHead className="text-center">Absent</TableHead>
+                        <TableHead className="text-center">Total</TableHead>
+                        <TableHead className="text-center">Percentage</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {attendanceSummary.map((student) => (
+                        <TableRow key={student.uid}>
+                            <TableCell>
+                            <Avatar>
+                                <AvatarImage src={student.profileImage} />
+                                <AvatarFallback>{student.name?.[0]}</AvatarFallback>
+                            </Avatar>
+                            </TableCell>
+                            <TableCell className="font-medium">{student.name}</TableCell>
+                            <TableCell className="text-center">{student.present + student.approved}</TableCell>
+                            <TableCell className="text-center">{student.absent}</TableCell>
+                            <TableCell className="text-center">{student.workingDaysPassed}</TableCell>
+                            <TableCell
+                            className={cn(
+                                "text-center font-bold",
+                                student.percentage >= 75
+                                ? "text-green-600"
+                                : "text-red-600"
+                            )}
+                            >
+                            {student.percentage.toFixed(2)}%
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
+                </div>
+                 {students.length === 0 && (
+                    <div className="text-center text-muted-foreground p-8">
+                        No students found in this department.
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+      ) : (
+          <Card>
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                  Select a department and semester to view the report.
+              </CardContent>
+          </Card>
+      )}
+    </div>
+  );
+}

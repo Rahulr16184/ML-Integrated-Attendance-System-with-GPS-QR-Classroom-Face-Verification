@@ -27,7 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
-import { CheckSquare, ClipboardCheck, School, Home, LogOut, ShieldAlert, Sun, Moon } from "lucide-react";
+import { CheckSquare, ClipboardCheck, School, Home, LogOut, ShieldAlert, Sun, Moon, BarChart } from "lucide-react";
 
 export function StudentNav() {
   const pathname = usePathname();
@@ -59,6 +59,12 @@ export function StudentNav() {
       href: "/view-attendance",
       label: "View Attendance",
       icon: ClipboardCheck,
+      group: "attendance",
+    },
+    {
+      href: "/department-attendance-percentage",
+      label: "Dept. Attendance %",
+      icon: BarChart,
       group: "attendance",
     },
     {

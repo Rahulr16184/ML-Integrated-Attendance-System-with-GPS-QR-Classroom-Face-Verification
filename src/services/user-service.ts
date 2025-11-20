@@ -170,10 +170,14 @@ export const getStudentsByDepartment = async (institutionId: string, departmentI
             return [];
         }
 
-        return querySnapshot.docs.map(doc => ({
-            uid: doc.id,
-            name: doc.data().name,
-        }));
+        return querySnapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            return {
+                uid: docSnap.id,
+                name: data.name,
+                profileImage: data.profileImage, // Include profile image
+            };
+        }) as Student[];
     } catch (error) {
         console.error("Error fetching students by department:", error);
         throw new Error("Could not fetch student list.");
