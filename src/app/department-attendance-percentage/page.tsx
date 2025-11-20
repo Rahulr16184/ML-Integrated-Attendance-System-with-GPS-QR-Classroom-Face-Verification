@@ -203,14 +203,12 @@ setLoadingAttendance(false);
 
     for (
       let d = new Date(selectedSemester.dateRange.from);
-      d <= selectedSemester.dateRange.to;
+      d <= today && d <= selectedSemester.dateRange.to;
       d.setDate(d.getDate() + 1)
     ) {
       const dayOfWeek = d.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(d.toDateString())) {
-        if (d <= today) {
           workingDaysPassed++;
-        }
       }
     }
 
@@ -223,19 +221,9 @@ setLoadingAttendance(false);
       const conflict = records.filter((r) => r.status === "Conflict").length;
       const revoked = records.filter((r) => r.status === "Revoked").length;
       
-      const attendedDates = new Set(records.map(r => parseISO(r.date).toDateString()));
-      let absent = 0;
-      for (
-        let d = new Date(selectedSemester.dateRange.from);
-        d <= today && d <= selectedSemester.dateRange.to;
-        d.setDate(d.getDate() + 1)
-      ) {
-          const dayOfWeek = d.getDay();
-          if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(d.toDateString()) && !attendedDates.has(d.toDateString())) {
-            absent++;
-          }
-      }
-
+      const attendedCount = present + approved + conflict + revoked;
+      const absent = workingDaysPassed - attendedCount;
+      
       const percentage =
         workingDaysPassed > 0
           ? ((present + approved) / workingDaysPassed) * 100
@@ -367,7 +355,7 @@ setLoadingAttendance(false);
                         <TableHeader>
                             <TableRow>
                             <TableHead className="px-2 sm:px-4">Student</TableHead>
-                            <TableHead className="text-center px-2 sm:px-4">Present / Absent</TableHead>
+                            <TableHead className="text-center px-2 sm:px-4 whitespace-nowrap">Present / Absent</TableHead>
                             <TableHead className="text-center px-2 sm:px-4">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -419,4 +407,5 @@ setLoadingAttendance(false);
     </div>
   );
 }
+
 
