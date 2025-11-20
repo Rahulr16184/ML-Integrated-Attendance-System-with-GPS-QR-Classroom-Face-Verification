@@ -24,7 +24,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
-type ReportRecord = AttendanceLog & { studentName: string; profileImage?: string };
+type ReportRecord = Partial<AttendanceLog> & { 
+    id: string;
+    studentId: string;
+    studentName: string; 
+    profileImage?: string;
+    status: AttendanceLog['status'] | 'Absent';
+};
 
 export default function ViewTodayClassReportPage() {
   const { userProfile, loading: userLoading } = useUserProfile();
@@ -65,7 +71,7 @@ export default function ViewTodayClassReportPage() {
       }
     }
     if (userProfile) fetchDepartments();
-  }, [userProfile, toast, selectedDepartmentId]);
+  }, [userProfile, toast]);
 
   // Fetch students and attendance records when filters change
   const fetchReportData = useCallback(async () => {
@@ -89,13 +95,13 @@ export default function ViewTodayClassReportPage() {
   }, [selectedDepartmentId, selectedDate, userProfile, toast]);
   
   useEffect(() => {
-    fetchReportData();
-  }, [fetchReportData]);
+    if(selectedDepartmentId) {
+      fetchReportData();
+    }
+  }, [selectedDepartmentId, selectedDate, fetchReportData]);
 
   const reportData = useMemo(() => {
-    const presentStudentIds = new Set(attendanceRecords.map(r => r.studentId));
-
-    const allReportRecords = allStudents.map(student => {
+    const allReportRecords: ReportRecord[] = allStudents.map(student => {
       const record = attendanceRecords.find(r => r.studentId === student.uid);
       if (record) {
         return { ...record, studentName: student.name, profileImage: student.profileImage };
@@ -109,18 +115,21 @@ export default function ViewTodayClassReportPage() {
           departmentId: selectedDepartmentId,
           date: selectedDate.toISOString(),
           status: "Absent",
-        } as ReportRecord;
+        };
       }
     });
     
     if (statusFilter === 'all') return allReportRecords;
-    if (statusFilter === 'present') return allReportRecords.filter(r => r.status !== 'Absent');
+    if (statusFilter === 'present') return allReportRecords.filter(r => r.status === 'Present');
     if (statusFilter === 'absent') return allReportRecords.filter(r => r.status === 'Absent');
+    if (statusFilter === 'approved') return allReportRecords.filter(r => r.status === 'Approved Present');
+    if (statusFilter === 'conflict') return allReportRecords.filter(r => r.status === 'Conflict');
+    if (statusFilter === 'revoked') return allReportRecords.filter(r => r.status === 'Revoked');
 
     return [];
   }, [attendanceRecords, allStudents, statusFilter, selectedDepartmentId, selectedDate]);
   
-  const getStatusBadgeVariant = (status: AttendanceLog['status']) => {
+  const getStatusBadgeVariant = (status: ReportRecord['status']) => {
     switch(status) {
         case 'Present': return 'default';
         case 'Approved Present': return 'secondary';
@@ -187,6 +196,9 @@ export default function ViewTodayClassReportPage() {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="present">Present</SelectItem>
                   <SelectItem value="absent">Absent</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="conflict">Conflict</SelectItem>
+                  <SelectItem value="revoked">Revoked</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -207,14 +219,14 @@ export default function ViewTodayClassReportPage() {
                 <Card key={record.id} className="overflow-hidden">
                     <CardHeader className="flex flex-row items-start gap-4 p-4">
                        <Avatar className="h-16 w-16 rounded-lg">
-                          <AvatarImage src={record.profileImage} alt={record.studentName} data-ai-hint="profile picture" />
+                          <AvatarImage src={record.profileImage} alt={record.studentName} />
                           <AvatarFallback className="rounded-lg">{record.studentName?.[0]}</AvatarFallback>
                        </Avatar>
                         <div className="flex-1 space-y-1">
                             <CardTitle className="text-base">{record.studentName}</CardTitle>
                             <div className="flex flex-wrap gap-2">
                                 <Badge variant={getStatusBadgeVariant(record.status)}>{record.status}</Badge>
-                                {record.status !== 'Absent' && (
+                                {record.status !== 'Absent' && record.mode && (
                                     <Badge variant="outline">
                                         {record.mode === 1 ? "GPS+Face" : "QR+Face"}
                                     </Badge>
@@ -224,12 +236,12 @@ export default function ViewTodayClassReportPage() {
                     </CardHeader>
                     {record.status !== 'Absent' && (
                         <CardContent className="p-4 pt-0 space-y-2 text-sm text-muted-foreground border-t">
-                             {record.status !== 'Approved Present' && record.verificationPhotoUrl && (
+                             {record.verificationPhotoUrl && (record.status === 'Present' || record.status === 'Conflict') && (
                                 <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted">
-                                    <Image src={record.verificationPhotoUrl} alt="Verification" fill className="object-cover" data-ai-hint="student classroom" />
+                                    <Image src={record.verificationPhotoUrl} alt="Verification" fill className="object-cover" />
                                 </div>
                              )}
-                             {record.status === 'Approved Present' && (
+                             {record.status === 'Approved Present' && record.verificationPhotoUrl && (
                                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
                                     <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Approval Reason</p>
                                     <p className="text-sm">{record.verificationPhotoUrl}</p>
@@ -237,11 +249,15 @@ export default function ViewTodayClassReportPage() {
                              )}
                               <div className="grid grid-cols-2 gap-1">
                                   <span className="font-medium">Time:</span>
-                                  <span>{record.status === 'Approved Present' ? '--' : format(new Date(record.date), 'p')}</span>
+                                  <span>{record.date && record.status !== 'Approved Present' ? format(new Date(record.date), 'p') : '--'}</span>
                                   <span className="font-medium">Marked By:</span>
                                   <span className="capitalize">{record.markedBy || '--'}</span>
-                                  <span className="font-medium">Location:</span>
-                                  <span>{record.location ? `${record.location.lat.toFixed(4)}, ${record.location.lng.toFixed(4)}` : '--'}</span>
+                                  {record.location && (
+                                      <>
+                                          <span className="font-medium">Location:</span>
+                                          <span>{`${record.location.lat.toFixed(4)}, ${record.location.lng.toFixed(4)}`}</span>
+                                      </>
+                                  )}
                               </div>
                               {record.notes && (
                                   <div className="pt-2">
