@@ -347,7 +347,8 @@ setLoadingAttendance(false);
                 {selectedSemester && (
                     <CardFooter className="justify-center pt-4 border-t">
                         <p className="text-sm text-muted-foreground">
-                            Working days from {format(selectedSemester.dateRange.from, 'MMM dd, yyyy')} to {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}
+                            Working days from {format(selectedSemester.dateRange.from, 'MMM dd, yyyy')} to {format(selectedSemester.dateRange.to, 'MMM dd, yyyy')}. 
+                            <span className="font-bold text-green-600 dark:text-green-400"> Total: {selectedSemester.workingDays} days</span>
                         </p>
                     </CardFooter>
                 )}
@@ -365,9 +366,9 @@ setLoadingAttendance(false);
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead>Student</TableHead>
-                            <TableHead className="text-center">Present / Absent</TableHead>
-                            <TableHead className="text-center">Percentage</TableHead>
+                            <TableHead className="px-2 sm:px-4">Student</TableHead>
+                            <TableHead className="text-center px-2 sm:px-4">Present / Absent</TableHead>
+                            <TableHead className="text-center px-2 sm:px-4">Percentage</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -418,3 +419,4 @@ setLoadingAttendance(false);
     </div>
   );
 }
+
