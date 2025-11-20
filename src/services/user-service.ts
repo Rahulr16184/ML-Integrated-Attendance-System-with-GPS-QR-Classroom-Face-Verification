@@ -113,6 +113,48 @@ export const getUserData = async (uid: string): Promise<UserProfile | null> => {
     }
 }
 
+export const getAllUsers = async (): Promise<UserProfile[]> => {
+    try {
+        const usersRef = collection(db, 'users');
+        const userSnapshot = await getDocs(usersRef);
+
+        if (userSnapshot.empty) {
+            return [];
+        }
+
+        const institutionsCollection = collection(db, 'institutions');
+        const institutionSnapshot = await getDocs(institutionsCollection);
+        const institutionsMap = new Map(institutionSnapshot.docs.map(doc => [doc.id, doc.data().name]));
+
+        const departmentsMap = new Map<string, string>();
+        for (const instDoc of institutionSnapshot.docs) {
+            const departmentsCol = collection(db, `institutions/${instDoc.id}/departments`);
+            const departmentSnapshot = await getDocs(departmentsCol);
+            departmentSnapshot.forEach(deptDoc => {
+                departmentsMap.set(deptDoc.id, deptDoc.data().name);
+            });
+        }
+
+        const allUsers = userSnapshot.docs.map(userDoc => {
+            const userData = userDoc.data();
+            const institutionName = institutionsMap.get(userData.institutionId) || 'N/A';
+            const departmentNames = (userData.departmentIds || []).map((id: string) => departmentsMap.get(id)).filter(Boolean);
+
+            return {
+                uid: userDoc.id,
+                ...userData,
+                institutionName,
+                departmentNames
+            } as UserProfile;
+        });
+
+        return allUsers;
+    } catch (error) {
+        console.error("Error fetching all users:", error);
+        return [];
+    }
+};
+
 export const getStudentsByDepartment = async (institutionId: string, departmentId: string): Promise<Student[]> => {
     try {
         const usersRef = collection(db, 'users');
@@ -172,5 +214,3 @@ export const updateUser = async (uid: string, data: Partial<UserProfile>): Promi
        await updateDoc(userDocRef, data);
     }
 };
-
-    
