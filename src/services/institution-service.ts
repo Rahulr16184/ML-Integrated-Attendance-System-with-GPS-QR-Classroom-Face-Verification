@@ -1,8 +1,11 @@
 
 
+'use server';
+
 import { db } from '@/lib/conf';
 import { collection, getDocs, addDoc, doc, updateDoc, getDoc, writeBatch, deleteDoc, arrayUnion, arrayRemove, serverTimestamp, Timestamp } from 'firebase/firestore';
 import type { Department, Institution, ClassroomPhoto } from '@/lib/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper to generate a set of codes for a new department
 const generateSecretCodes = (institutionAcronym: string, departmentAcronym: string) => {
@@ -29,6 +32,9 @@ export const getInstitutions = async (): Promise<Institution[]> => {
             // Convert Firestore Timestamps to numbers if they exist
             if (data.classroomCode && data.classroomCode.expiresAt instanceof Timestamp) {
                 data.classroomCode.expiresAt = data.classroomCode.expiresAt.toMillis();
+            }
+             if (data.qrToken && data.qrToken.expiresAt instanceof Timestamp) {
+                data.qrToken.expiresAt = data.qrToken.expiresAt.toMillis();
             }
             return {
                 id: deptDoc.id,
@@ -205,4 +211,58 @@ export const verifyClassroomCode = async (institutionId: string, departmentId: s
 export const clearClassroomCode = async (institutionId: string, departmentId: string): Promise<void> => {
     const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
     await updateDoc(departmentDoc, { classroomCode: null });
-}
+};
+
+// --- QR Code Token Functions ---
+
+export const generateQrToken = async (institutionId: string, departmentId: string): Promise<string> => {
+    const token = uuidv4();
+    const expiresAt = Timestamp.fromMillis(Date.now() + 30 * 1000); // 30 seconds from now
+
+    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    await updateDoc(departmentDoc, {
+        qrToken: {
+            token,
+            expiresAt,
+        },
+    });
+    return token;
+};
+
+export const verifyQrToken = async (institutionId: string, departmentId: string, token: string): Promise<{ success: boolean, message: string }> => {
+    const departmentDocRef = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    const departmentDoc = await getDoc(departmentDocRef);
+
+    if (!departmentDoc.exists()) {
+        return { success: false, message: "Department not found." };
+    }
+
+    const departmentData = departmentDoc.data() as Department;
+    const storedTokenData = departmentData.qrToken;
+
+    if (!storedTokenData || !storedTokenData.token) {
+        return { success: false, message: "No active QR code for this department." };
+    }
+
+    if (storedTokenData.token !== token) {
+        return { success: false, message: "Invalid or expired QR code." };
+    }
+
+    const expirationTime = storedTokenData.expiresAt instanceof Timestamp 
+        ? storedTokenData.expiresAt.toMillis()
+        : storedTokenData.expiresAt;
+
+    if (expirationTime < Date.now()) {
+        return { success: false, message: "The QR code has expired." };
+    }
+    
+    // Clear the token to make it single-use
+    await updateDoc(departmentDocRef, { qrToken: null });
+
+    return { success: true, message: "QR Code verified successfully." };
+};
+
+export const clearQrToken = async (institutionId: string, departmentId: string): Promise<void> => {
+    const departmentDoc = doc(db, `institutions/${institutionId}/departments`, departmentId);
+    await updateDoc(departmentDoc, { qrToken: null });
+};

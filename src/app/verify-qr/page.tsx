@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { getInstitutions } from '@/services/institution-service';
+import { getInstitutions, verifyQrToken } from '@/services/institution-service';
 import type { Department } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, QrCode, Info, ScanLine } from 'lucide-react';
@@ -29,7 +29,7 @@ export default function VerifyQrPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     
-    const [status, setStatus] = useState<'pending' | 'scanning' | 'success' | 'failed'>('pending');
+    const [status, setStatus] = useState<'pending' | 'scanning' | 'verifying' | 'success' | 'failed'>('pending');
     const [statusMessage, setStatusMessage] = useState('Click "Start Scan" to begin.');
     
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -76,6 +76,35 @@ export default function VerifyQrPage() {
         setIsCameraLive(false);
     }, []);
 
+    const handleVerification = useCallback(async (token: string) => {
+        if (!userProfile?.institutionId || !departmentId) return;
+
+        stopCamera();
+        setStatus('verifying');
+        setStatusMessage('Validating token...');
+
+        try {
+            const result = await verifyQrToken(userProfile.institutionId, departmentId, token);
+            if (result.success) {
+                setStatus('success');
+                setStatusMessage('QR Code Validated! Redirecting...');
+                toast({ title: "Success", description: result.message });
+                setTimeout(() => {
+                    router.push(`/verify-face?deptId=${departmentId}&mode=2`);
+                }, 1500);
+            } else {
+                setStatus('failed');
+                setStatusMessage(result.message);
+                toast({ title: "Invalid QR Code", description: result.message, variant: "destructive" });
+            }
+        } catch (err) {
+            setStatus('failed');
+            setStatusMessage("An error occurred during verification.");
+            toast({ title: "Error", description: "Could not verify the token.", variant: "destructive" });
+        }
+    }, [userProfile?.institutionId, departmentId, stopCamera, toast, router]);
+    
+
     const tick = useCallback(() => {
         if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
             const video = videoRef.current;
@@ -91,26 +120,11 @@ export default function VerifyQrPage() {
                     inversionAttempts: "dontInvert",
                 });
                 if (code) {
-                    // QR Code format: tracein-qr;dept:{departmentId};ts:{timestamp};rand:{random}
-                    const parts = code.data.split(';');
-                    if (parts.length === 4 && parts[0] === 'tracein-qr' && parts[1] === `dept:${departmentId}`) {
-                        setStatus('success');
-                        setStatusMessage('QR Code Validated! Redirecting...');
-                        stopCamera();
-                        toast({ title: "Success", description: "QR Code is valid." });
-                        setTimeout(() => {
-                            router.push(`/verify-face?deptId=${departmentId}&mode=2`);
-                        }, 1500);
-                    } else {
-                        setStatus('failed');
-                        setStatusMessage('Invalid QR Code for this department.');
-                        toast({ title: "Invalid QR Code", description: "Please scan the correct code for this department.", variant: "destructive" });
-                        stopCamera();
-                    }
+                    handleVerification(code.data);
                 }
             }
         }
-    }, [departmentId, router, stopCamera, toast]);
+    }, [handleVerification]);
     
     const startCamera = useCallback(async () => {
         if (isCameraLive) return;
@@ -123,7 +137,7 @@ export default function VerifyQrPage() {
                 await videoRef.current.play();
                 setIsCameraLive(true);
                 setStatusMessage('Point your camera at the QR code.');
-                scanIntervalRef.current = setInterval(tick, 100);
+                scanIntervalRef.current = setInterval(tick, 200); // Scan every 200ms
             }
         } catch (err) {
             setStatusMessage(`Camera error: ${(err as Error).message}. Please grant permissions.`);
@@ -161,7 +175,7 @@ export default function VerifyQrPage() {
     
     const cameraFrameColor = cn("aspect-video w-full mx-auto bg-muted rounded-lg flex items-center justify-center overflow-hidden relative border-4 transition-colors",
         { "border-muted": status === 'pending',
-          "border-primary": status === 'scanning',
+          "border-primary": status === 'scanning' || status === 'verifying',
           "border-green-500": status === 'success',
           "border-destructive": status === 'failed' });
 
@@ -193,15 +207,12 @@ export default function VerifyQrPage() {
                     </CardHeader>
                     <CardContent className="min-h-[300px] flex flex-col items-center justify-center gap-4 text-center">
                         <div className={cameraFrameColor}>
-                             {!isCameraLive && status !== 'success' && status !== 'failed' && (
-                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                    <QrCode className="h-12 w-12"/>
-                                </div>
-                            )}
+                             {status === 'pending' && <QrCode className="h-12 w-12 text-muted-foreground"/>}
+                             {status === 'verifying' && <Loader2 className="h-12 w-12 text-primary animate-spin" />}
                              {(status === 'failed' && !isCameraLive) && <XCircle className="h-12 w-12 text-destructive" />}
                              {(status === 'success' && !isCameraLive) && <CheckCircle className="h-12 w-12 text-green-500" />}
 
-                            <video ref={videoRef} className={cn("w-full h-full object-cover transform -scale-x-100", !isCameraLive && "hidden")} />
+                            <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraLive && "hidden")} />
                             <canvas ref={canvasRef} className="hidden" />
                             
                             {isCameraLive && (

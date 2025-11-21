@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { getInstitutions } from "@/services/institution-service";
+import { getInstitutions, generateQrToken, clearQrToken } from "@/services/institution-service";
 import type { Department } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, Play, StopCircle, Loader2, ScanLine } from "lucide-react";
+import { QrCode, Play, StopCircle, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 const QR_REFRESH_INTERVAL = 30; // in seconds
@@ -32,8 +32,6 @@ export default function QrGeneratorPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [countdown, setCountdown] = useState(QR_REFRESH_INTERVAL);
-  const [scanCount, setScanCount] = useState(0);
-  const [wasScanned, setWasScanned] = useState(false);
   
   const [isAuthorized, setIsAuthorized] = useState(false);
 
@@ -74,41 +72,33 @@ export default function QrGeneratorPage() {
     if(isAuthorized && userProfile) {
         fetchDepartments();
     }
-  }, [userProfile, isAuthorized, toast]);
+  }, [userProfile, isAuthorized, toast, selectedDepartmentId]);
 
-  const stopGenerator = useCallback(() => {
+  const stopGenerator = useCallback(async () => {
     setIsGenerating(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
     setQrCodeUrl("");
-    setScanCount(0);
-  }, []);
-
-  const handleInterval = useCallback(() => {
-    if (wasScanned) {
-      // If scanned, generate a new one and continue
-      generateQrCode();
-    } else {
-      // If not scanned, stop the generator
-      stopGenerator();
-      toast({
-        title: "QR Generator Stopped",
-        description: "The code was not scanned within the time limit.",
-        variant: "destructive"
-      });
+    if (userProfile?.institutionId && selectedDepartmentId) {
+      await clearQrToken(userProfile.institutionId, selectedDepartmentId);
     }
-  }, [wasScanned, stopGenerator, toast]);
+  }, [userProfile?.institutionId, selectedDepartmentId]);
 
-  const generateQrCode = useCallback(() => {
-    if (!selectedDepartmentId) return;
-    const uniqueToken = `tracein-qr;dept:${selectedDepartmentId};ts:${Date.now()};rand:${Math.random()}`;
-    const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(uniqueToken)}&size=250x250`;
-    setQrCodeUrl(url);
-    setCountdown(QR_REFRESH_INTERVAL);
-    setWasScanned(false);
-  }, [selectedDepartmentId]);
+  const handleQrGeneration = useCallback(async () => {
+    if (!selectedDepartmentId || !userProfile?.institutionId) return;
+
+    try {
+        const token = await generateQrToken(userProfile.institutionId, selectedDepartmentId);
+        const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(token)}&size=250x250`;
+        setQrCodeUrl(url);
+        setCountdown(QR_REFRESH_INTERVAL);
+    } catch (error) {
+        toast({ title: "Error", description: "Could not generate QR code token.", variant: "destructive" });
+        stopGenerator();
+    }
+  }, [selectedDepartmentId, userProfile?.institutionId, toast, stopGenerator]);
 
   const startGenerator = () => {
     if (!selectedDepartmentId) {
@@ -116,38 +106,22 @@ export default function QrGeneratorPage() {
       return;
     }
     setIsGenerating(true);
-    setScanCount(0);
-    generateQrCode();
-    intervalRef.current = setInterval(handleInterval, QR_REFRESH_INTERVAL * 1000);
-  };
-
-  const simulateScan = () => {
-    if (!isGenerating) return;
-    
-    setScanCount(prev => prev + 1);
-    toast({ title: "Scan Simulated", description: "Generating new QR code." });
-    
-    // Immediately generate a new QR and reset the interval
-    if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-    }
-    generateQrCode(); // This will also reset wasScanned to false
-    intervalRef.current = setInterval(handleInterval, QR_REFRESH_INTERVAL * 1000);
+    handleQrGeneration(); // Initial generation
+    intervalRef.current = setInterval(handleQrGeneration, QR_REFRESH_INTERVAL * 1000);
   };
 
   useEffect(() => {
     let countdownInterval: NodeJS.Timeout | null = null;
     if (isGenerating) {
         countdownInterval = setInterval(() => {
-            setCountdown(prev => (prev > 0 ? prev - 1 : QR_REFRESH_INTERVAL));
+            setCountdown(prev => (prev > 1 ? prev - 1 : QR_REFRESH_INTERVAL));
         }, 1000);
     } else {
+        setCountdown(QR_REFRESH_INTERVAL);
         if(countdownInterval) clearInterval(countdownInterval);
     }
     return () => {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-      }
+      if (countdownInterval) clearInterval(countdownInterval);
     };
   }, [isGenerating]);
 
@@ -158,10 +132,14 @@ export default function QrGeneratorPage() {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      // Ensure token is cleared if user navigates away while generator is active
+      if (isGenerating) {
+        stopGenerator();
+      }
     };
-  }, []);
+  }, [isGenerating, stopGenerator]);
   
-  if(userLoading) {
+  if(userLoading || !isAuthorized) {
     return (
         <div className="p-4 sm:p-6 space-y-6">
             <Skeleton className="h-12 w-1/3" />
@@ -176,7 +154,7 @@ export default function QrGeneratorPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><QrCode/> QR Code Generator</CardTitle>
           <CardDescription>
-            Generate a unique, single-use QR code for attendance. The code will automatically refresh or stop if not used.
+            Generate a unique QR code for attendance. The code will automatically refresh.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -198,31 +176,26 @@ export default function QrGeneratorPage() {
                 )}
             </div>
             
-            {isGenerating ? (
-                <div className="flex flex-col items-center justify-center gap-4 p-4 border-dashed border-2 rounded-lg min-h-[300px]">
-                    {qrCodeUrl ? (
-                         <Image src={qrCodeUrl} alt="Generated QR Code" width={250} height={250} priority data-ai-hint="qr code" />
-                    ) : (
-                        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
-                    )}
-                    <div className="w-full max-w-xs text-center">
-                        <p className="text-sm text-muted-foreground">Generator will stop or refresh in {countdown}s...</p>
-                        <Progress value={(countdown / QR_REFRESH_INTERVAL) * 100} className="mt-2" />
-                    </div>
-                    <div className="text-center">
-                        <p className="font-bold text-lg">Scans: {scanCount}</p>
-                        <Button onClick={simulateScan} variant="outline" size="sm" className="mt-2">
-                            <ScanLine className="mr-2 h-4 w-4" />
-                            Simulate Student Scan
-                        </Button>
-                    </div>
-                </div>
-            ) : (
-                 <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground p-4 border-dashed border-2 rounded-lg min-h-[300px]">
-                    <QrCode className="h-16 w-16" />
-                    <p>Click "Start Generator" to begin displaying QR codes for attendance.</p>
-                 </div>
-            )}
+            <div className="flex flex-col items-center justify-center gap-4 p-4 border-dashed border-2 rounded-lg min-h-[300px]">
+                {isGenerating ? (
+                    <>
+                        {qrCodeUrl ? (
+                            <Image src={qrCodeUrl} alt="Generated QR Code" width={250} height={250} priority data-ai-hint="qr code" />
+                        ) : (
+                            <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+                        )}
+                        <div className="w-full max-w-xs text-center">
+                            <p className="text-sm text-muted-foreground">New code in {countdown}s...</p>
+                            <Progress value={(countdown / QR_REFRESH_INTERVAL) * 100} className="mt-2" />
+                        </div>
+                    </>
+                ) : (
+                     <div className="text-center text-muted-foreground space-y-2">
+                        <QrCode className="h-16 w-16 mx-auto" />
+                        <p>Click "Start Generator" to begin displaying QR codes.</p>
+                     </div>
+                )}
+            </div>
         </CardContent>
         <CardFooter className="flex justify-center">
             {isGenerating ? (

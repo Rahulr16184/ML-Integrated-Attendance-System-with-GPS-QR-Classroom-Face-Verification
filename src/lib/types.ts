@@ -40,6 +40,10 @@ export type Department = {
   classroomCode?: {
     code: string;
     expiresAt: number; // Store as Firestore Timestamp or number
+  };
+  qrToken?: {
+    token: string;
+    expiresAt: number; // Store as Firestore Timestamp or number
   }
 };
 
